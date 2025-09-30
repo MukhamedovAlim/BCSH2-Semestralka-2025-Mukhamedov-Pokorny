@@ -3,7 +3,7 @@
 
 **Autoři:**  
 - Alim Mukhamedov  
-- Jan Pokorný  
+- David Pokorný  
 
 **Varianta:** (b) Rozsáhlá databázová aplikace – propojení se semestrální prací z předmětu BDAS2  
 **Téma:** Fitness centrum (webová aplikace)  
