@@ -1,5 +1,4 @@
 # BCSH2-Semestralka-2025-Mukhamedov-Pokorny
-# BCSH2 – Semestrální práce 2025
 
 **Autoři:**  
 - Alim Mukhamedov  
