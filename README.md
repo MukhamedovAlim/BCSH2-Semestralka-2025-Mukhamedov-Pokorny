@@ -1,0 +1,1 @@
+# BCSH2-Semestralka-2025-Mukhamedov-Pokorny
