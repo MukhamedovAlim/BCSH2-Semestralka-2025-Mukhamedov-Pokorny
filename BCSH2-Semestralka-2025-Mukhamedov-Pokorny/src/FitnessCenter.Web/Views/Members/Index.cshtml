@@ -1,0 +1,21 @@
+﻿@model IEnumerable<FitnessCenter.Web.Models.MemberViewModel>
+@{
+    ViewData["Title"] = "Members";
+}
+<h2>Members</h2>
+<table class="table">
+    <thead>
+        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Active</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var m in Model)
+        {
+            <tr>
+                <td>@m.FirstName @m.LastName</td>
+                <td>@m.Email</td>
+                <td>@m.Phone</td>
+                <td>@(m.IsActive ? "Yes" : "No")</td>
+            </tr>
+        }
+    </tbody>
+</table>
