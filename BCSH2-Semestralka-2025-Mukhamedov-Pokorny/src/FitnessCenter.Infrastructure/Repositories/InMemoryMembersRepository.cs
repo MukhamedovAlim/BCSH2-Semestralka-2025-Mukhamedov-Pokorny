@@ -1,12 +1,8 @@
-﻿using BCSH2_Semestralka_2025_Mukhamedov_Pokorny.src.FitnessCenter.Domain.Entities;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace FitnessCenter.Infrastructure.Repositories;
 
-namespace BCSH2_Semestralka_2025_Mukhamedov_Pokorny.src.FitnessCenter.Infrastructure.Repositories;
+using System.Collections.Concurrent;
+using FitnessCenter.Domain.Entities;
+
 public sealed class InMemoryMembersRepository : IMembersRepository
 {
     private readonly ConcurrentDictionary<int, Member> _store = new();

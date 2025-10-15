@@ -1,11 +1,7 @@
-﻿using BCSH2_Semestralka_2025_Mukhamedov_Pokorny.src.FitnessCenter.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace FitnessCenter.Infrastructure.Repositories;
 
-namespace BCSH2_Semestralka_2025_Mukhamedov_Pokorny.src.FitnessCenter.Infrastructure.Repositories;
+using FitnessCenter.Domain.Entities;
+
 public interface IMembersRepository
 {
     Task<IEnumerable<Member>> GetAllAsync(CancellationToken ct = default);

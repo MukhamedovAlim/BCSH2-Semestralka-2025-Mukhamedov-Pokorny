@@ -9,7 +9,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="src\FitnessCenter.Web\Controllers\" />
+    <Compile Remove="src\FitnessCenter.Application\**" />
+    <Compile Remove="src\FitnessCenter.Domain\**" />
+    <Compile Remove="src\FitnessCenter.Infrastructure\**" />
+    <Compile Remove="src\FitnessCenter.Web\**" />
+    <EmbeddedResource Remove="src\FitnessCenter.Application\**" />
+    <EmbeddedResource Remove="src\FitnessCenter.Domain\**" />
+    <EmbeddedResource Remove="src\FitnessCenter.Infrastructure\**" />
+    <EmbeddedResource Remove="src\FitnessCenter.Web\**" />
+    <None Remove="src\FitnessCenter.Application\**" />
+    <None Remove="src\FitnessCenter.Domain\**" />
+    <None Remove="src\FitnessCenter.Infrastructure\**" />
+    <None Remove="src\FitnessCenter.Web\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="src\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src\FitnessCenter.Application\FitnessCenter.Application.csproj" />
   </ItemGroup>
 
 </Project>
