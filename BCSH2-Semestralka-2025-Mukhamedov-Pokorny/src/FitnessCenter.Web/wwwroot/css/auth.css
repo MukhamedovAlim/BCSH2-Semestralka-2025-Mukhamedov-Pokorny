@@ -1,0 +1,56 @@
+﻿:root {
+    /* tmavě šedé pozadí */
+    --bg1: #111316; /* spodek */
+    --bg2: #1b1f25; /* vršek */
+}
+
+.auth-bg {
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,.05), transparent 60%), linear-gradient(180deg, var(--bg2), var(--bg1));
+}
+
+.auth-logo {
+    display: block;
+    margin-inline: auto;
+    width: clamp(140px, 28vw, 220px);
+    height: auto;
+    filter: drop-shadow(0 6px 20px rgba(0,0,0,.45));
+}
+
+.card {
+    background: rgba(255,255,255,.06);
+    backdrop-filter: blur(6px);
+    border-radius: 16px;
+}
+
+.form-control, .btn {
+    border-radius: 12px;
+}
+
+.btn-primary {
+    background: #ff6a00;
+    border-color: #ff6a00;
+}
+
+.btn-primary:hover {
+        background: #ff7f22;
+        border-color: #ff7f22;
+
+}
+
+.link-light {
+    color: #cfd5df;
+}
+
+.link-light:hover {
+        color: #fff;
+}
+
+.auth-link a {
+    display: inline-block;
+    pointer-events: auto;
+    position: relative;
+    z-index: 2;
+}
+
+

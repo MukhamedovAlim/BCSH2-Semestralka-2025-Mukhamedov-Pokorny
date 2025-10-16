@@ -26,10 +26,19 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+// (auth zatím nepoužíváme, ale necháme připravené)
 app.UseAuthorization();
 
+// Default route na Account/Login
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Account}/{action=Login}/{id?}");
+
+// (volitelné – jistota, kdyby VS/launchUrl nutil root "/")
+app.MapGet("/", ctx => {
+    ctx.Response.Redirect("/Account/Login");
+    return Task.CompletedTask;
+});
 
 app.Run();

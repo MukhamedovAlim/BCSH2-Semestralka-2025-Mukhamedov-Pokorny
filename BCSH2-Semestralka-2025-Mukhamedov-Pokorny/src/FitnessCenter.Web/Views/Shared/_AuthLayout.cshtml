@@ -1,0 +1,40 @@
+@{
+    Layout = null;
+    var title = ViewData["Title"] as string ?? "Pøihlášení";
+}
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8" />
+    <title>@title – Fitness Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+</head>
+<body class="auth-bg d-flex align-items-center">
+    <main class="container">
+        <div class="row justify-content-center">
+            <div class="col-11 col-sm-8 col-md-6 col-lg-4">
+                <img src="~/img/BDAS2_logo_bile.png" alt="Fitness Center" class="auth-logo" />
+                <svg id="logo-inline" viewBox="0 0 300 60" class="auth-logo" style="display:none">
+                    <rect width="300" height="60" fill="none"/>
+                    <text x="0" y="45" font-family="Poppins,Segoe UI,Arial" font-size="42" font-weight="700" fill="white">FITNESS</text>
+                    <text x="182" y="45" font-family="Poppins,Segoe UI,Arial" font-size="42" font-weight="700" fill="#ff6a00">GYM</text>
+                </svg>
+
+                <div class="card shadow-lg border-0 mt-3">
+                    <div class="card-body p-4">
+                        @RenderBody()
+                    </div>
+                </div>
+
+                <p class="text-center text-white-50 small mt-4 mb-0">
+                    Copyright © @DateTime.Now.Year Svalovna GYM
+                </p>
+            </div>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
