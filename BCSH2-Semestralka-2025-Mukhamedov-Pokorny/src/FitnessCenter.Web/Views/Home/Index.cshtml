@@ -1,0 +1,96 @@
+﻿@{
+    ViewData["Title"] = "Přehled";
+    Layout = "_AppLayout";
+    var justLogged = TempData["JustLoggedIn"] as bool? ?? false;
+}
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="glass p-3">
+      <h4 class="text-white mb-1">Ahoj, @(User.Identity?.Name ?? "člene")</h4>
+      <div class="text-white-50 small">Vítáme tě zpět ve Svalovna GYM.</div>
+      <hr class="border-secondary" />
+      <div class="tile glass mt-2">
+        <h5 class="text-white">Kontakt</h5>
+        <div class="text-white-50 small">Telefon: –</div>
+        <div class="text-white-50 small">E-mail: –</div>
+      </div>
+      <div class="tile glass mt-3">
+        <h5 class="text-white">Kredit</h5>
+        <div class="display-6 text-white">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="glass p-3">
+      <h5 class="text-white">Rychlé akce</h5>
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-md-6">
+          <a class="text-decoration-none" asp-controller="Reservations" asp-action="Index">
+            <div class="tile glass">
+              <h5 class="text-white mb-1">Rezervace lekcí</h5>
+              <div class="text-white-50 small">Přihlášení/odhlášení na lekce.</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-md-6">
+          <a class="text-decoration-none" asp-controller="Payments" asp-action="Index">
+            <div class="tile glass">
+              <h5 class="text-white mb-1">Přehled plateb</h5>
+              <div class="text-white-50 small">Členské poplatky & permanentky.</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-md-6">
+          <a class="text-decoration-none" asp-controller="Equipment" asp-action="Index">
+            <div class="tile glass">
+              <h5 class="text-white mb-1">Vybavení</h5>
+              <div class="text-white-50 small">Kardio, posilovací, volná závaží.</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-md-6">
+          <a class="text-decoration-none" asp-controller="Reservations" asp-action="Index">
+            <div class="tile glass">
+              <h5 class="text-white mb-1">Moje rezervace</h5>
+              <div class="text-white-50 small">Historie & nadcházející termíny.</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (justLogged)
+{
+  <div class="modal fade" id="loginOk" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">Přihlášení</h5>
+          <button type="button"
+                  class="btn-close btn-close-white"
+                  data-bs-dismiss="modal"
+                  aria-label="Zavřít"></button>
+        </div>
+        <div class="modal-body text-white-50">
+          Přihlášení proběhlo úspěšně.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @section scripts {
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.getElementById('loginOk');
+        if (el) new bootstrap.Modal(el, { backdrop: 'static' }).show();
+      });
+    </script>
+  }
+}
+

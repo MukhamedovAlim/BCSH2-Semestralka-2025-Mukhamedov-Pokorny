@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize] // zatím všichni
-    public class HomeController : Controller
+    [Authorize]
+    public class PaymentsController : Controller
     {
         public IActionResult Index()
         {
-            ViewBag.Active = "Home";
+            ViewBag.Active = "Payments";
             return View();
         }
     }

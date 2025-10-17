@@ -1,36 +1,43 @@
-using FitnessCenter.Web.Models;
+Ôªøusing System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FitnessCenter.Web.Models;
 
 namespace FitnessCenter.Web.Controllers
 {
     public class AccountController : Controller
     {
+        // GET: /Account/Login
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Login(string? returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
             return View(new LoginViewModel());
         }
 
+        // POST: /Account/Login  (doƒçasnƒõ prostƒõ p≈ôihl√°s√≠)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Login(LoginViewModel model, string? returnUrl = null)
+        [AllowAnonymous]
+        public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
         {
-            if (!ModelState.IsValid) return View(model);
-
-            // DEMO ovÏ¯enÌ ñ jen pro vizu·l:
-            bool ok = model.UserName.Equals("demo", StringComparison.OrdinalIgnoreCase)
-                      && model.Password == "demo123";
-
-            if (!ok)
+            var claims = new List<Claim>
             {
-                ModelState.AddModelError(string.Empty, "NeplatnÈ p¯ihlaöovacÌ ˙daje.");
-                return View(model);
-            }
+                new Claim(ClaimTypes.Name, string.IsNullOrWhiteSpace(model?.UserName) ? "demo" : model!.UserName),
+                new Claim(ClaimTypes.Role, "Member")
+            };
+            var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id));
 
-            TempData["Toast"] = "P¯ihl·öenÌ probÏhlo (demo).";
-            return RedirectToAction("Index", "Home"); // m˘ûeö zmÏnit t¯eba na Members/Index
+            TempData["JustLoggedIn"] = true;
+
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpGet]
@@ -39,12 +46,21 @@ namespace FitnessCenter.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AllowAnonymous]
         public IActionResult Register(RegisterViewModel model)
         {
-            if (!ModelState.IsValid) return View(model);
+            // tady zat√≠m nic neukl√°d√°me, jen UX tok
+            TempData["JustRegistered"] = true;
+            TempData["RegisterMsg"] = "√öƒçet byl √∫spƒõ≈°nƒõ vytvo≈ôen. Teƒè se p≈ôihlas.";
+            return RedirectToAction(nameof(Login));
+        }
 
-            // ZatÌm nic neukl·d·me ñ jen UX tok:
-            TempData["Toast"] = "⁄Ëet vytvo¯en (demo). TeÔ se p¯ihlas.";
+
+        // GET: /Account/Logout
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction(nameof(Login));
         }
     }
