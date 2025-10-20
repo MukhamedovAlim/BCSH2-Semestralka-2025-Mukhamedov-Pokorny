@@ -1,0 +1,51 @@
+﻿@model IEnumerable<FitnessCenter.Web.Models.ReservationViewModel>
+@{
+    ViewData["Title"] = "Rezervace lekcí";
+    Layout = "_AppLayout";
+    ViewBag.Active = "Reservations";
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="glass p-3">
+    <h4 class="text-white mb-3">Rezervace lekcí</h4>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-white-50">Žádné lekce k zobrazení.</div>
+    }
+    else
+    {
+        <div class="row g-3">
+        @foreach (var r in Model)
+        {
+            var volno = r.Kapacita - r.Prihlaseno;
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="tile glass h-100">
+                    <h5 class="text-white mb-1">@r.Nazev</h5>
+                    <div class="text-white-50 small mb-2">
+                        @r.Datum.ToString("d.M.yyyy HH:mm") &nbsp;•&nbsp;
+                        Kapacita: @r.Prihlaseno/@r.Kapacita
+                        @if (volno <= 0)
+                        { <span class="badge bg-secondary ms-1">Plno</span> }
+                        else if (volno <= 3)
+                        { <span class="badge bg-warning text-dark ms-1">Poslední místa</span> }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        @if (r.JsemPrihlasen)
+                        {
+                            <button class="btn btn-outline-light btn-sm" disabled>Přihlášen</button>
+                            <button class="btn btn-danger btn-sm" disabled>Odhlásit</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary btn-sm" disabled>Přihlásit</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        </div>
+    }
+</div>

@@ -60,10 +60,77 @@
 .modal-backdrop.show {
     opacity: .65;
 }
-/*
-    .modal-backdrop {
-    display: none !important;
+
+.quick-tile {
+    min-height: 120px;
 }
-*/
 
+/* Nav bar */
+.app-nav {
+    border-radius: 14px;
+    margin: .75rem 1rem;
+    padding: .25rem .75rem;
+}
 
+.nav-link {
+    color: rgba(255,255,255,.65);
+    transition: .15s ease;
+}
+
+.nav-link:hover {
+        color: #fff;
+    }
+
+    .nav-link.active {
+        color: #fff;
+        font-weight: 600;
+        position: relative;
+    }
+
+        .nav-link.active::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -6px;
+            height: 2px;
+            background: linear-gradient(90deg,#ff6a00,#ffa500);
+            border-radius: 2px;
+            opacity: .9;
+        }
+
+/* Karty – jemný hover */
+.quick-tile {
+    min-height: 120px;
+    transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+
+    .quick-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 28px rgba(0,0,0,.35);
+        background-color: rgba(255,255,255,.06);
+    }
+
+.table-dark tbody tr:hover {
+    background-color: rgba(255,255,255,.03);
+}
+
+.tile.glass {
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.tile.glass:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0,0,0,.35);
+    }
+
+/*BUTTON*/
+.btn-back {
+    background: rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.2);
+}
+
+    .btn-back:hover {
+        background: rgba(255,255,255,.12);
+        border-color: rgba(255,255,255,.35);
+    }

@@ -1,0 +1,18 @@
+﻿@* Views/Shared/_BackButton.cshtml *@
+@{
+    var heading = ViewData["Title"] as string;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <button type="button"
+            class="btn btn-sm btn-outline-light btn-back"
+            onclick="(history.length > 1 ? history.back() : window.location='@Url.Action("Index","Home")')">
+        ← Zpět
+    </button>
+
+    @* Volitelně: malý nadpis vedle tlačítka *@
+    @if (!string.IsNullOrWhiteSpace(heading))
+    {
+        <h5 class="text-white mb-0">@heading</h5>
+    }
+</div>

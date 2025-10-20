@@ -1,96 +1,123 @@
 ﻿@{
     ViewData["Title"] = "Přehled";
     Layout = "_AppLayout";
-    var justLogged = TempData["JustLoggedIn"] as bool? ?? false;
-}
-<div class="row g-4">
-  <div class="col-12 col-lg-4">
-    <div class="glass p-3">
-      <h4 class="text-white mb-1">Ahoj, @(User.Identity?.Name ?? "člene")</h4>
-      <div class="text-white-50 small">Vítáme tě zpět ve Svalovna GYM.</div>
-      <hr class="border-secondary" />
-      <div class="tile glass mt-2">
-        <h5 class="text-white">Kontakt</h5>
-        <div class="text-white-50 small">Telefon: –</div>
-        <div class="text-white-50 small">E-mail: –</div>
-      </div>
-      <div class="tile glass mt-3">
-        <h5 class="text-white">Kredit</h5>
-        <div class="display-6 text-white">0</div>
-      </div>
-    </div>
-  </div>
+    ViewBag.Active = "Home";
 
-  <div class="col-12 col-lg-8">
-    <div class="glass p-3">
-      <h5 class="text-white">Rychlé akce</h5>
-      <div class="row g-3 mt-1">
-        <div class="col-12 col-md-6">
-          <a class="text-decoration-none" asp-controller="Reservations" asp-action="Index">
-            <div class="tile glass">
-              <h5 class="text-white mb-1">Rezervace lekcí</h5>
-              <div class="text-white-50 small">Přihlášení/odhlášení na lekce.</div>
-            </div>
-          </a>
+    // --- DEMO napojení dat permanentky (můžeš mazat, když to budeš číst z ViewModelu) ---
+    DateTime? permFrom = ViewBag.PermFrom as DateTime?;
+    DateTime? permTo   = ViewBag.PermTo   as DateTime?;
+    string permType    = ViewBag.PermType as string ?? "—";
+    string permPrice   = ViewBag.PermPrice as string ?? "—";
+
+    // --- Výpočty pro badge, progress a zbývající dny ---
+    bool   permActive = permTo.HasValue && permTo.Value.Date >= DateTime.Today;
+    double totalDays  = (permFrom.HasValue && permTo.HasValue) ? (permTo.Value - permFrom.Value).TotalDays : 0;
+    double usedDays   = (permFrom.HasValue) ? (DateTime.Today - permFrom.Value).TotalDays : 0;
+    int    usedPct    = (totalDays > 0) ? Math.Clamp((int)Math.Round(usedDays / totalDays * 100.0), 0, 100) : 0;
+    int    daysLeft   = permTo.HasValue ? Math.Max(0, (permTo.Value.Date - DateTime.Today).Days) : 0;
+}
+
+<!-- Úvodní panel přes celou šířku -->
+<div class="glass p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <div>
+            <h3 class="text-white mb-1">Ahoj, @(User.Identity?.Name ?? "člene")</h3>
+            <div class="text-white-50">Vítáme tě zpět ve Svalovna GYM.</div>
         </div>
-        <div class="col-12 col-md-6">
-          <a class="text-decoration-none" asp-controller="Payments" asp-action="Index">
-            <div class="tile glass">
-              <h5 class="text-white mb-1">Přehled plateb</h5>
-              <div class="text-white-50 small">Členské poplatky & permanentky.</div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-md-6">
-          <a class="text-decoration-none" asp-controller="Equipment" asp-action="Index">
-            <div class="tile glass">
-              <h5 class="text-white mb-1">Vybavení</h5>
-              <div class="text-white-50 small">Kardio, posilovací, volná závaží.</div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-md-6">
-          <a class="text-decoration-none" asp-controller="Reservations" asp-action="Index">
-            <div class="tile glass">
-              <h5 class="text-white mb-1">Moje rezervace</h5>
-              <div class="text-white-50 small">Historie & nadcházející termíny.</div>
-            </div>
-          </a>
-        </div>
-      </div>
     </div>
-  </div>
+
+    <hr class="border-secondary my-3" />
+
+    <div class="row g-3">
+        <!-- Kontakt -->
+        <div class="col-12 col-lg-6">
+            <div class="tile glass h-100">
+                <h5 class="text-white mb-2">Kontakt</h5>
+                <div class="text-white-50 small">Telefon: –</div>
+                <div class="text-white-50 small">E-mail: –</div>
+            </div>
+        </div>
+
+        <!-- Stav permanentky -->
+        <div class="col-12 col-lg-6">
+            <div class="tile glass h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h5 class="text-white mb-2">Stav permanentky</h5>
+                    @if (permActive)
+                    {
+                        <span class="badge bg-success">AKTIVNÍ</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">NEAKTIVNÍ</span>
+                    }
+                </div>
+
+                <div class="text-white-50 small mb-2">
+                    Typ: <span class="text-white">@permType</span> · Cena: <span class="text-white">@permPrice</span>
+                </div>
+
+                @if (permActive && permTo.HasValue)
+                {
+                    <div class="text-white-50 small mb-1">
+                        Platí do: <span class="text-white">@permTo.Value.ToString("dd.MM.yyyy")</span>
+                        <span class="ms-2">(zbývá @daysLeft&nbsp;@((daysLeft == 1) ? "den" : (daysLeft < 5 ? "dny" : "dní")))</span>
+                    </div>
+                    <div class="progress" style="height:8px;">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width:@usedPct%"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-white-50 small">
+                        Nemáš aktivní permanentku. Zvaž nákup nové.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
 </div>
 
-@if (justLogged)
-{
-  <div class="modal fade" id="loginOk" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content glass text-white">
-        <div class="modal-header">
-          <h5 class="modal-title">Přihlášení</h5>
-          <button type="button"
-                  class="btn-close btn-close-white"
-                  data-bs-dismiss="modal"
-                  aria-label="Zavřít"></button>
-        </div>
-        <div class="modal-body text-white-50">
-          Přihlášení proběhlo úspěšně.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-        </div>
-      </div>
+<!-- Rychlé akce -->
+<div class="glass p-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <h4 class="text-white mb-0">Rychlé akce</h4>
     </div>
-  </div>
 
-  @section scripts {
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        var el = document.getElementById('loginOk');
-        if (el) new bootstrap.Modal(el, { backdrop: 'static' }).show();
-      });
-    </script>
-  }
-}
+    <div class="row g-3 mt-1">
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Rezervace lekcí</h5>
+                <div class="text-white-50 small">Přihlášení/odhlášení na lekce.</div>
+                <a href="@Url.Action("Index","Reservations")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Přehled plateb</h5>
+                <div class="text-white-50 small">Členské poplatky & permanentky.</div>
+                <a href="@Url.Action("Index","Payments")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Vybavení</h5>
+                <div class="text-white-50 small">Kardio, posilovací, volná závaží.</div>
+                <a href="@Url.Action("Index","Equipment")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Moje rezervace</h5>
+                <div class="text-white-50 small">Historie & nadcházející termíny.</div>
+                <a href="@Url.Action("Index","Reservations")" class="stretched-link"></a>
+            </div>
+        </div>
+
+    </div>
+</div>
 

@@ -1,8 +1,36 @@
-﻿@{
+﻿@model IEnumerable<FitnessCenter.Web.Models.EquipmentViewModel>
+@{
     ViewData["Title"] = "Vybavení";
     Layout = "_AppLayout";
+    ViewBag.Active = "Equipment";
+    var filter = ViewBag.Filter as string ?? "Vše";
 }
+
+@await Html.PartialAsync("_BackButton")
+
 <div class="glass p-3">
-  <h4 class="text-white mb-3">Vybavení</h4>
-  <p class="text-white-50 mb-0">Tady bude evidence strojů (kardio, posilovací, volná závaží).</p>
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h3 class="text-white mb-0">Vybavení</h3>
+    <div class="btn-group">
+      <a class="btn btn-sm @(filter=="Vše" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="">Vše</a>
+      <a class="btn btn-sm @(filter=="Kardio" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Kardio">Kardio</a>
+      <a class="btn btn-sm @(filter=="Posilovací" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Posilovací">Posilovací</a>
+      <a class="btn btn-sm @(filter=="Volná závaží" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Volná závaží">Volná závaží</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    @foreach (var it in Model)
+    {
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="tile glass p-3 h-100">
+          <div class="d-flex justify-content-between align-items-start">
+            <h5 class="text-white mb-1">@it.Nazev</h5>
+            <span class="badge bg-secondary">@it.Typ</span>
+          </div>
+          <div class="text-white-50 small">Stav: <strong class="text-white">@it.Stav</strong></div>
+        </div>
+      </div>
+    }
+  </div>
 </div>

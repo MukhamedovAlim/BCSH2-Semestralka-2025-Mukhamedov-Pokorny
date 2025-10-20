@@ -1,8 +1,49 @@
-﻿@{
-    ViewData["Title"] = "Platby";
+﻿@model IEnumerable<FitnessCenter.Web.Models.PaymentViewModel>
+@{
+    ViewData["Title"] = "Přehled plateb";
     Layout = "_AppLayout";
+    ViewBag.Active = "Payments";
+    var clenstviStav = ViewBag.ClenstviStav as string ?? "Neaktivní";
 }
-<div class="glass p-3">
-  <h4 class="text-white mb-3">Přehled plateb</h4>
-  <p class="text-white-50 mb-0">Tady bude seznam plateb a stav členství/permanentky.</p>
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="glass p-3 h-100">
+      <h5 class="text-white">Stav členství</h5>
+      <div class="text-white-50">Aktuálně: <strong class="text-white">@clenstviStav</strong></div>
+      <hr class="border-secondary" />
+      <button class="btn btn-primary btn-sm" disabled>Koupit permanentku (demo)</button>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="glass p-3">
+      <h5 class="text-white">Historie plateb</h5>
+      <div class="table-responsive mt-2">
+        <table class="table table-dark table-borderless align-middle">
+          <thead>
+            <tr class="text-white-50">
+              <th>Datum</th>
+              <th>Popis</th>
+              <th class="text-end">Částka</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+          <tbody>
+          @foreach (var p in Model)
+          {
+            <tr>
+              <td class="text-white-50">@p.Datum:dd.MM.yyyy</td>
+              <td class="text-white text-truncate">@p.Popis</td>
+              <td class="text-end text-white">@p.Castka.ToString("0 Kč")</td>
+              <td><span class="badge bg-success">@p.Stav</span></td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>

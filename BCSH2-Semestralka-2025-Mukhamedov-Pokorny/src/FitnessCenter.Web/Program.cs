@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Authentication.Cookies;
-
-using FitnessCenter.Application.Interfaces;
+﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Application.Services;
 using FitnessCenter.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 // top-level Program:
 var builder = WebApplication.CreateBuilder(args);
