@@ -3,21 +3,25 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize] // zatím všichni
     public class HomeController : Controller
     {
+        [Authorize(Roles = "Member")]
         public IActionResult Index()
         {
             ViewBag.Active = "Home";
-
-            // DEMO data permanentky
-            ViewBag.PermFrom = DateTime.Today.AddDays(-7);     // začátek
-            ViewBag.PermTo = DateTime.Today.AddDays(23);     // konec
+            ViewBag.PermFrom = DateTime.Today.AddDays(-7);
+            ViewBag.PermTo = DateTime.Today.AddDays(23);
             ViewBag.PermType = "Měsíční";
             ViewBag.PermPrice = "990 Kč";
-
             return View();
         }
 
+        [Authorize(Roles = "Trainer")]
+        public IActionResult Trainer()
+        {
+            ViewBag.Active = "HomeTrainer";
+            ViewBag.Today = DateTime.Today;
+            return View();
+        }
     }
 }

@@ -1,0 +1,137 @@
+﻿@{
+    ViewData["Title"] = "Trenér – Přehled";
+    Layout = "_AppLayout";
+    ViewBag.Active = "HomeTrainer";
+
+    // DEMO proměnné – můžeš pak nahradit ViewModelem
+    DateTime today = ViewBag.Today is DateTime d ? d : DateTime.Today;
+
+    // Demo data „dnešní lekce“ (až budeš mít repository/services, napojíš reálná data)
+    var lessonsToday = new[]
+    {
+        new { Time = "08:00", Name = "Kruháč",     Room = "Sál A", Slots = "12/20" },
+        new { Time = "17:00", Name = "Jóga",       Room = "Sál B", Slots = "18/20" },
+        new { Time = "19:00", Name = "Crossfit",   Room = "Sál A", Slots = "12/12" },
+    };
+}
+
+<!-- Úvodní panel -->
+<div class="glass p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <div>
+            <h3 class="text-white mb-1">Ahoj, trenére @(User.Identity?.Name ?? "") 👋</h3>
+            <div class="text-white-50">Dnes je @today.ToString("dddd d. MMMM yyyy").</div>
+        </div>
+        <div class="mt-2 mt-md-0">
+            <a href="@Url.Action("Create","Lessons")" class="btn btn-sm btn-warning">
+                + Vytvořit lekci
+            </a>
+        </div>
+    </div>
+
+    <hr class="border-secondary my-3" />
+
+    <div class="row g-3">
+        <!-- Dnešní lekce -->
+        <div class="col-12 col-xl-7">
+            <div class="tile glass h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="text-white mb-0">Dnešní lekce</h5>
+                    <a class="btn btn-sm btn-outline-light" href="@Url.Action("Index","Lessons")">Správa lekcí</a>
+                </div>
+
+                @if (lessonsToday.Length == 0)
+                {
+                    <div class="text-white-50 small">Dnes nemáš žádné naplánované lekce.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="text-white-50">
+                                    <th style="width:90px;">Čas</th>
+                                    <th>Lekce</th>
+                                    <th style="width:140px;">Místnost</th>
+                                    <th style="width:120px;">Obsazeno</th>
+                                    <th style="width:120px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var l in lessonsToday)
+                                {
+                                    <tr>
+                                        <td>@l.Time</td>
+                                        <td class="text-white">@l.Name</td>
+                                        <td>@l.Room</td>
+                                        <td>@l.Slots</td>
+                                        <td class="text-end">
+                                            <a href="@Url.Action("Detail","Lessons", new { id = 1 })" class="btn btn-sm btn-outline-light">Detail</a>
+                                            <a href="@Url.Action("Attendance","Lessons", new { id = 1 })" class="btn btn-sm btn-warning ms-1">Docházka</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Rychlé poznámky / zprávy -->
+        <div class="col-12 col-xl-5">
+            <div class="tile glass h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="text-white mb-0">Rychlé poznámky</h5>
+                    <a class="btn btn-sm btn-outline-light" href="@Url.Action("Index","Messages")">Zprávy</a>
+                </div>
+                <div class="text-white-50 small">
+                    • Připrav si warm-up pro večerní Crossfit.<br/>
+                    • Zkontroluj počet kettlebellů v Sál A.<br/>
+                    • Nový člen chce ukázkový trénink zítra v 18:00.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rychlé akce -->
+<div class="glass p-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <h4 class="text-white mb-0">Rychlé akce</h4>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Moje lekce</h5>
+                <div class="text-white-50 small">Vytváření, editace, kalendář.</div>
+                <a href="@Url.Action("Index","Lessons")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Docházka</h5>
+                <div class="text-white-50 small">Zapisuj účast a náhradníky.</div>
+                <a href="@Url.Action("Attendance","Lessons")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Zprávy členům</h5>
+                <div class="text-white-50 small">Hromadné nebo cílené zprávy.</div>
+                <a href="@Url.Action("Index","Messages")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Rezervace</h5>
+                <div class="text-white-50 small">Přehled rezervací na lekcích.</div>
+                <a href="@Url.Action("Index","Reservations")" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+</div>

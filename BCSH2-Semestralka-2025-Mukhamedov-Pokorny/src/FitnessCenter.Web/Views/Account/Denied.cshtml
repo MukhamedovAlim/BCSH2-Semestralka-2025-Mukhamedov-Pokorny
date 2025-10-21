@@ -1,0 +1,6 @@
+﻿@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Přístup zamítnut";
+}
+<div class="alert alert-warning mt-3">Nemáš oprávnění k zobrazení této stránky.</div>
+<a class="btn btn-primary" href="@Url.Action("Login","Account")">Zpět na přihlášení</a>
