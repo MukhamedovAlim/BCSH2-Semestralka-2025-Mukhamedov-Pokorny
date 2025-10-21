@@ -1,0 +1,58 @@
+﻿@model FitnessCenter.Web.Models.LessonCreateViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Nová lekce";
+    ViewBag.Active = "Lessons";
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="glass p-3">
+  <h4 class="text-white mb-3">Vytvořit lekci</h4>
+
+  <form asp-action="Create" method="post" novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label asp-for="Nazev" class="form-label text-white-50">Název</label>
+        <input asp-for="Nazev" class="form-control" />
+        <span asp-validation-for="Nazev" class="text-danger small"></span>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label asp-for="Zacatek" class="form-label text-white-50">Začátek</label>
+        <input asp-for="Zacatek" type="datetime-local" class="form-control" />
+        <span asp-validation-for="Zacatek" class="text-danger small"></span>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label asp-for="Mistnost" class="form-label text-white-50">Místnost</label>
+        <input asp-for="Mistnost" class="form-control" />
+        <span asp-validation-for="Mistnost" class="text-danger small"></span>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label asp-for="Kapacita" class="form-label text-white-50">Kapacita</label>
+        <input asp-for="Kapacita" type="number" class="form-control" />
+        <span asp-validation-for="Kapacita" class="text-danger small"></span>
+      </div>
+
+      <div class="col-12">
+        <label asp-for="Popis" class="form-label text-white-50">Popis (volitelně)</label>
+        <textarea asp-for="Popis" rows="3" class="form-control"></textarea>
+        <span asp-validation-for="Popis" class="text-danger small"></span>
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Vytvořit</button>
+      <a class="btn btn-outline-light" href="@Url.Action("Index","Lessons")">Zrušit</a>
+    </div>
+  </form>
+</div>
+
+@section scripts{
+  <partial name="_ValidationScriptsPartial" />
+}

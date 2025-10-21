@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize(Roles = "Member")]
-    public class MemberController : Controller
+    [Authorize(Roles = "Trainer")]
+    public class TrainerController : Controller
     {
         public IActionResult Index()
         {
