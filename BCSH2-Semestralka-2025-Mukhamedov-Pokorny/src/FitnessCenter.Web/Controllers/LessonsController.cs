@@ -1,73 +1,82 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Application.Interfaces;   // <-- DŮLEŽITÉ
-using FitnessCenter.Web.Models;              // pokud mapuješ na vlastní ViewModel
-using FitnessCenter.Domain.Entities;         // pokud vytváříš Lesson z viewmodelu
+using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Domain.Entities;
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Trainer")]
     public class LessonsController : Controller
     {
-        private readonly ILessonsService _svc;   // <-- rozhraní
+        private readonly ILessonsService _lessons;
 
-        public LessonsController(ILessonsService svc) // <-- rozhraní
-            => _svc = svc;
+        public LessonsController(ILessonsService lessons)
+        {
+            _lessons = lessons;
+        }
 
+        // Správa lekcí (list)
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            ViewBag.Active = "Lessons";
-            ViewData["Title"] = "Lekce";
-
-            var data = await _svc.GetAllAsync();  // <-- async/await
-
-            // Pokud vlastní viewmodel, odmapuj:
-            // var vm = data.Select(x => new LessonViewModel {
-            //     Id = x.Id,
-            //     Nazev = x.Nazev,
-            //     Zacatek = x.Zacatek,
-            //     Mistnost = x.Mistnost,
-            //     Kapacita = x.Kapacita,
-            //     Popis = x.Popis
-            // }).ToList();
-            // return View(vm);
-
-            return View(data); // nebo vm – podle toho, co očekává view
+            var list = await _lessons.GetAllAsync();
+            return View(list); // Views/Lessons/Index.cshtml
         }
 
+        // Detail lekce
+        [HttpGet]
+        public async Task<IActionResult> Detail(int id)
+        {
+            var lesson = await _lessons.GetAsync(id);
+            if (lesson == null) return NotFound();
+            return View(lesson); // Views/Lessons/Detail.cshtml
+        }
+
+        // Docházka ke konkrétní lekci
+        [HttpGet]
+        public async Task<IActionResult> Attendance(int id)
+        {
+            var lesson = await _lessons.GetAsync(id);
+            if (lesson == null) return NotFound();
+            return View(lesson); // Views/Lessons/Attendance.cshtml
+        }
+
+        // Vytvoření lekce – formulář
         [HttpGet]
         public IActionResult Create()
         {
-            ViewBag.Active = "Lessons";
-            ViewData["Title"] = "Nová lekce";
-            return View(new LessonCreateViewModel());
+            var model = new Lesson
+            {
+                Zacatek = DateTime.Today.AddHours(18),
+                Mistnost = "Sál A",
+                Kapacita = 12
+            };
+            return View(model); // Views/Lessons/Create.cshtml
         }
 
+        // Vytvoření lekce – uložení
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(LessonCreateViewModel model)
+        public async Task<IActionResult> Create(Lesson model)
         {
-            if (!ModelState.IsValid)
-            {
-                ViewBag.Active = "Lessons";
-                ViewData["Title"] = "Nová lekce";
-                return View(model);
-            }
+            if (!ModelState.IsValid) return View(model);
 
-            var lesson = new Lesson
-            {
-                Nazev = model.Nazev,
-                Zacatek = model.Zacatek,
-                Mistnost = model.Mistnost,
-                Kapacita = model.Kapacita,
-                Popis = model.Popis
-            };
+            var id = await _lessons.CreateAsync(model);
+            return RedirectToAction(nameof(Detail), new { id });
+        }
 
-            await _svc.CreateAsync(lesson);
+        // Úprava lekce – uložení
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(Lesson model)
+        {
+            if (!ModelState.IsValid) return View("Detail", model);
 
-            TempData["Toast"] = "Lekce vytvořena.";
-            return RedirectToAction(nameof(Index));
+            var ok = await _lessons.UpdateAsync(model);
+            if (!ok) return NotFound();
+
+            return RedirectToAction(nameof(Detail), new { id = model.Id });
         }
     }
 }

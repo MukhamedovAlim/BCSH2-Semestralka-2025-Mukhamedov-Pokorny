@@ -1,26 +1,52 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Web.Models;
+using FitnessCenter.Application.Interfaces;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Member")]
     public class ReservationsController : Controller
     {
-        public IActionResult Index()
+        private readonly ILessonsService _lessons;
+
+        public ReservationsController(ILessonsService lessons)
         {
-            ViewBag.Active = "Reservations";
+            _lessons = lessons;
+        }
 
-            // DEMO data
-            var list = new List<ReservationViewModel>
-            {
-                new() { Id = 1, Nazev = "Crossfit",      Datum = DateTime.Today.AddDays(1).AddHours(18), Kapacita = 12, Prihlaseno = 9,  JsemPrihlasen = true },
-                new() { Id = 2, Nazev = "Spinning",      Datum = DateTime.Today.AddDays(2).AddHours(17), Kapacita = 15, Prihlaseno = 7,  JsemPrihlasen = false },
-                new() { Id = 3, Nazev = "TRX",           Datum = DateTime.Today.AddDays(3).AddHours(19), Kapacita = 10, Prihlaseno = 10, JsemPrihlasen = false },
-                new() { Id = 4, Nazev = "Jóga (beginner)", Datum = DateTime.Today.AddDays(1).AddHours(16), Kapacita = 20, Prihlaseno = 5,  JsemPrihlasen = false },
-            };
+        // GET: /Reservations
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var lessons = await _lessons.GetAllAsync();
+            return View(lessons); // Views/Reservations/Index.cshtml
+        }
 
-            return View(list);
+        // GET: /Reservations/Mine
+        [HttpGet]
+        public IActionResult Mine()
+        {
+            // Placeholder – vlastní rezervace uživatele sem přidáme později
+            return View(); // Views/Reservations/Mine.cshtml
+        }
+
+        // POST: /Reservations/Book/5  (zatím jen ukázka)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Book(int id)
+        {
+            TempData["ResMsg"] = $"Rezervace lekce #{id} byla vytvořena (demo).";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // POST: /Reservations/Cancel/5  (zatím jen ukázka)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Cancel(int id)
+        {
+            TempData["ResMsg"] = $"Rezervace lekce #{id} byla zrušena (demo).";
+            return RedirectToAction(nameof(Mine));
         }
     }
 }

@@ -1,46 +1,47 @@
-﻿@model IEnumerable<FitnessCenter.Web.Models.LessonViewModel>
+﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Lesson>
 @{
+    ViewData["Title"] = "Moje lekce";
     Layout = "_AppLayout";
-    ViewData["Title"] = "Lekce";
-    ViewBag.Active = "Lessons";
 }
 
-@await Html.PartialAsync("_BackButton")
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Trainer","Home")">← Zpět</a>
+        <span class="h3 text-white align-middle mb-0">Moje lekce</span>
+    </div>
+    <a class="btn btn-warning" href="@Url.Action("Create","Lessons")">+ Vytvořit lekci</a>
+</div>
 
-@if (TempData["Toast"] is string toast)
+
+
+@if (Model == null || Model.Count == 0)
 {
-  <div class="alert alert-success">@toast</div>
+    <div class="text-white-50">Zatím žádné lekce.</div>
 }
-
-<div class="d-flex justify-content-between align-items-center mb-2">
-  <h4 class="text-white mb-0">Vytvořené lekce</h4>
-  <a class="btn btn-primary" href="@Url.Action("Create","Lessons")">+ Nová lekce</a>
-</div>
-
-<div class="glass p-3">
-  <div class="table-responsive">
-    <table class="table table-dark table-striped align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Název</th>
-          <th>Začátek</th>
-          <th>Místnost</th>
-          <th>Kapacita</th>
-          <th>Popis</th>
-        </tr>
-      </thead>
-      <tbody>
-      @foreach (var l in Model)
-      {
-        <tr>
-          <td>@l.Nazev</td>
-          <td>@l.Zacatek.ToString("d. M. yyyy HH:mm")</td>
-          <td>@l.Mistnost</td>
-          <td>@l.Kapacita</td>
-          <td>@(string.IsNullOrWhiteSpace(l.Popis) ? "-" : l.Popis)</td>
-        </tr>
-      }
-      </tbody>
-    </table>
-  </div>
-</div>
+else
+{
+    <div class="table-responsive">
+        <table class="table table-dark table-sm align-middle">
+            <thead>
+                <tr class="text-white-50">
+                    <th>Datum/čas</th><th>Název</th><th>Místnost</th><th>Kapacita</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model)
+                {
+                    <tr>
+                        <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-white">@l.Nazev</td>
+                        <td>@l.Mistnost</td>
+                        <td>@l.Kapacita</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-light" href="@Url.Action("Detail","Lessons", new { id = l.Id })">Detail</a>
+                            <a class="btn btn-sm btn-warning ms-1" href="@Url.Action("Attendance","Lessons", new { id = l.Id })">Docházka</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

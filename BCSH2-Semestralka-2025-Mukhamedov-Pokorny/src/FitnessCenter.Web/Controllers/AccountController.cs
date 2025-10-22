@@ -94,5 +94,22 @@ namespace FitnessCenter.Web.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction(nameof(Login));
         }
+
+        // GET: /Account/Denied  → rovnou přesměruje, nic nevykresluje
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult Denied()
+        {
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                var target = User.IsInRole("Trainer")
+                    ? Url.Action("Trainer", "Home")
+                    : Url.Action("Index", "Home");
+
+                return Redirect(target ?? Url.Action("Login", "Account")!);
+            }
+
+            return RedirectToAction("Login", "Account");
+        }
     }
 }
