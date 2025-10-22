@@ -35,6 +35,9 @@ namespace FitnessCenter.Web.Controllers
                 else if (model.UserName.Equals("member", StringComparison.OrdinalIgnoreCase)
                     && model.Password == "member")
                     role = "Member";
+                else if (model.UserName.Equals("admin", StringComparison.OrdinalIgnoreCase)
+                    && model.Password == "admin")
+                    role = "Admin";
             }
 
             if (role is null)
@@ -66,9 +69,12 @@ namespace FitnessCenter.Web.Controllers
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            return role == "Trainer"
-                ? RedirectToAction("Trainer", "Home")
-                : RedirectToAction("Index", "Home");
+            return role switch
+            {
+                "Admin" => RedirectToAction("Index", "Admin"),
+                "Trainer" => RedirectToAction("Trainer", "Home"),
+                _ => RedirectToAction("Index", "Home")
+            };
         }
 
         // GET: /Account/Register (demo)
