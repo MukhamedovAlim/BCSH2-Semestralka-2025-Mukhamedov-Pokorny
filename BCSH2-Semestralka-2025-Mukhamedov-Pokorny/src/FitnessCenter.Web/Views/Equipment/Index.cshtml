@@ -2,16 +2,20 @@
 @{
     ViewData["Title"] = "Vybavení";
     Layout = "_AppLayout";
-    ViewBag.Active = "Equipment";
     var filter = ViewBag.Filter as string ?? "Vše";
+
+    // Zpět podle role – ADMIN → Admin/Index
+    var backHref =
+        User.IsInRole("Admin")   ? Url.Action("Index","Admin") :
+        User.IsInRole("Trainer") ? Url.Action("Trainer","Home") :
+                                   Url.Action("Index","Home");
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Home")">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Rezervace lekcí</span>
+        <a class="btn btn-outline-light me-2" href="@backHref">← Zpět</a>
+        <span class="h3 text-white align-middle mb-0">Vybavení</span>
     </div>
-    <a class="btn btn-warning" href="@Url.Action("Mine","Reservations")">Moje rezervace</a>
 </div>
 
 <div class="glass p-3">

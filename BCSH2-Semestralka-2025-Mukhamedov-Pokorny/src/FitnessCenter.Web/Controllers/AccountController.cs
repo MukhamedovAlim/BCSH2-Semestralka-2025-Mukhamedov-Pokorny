@@ -108,13 +108,12 @@ namespace FitnessCenter.Web.Controllers
         {
             if (User?.Identity?.IsAuthenticated == true)
             {
-                var target = User.IsInRole("Trainer")
-                    ? Url.Action("Trainer", "Home")
-                    : Url.Action("Index", "Home");
-
+                string? target =
+                    User.IsInRole("Admin") ? Url.Action("Admin", "Home") :
+                    User.IsInRole("Trainer") ? Url.Action("Trainer", "Home") :
+                                               Url.Action("Index", "Home");
                 return Redirect(target ?? Url.Action("Login", "Account")!);
             }
-
             return RedirectToAction("Login", "Account");
         }
     }

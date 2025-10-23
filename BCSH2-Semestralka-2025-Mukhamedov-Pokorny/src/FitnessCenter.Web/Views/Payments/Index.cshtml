@@ -9,9 +9,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Home")">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Rezervace lekcí</span>
+        <span class="h3 text-white align-middle mb-0">Přehled plateb</span>
     </div>
-    <a class="btn btn-warning" href="@Url.Action("Mine","Reservations")">Moje rezervace</a>
+    @* Žádné tlačítko na rezervace *@
 </div>
 
 <div class="row g-4">
@@ -41,9 +41,9 @@
           @foreach (var p in Model)
           {
             <tr>
-              <td class="text-white-50">@p.Datum:dd.MM.yyyy</td>
+              <td class="text-white-50">@p.Datum.ToString("dd.MM.yyyy")</td>
               <td class="text-white text-truncate">@p.Popis</td>
-              <td class="text-end text-white">@p.Castka.ToString("0 Kč")</td>
+              <td class="text-end text-white">@p.Castka.ToString("N0") Kč</td>
               <td><span class="badge bg-success">@p.Stav</span></td>
             </tr>
           }

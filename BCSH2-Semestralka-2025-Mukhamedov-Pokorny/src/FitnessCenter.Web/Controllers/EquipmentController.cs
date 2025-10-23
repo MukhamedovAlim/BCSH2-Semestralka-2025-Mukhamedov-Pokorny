@@ -4,7 +4,7 @@ using FitnessCenter.Web.Models;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Member,Trainer,Admin")]
     public class EquipmentController : Controller
     {
         public IActionResult Index(string? typ = null)

@@ -23,5 +23,13 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.Today = DateTime.Today;
             return View();
         }
+
+        [Authorize(Roles = "Admin")]
+        public IActionResult Admin()
+        {
+            ViewBag.Active = "HomeAdmin";
+            ViewBag.Today = DateTime.Today;
+            return View();
+        }
     }
 }
