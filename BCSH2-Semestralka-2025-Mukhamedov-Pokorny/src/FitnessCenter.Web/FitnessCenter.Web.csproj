@@ -4,6 +4,9 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
+	<ItemGroup>
+	  <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.0" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\FitnessCenter.Application\FitnessCenter.Application.csproj" />

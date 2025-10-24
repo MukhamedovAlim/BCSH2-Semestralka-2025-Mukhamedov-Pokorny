@@ -1,7 +1,9 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Application.Services;
 using FitnessCenter.Infrastructure.Repositories;
+using FitnessCenter.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Oracle.ManagedDataAccess.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +58,26 @@ app.MapGet("/", ctx =>
 {
     ctx.Response.Redirect("/Account/Login");
     return Task.CompletedTask;
+});
+
+// 🔧 DB smoke-test: navštiv /dbtest a čekej "DB status: OK"
+app.MapGet("/dbtest", async () =>
+{
+    try
+    {
+        using OracleConnection conn = await DatabaseManager.GetOpenConnectionAsync();
+        using var cmd = new OracleCommand("SELECT 'OK' FROM DUAL", conn);
+        var res = (string)await cmd.ExecuteScalarAsync();
+        return Results.Text($"DB status: {res}", "text/plain");
+    }
+    catch (OracleException ox)
+    {
+        return Results.Text($"Oracle ERROR {ox.Number}: {ox.Message}", "text/plain");
+    }
+    catch (Exception ex)
+    {
+        return Results.Text($"ERROR: {ex.Message}", "text/plain");
+    }
 });
 
 app.Run();
