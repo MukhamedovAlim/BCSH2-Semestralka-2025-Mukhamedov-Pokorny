@@ -1,21 +1,63 @@
-﻿@model IEnumerable<FitnessCenter.Web.Models.MemberViewModel>
+﻿@model List<FitnessCenter.Web.Models.MemberViewModel>
 @{
-    ViewData["Title"] = "Members";
+    ViewData["Title"] = "Členové";
+    Layout = "_AppLayout";
 }
-<h2>Members</h2>
-<table class="table">
-    <thead>
-        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Active</th></tr>
-    </thead>
-    <tbody>
-        @foreach (var m in Model)
-        {
-            <tr>
-                <td>@m.FirstName @m.LastName</td>
-                <td>@m.Email</td>
-                <td>@m.Phone</td>
-                <td>@(m.IsActive ? "Yes" : "No")</td>
-            </tr>
-        }
-    </tbody>
-</table>
+
+<div class="glass p-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h3 class="text-white mb-0">Členové</h3>
+        <a asp-action="Create" class="btn btn-primary">+ Přidat člena</a>
+    </div>
+
+    <hr class="border-secondary" />
+
+    @if (TempData["Ok"] is string ok)
+    {
+        <div class="alert alert-success">@ok</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Jméno</th>
+                    <th>E-mail</th>
+                    <th>Telefon</th>
+                    <th>Narozen</th>
+                    <th>Aktivní</th>
+                    <th class="text-end">Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model)
+                {
+                    <tr>
+                        <td>@m.FirstName @m.LastName</td>
+                        <td>@m.Email</td>
+                        <td>@m.Phone</td>
+                        <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
+                        <td>
+                            @if (m.IsActive)
+                            {
+                                <span class="badge bg-success">ANO</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-secondary">NE</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@m.MemberId" class="btn btn-sm btn-outline-light">Detail</a>
+                            <a asp-action="Edit" asp-route-id="@m.MemberId" class="btn btn-sm btn-warning">Upravit</a>
+                            <a asp-action="Delete" asp-route-id="@m.MemberId" class="btn btn-sm btn-danger">Smazat</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-light mt-2">← Zpět na Admin</a>
+</div>

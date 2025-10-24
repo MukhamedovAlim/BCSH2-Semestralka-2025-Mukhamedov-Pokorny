@@ -6,7 +6,14 @@ namespace FitnessCenter.Web.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : Controller
     {
-        // /Admin
-        public IActionResult Index() => View();
+        public IActionResult Index()
+        {
+            ViewBag.Active = "Admin";
+            ViewBag.MembersCount = 0;
+            ViewBag.TrainersCount = 0;
+            ViewBag.LessonsToday = 0;
+            ViewBag.PendingReservs = 0;
+            return View();
+        }
     }
 }

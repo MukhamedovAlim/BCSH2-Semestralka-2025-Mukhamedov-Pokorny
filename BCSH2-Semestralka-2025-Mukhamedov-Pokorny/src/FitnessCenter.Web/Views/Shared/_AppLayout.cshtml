@@ -3,10 +3,17 @@
     Layout = null;
     var title = ViewData["Title"] as string ?? "Přehled";
 
-    bool isAuth    = User?.Identity?.IsAuthenticated ?? false;
+    bool isAuth = User?.Identity?.IsAuthenticated ?? false;
+    bool isAdmin = isAuth && User.IsInRole("Admin");
     bool isTrainer = isAuth && User.IsInRole("Trainer");
-    var brandHref  = isTrainer ? Url.Action("Trainer","Home") : Url.Action("Index","Home");
+    bool isMember = isAuth && User.IsInRole("Member");
+
+    var brandHref = isAdmin
+        ? Url.Action("Index", "Admin")
+        : (isTrainer ? Url.Action("Trainer", "Home")
+                     : Url.Action("Index", "Home"));
 }
+
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -47,20 +54,52 @@
     </a>
 
     <ul class="navbar-nav ms-auto flex-row gap-3">
-      @if (isAuth)
-      {
-        <!-- Všichni přihlášení: jen Odhlásit -->
-        <li class="nav-item">
-          <a class="nav-link" href="@Url.Action("Logout","Account")">Odhlásit</a>
-        </li>
-      }
-      else
-      {
-        <!-- Nepřihlášený: odkaz na login -->
-        <li class="nav-item">
-          <a class="nav-link" href="@Url.Action("Login","Account")">Přihlásit</a>
-        </li>
-      }
+                @if (isAuth)
+                {
+                    if (isAdmin)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "Admin" ? "active" : "")"
+                               href="@Url.Action("Index", "Admin")">Admin</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "Members" ? "active" : "")"
+                               href="@Url.Action("Index", "Members")">Členové</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "Lessons" ? "active" : "")"
+                               href="@Url.Action("Index", "Lessons")">Lekce</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "Payments" ? "active" : "")"
+                               href="@Url.Action("Index", "Payments")">Platby</a>
+                        </li>
+                    }
+                    if (isTrainer)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "HomeTrainer" ? "active" : "")"
+                               href="@Url.Action("Trainer", "Home")">Trenér</a>
+                        </li>
+                    }
+                    if (isMember)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewBag.Active == "Home" ? "active" : "")"
+                               href="@Url.Action("Index", "Home")">Domů</a>
+                        </li>
+                    }
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="@Url.Action("Logout", "Account")">Odhlásit</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" href="@Url.Action("Login", "Account")">Přihlásit</a>
+                    </li>
+                }
     </ul>
   </div>
 </nav>
