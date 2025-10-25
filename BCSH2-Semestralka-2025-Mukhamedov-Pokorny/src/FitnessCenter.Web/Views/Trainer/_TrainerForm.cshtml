@@ -1,0 +1,41 @@
+﻿@model FitnessCenter.Web.Models.TrainerViewModel
+<div class="row g-3">
+    <div class="col-md-6">
+        <label class="form-label">Jméno</label>
+        <input asp-for="FirstName" class="form-control" />
+        <span asp-validation-for="FirstName" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Příjmení</label>
+        <input asp-for="LastName" class="form-control" />
+        <span asp-validation-for="LastName" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">E-mail</label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Telefon</label>
+        <input asp-for="Phone" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Specializace</label>
+        <input asp-for="Specialty" class="form-control" placeholder="Jóga, Silový trénink…" />
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Certifikace</label>
+        <input asp-for="Certifications" class="form-control" placeholder="FISAF, RYT200…" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Sazba (Kč/h)</label>
+        <input asp-for="HourlyRate" class="form-control" type="number" step="1" min="0" />
+        <span asp-validation-for="HourlyRate" class="text-danger"></span>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <div class="form-check">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label">Aktivní</label>
+        </div>
+    </div>
+</div>

@@ -30,30 +30,51 @@
 
     <!-- Základní styly pozadí / “glass” -->
     <style>
-        .app-bg{
-            min-height:100vh;
-            background:
-                radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,.05), transparent 60%),
-                linear-gradient(180deg, #1b1f25, #111316);
+        .app-bg {
+            min-height: 100vh;
+            background: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,.05), transparent 60%), linear-gradient(180deg, #1b1f25, #111316);
         }
-        .glass{ background:rgba(255,255,255,.06); backdrop-filter: blur(6px); border-radius:16px; }
-        .tile{ border-radius:16px; padding:16px; }
-        .tile h5{ margin-bottom:.5rem; }
-        .brand { display:flex; align-items:center; gap:.6rem; }
-        .brand img { height:32px; }
-        .nav-link.active { color:#fff !important; }
+
+        .glass {
+            background: rgba(255,255,255,.06);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+        }
+
+        .tile {
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+            .tile h5 {
+                margin-bottom: .5rem;
+            }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+            .brand img {
+                height: 32px;
+            }
+
+        .nav-link.active {
+            color: #fff !important;
+        }
     </style>
 </head>
 <body class="app-bg">
 
-<nav class="navbar navbar-dark" style="background: rgba(0,0,0,.35);">
-  <div class="container">
-    <a class="navbar-brand brand" href="@brandHref">
-      <img src="/img/BDAS2_logo_bile.png" alt="logo" />
-      <span>Svalovna GYM</span>
-    </a>
+    <nav class="navbar navbar-dark" style="background: rgba(0,0,0,.35);">
+        <div class="container">
+            <a class="navbar-brand brand" href="@brandHref">
+                <img src="/img/BDAS2_logo_bile.png" alt="logo" />
+                <span>Svalovna GYM</span>
+            </a>
 
-    <ul class="navbar-nav ms-auto flex-row gap-3">
+            <ul class="navbar-nav ms-auto flex-row gap-3">
                 @if (isAuth)
                 {
                     if (isAdmin)
@@ -100,15 +121,15 @@
                         <a class="nav-link" href="@Url.Action("Login", "Account")">Přihlásit</a>
                     </li>
                 }
-    </ul>
-  </div>
-</nav>
+            </ul>
+        </div>
+    </nav>
 
-<div class="container py-4">
-  @RenderBody()
-</div>
+    <div class="container py-4">
+        @RenderBody()
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-@RenderSection("scripts", required: false)
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("scripts", required: false)
 </body>
 </html>

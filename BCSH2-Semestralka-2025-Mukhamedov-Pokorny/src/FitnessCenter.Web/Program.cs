@@ -3,8 +3,10 @@ using FitnessCenter.Application.Services;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,17 +49,49 @@ app.UseStaticFiles();
 
 app.UseRouting();
 app.UseAuthentication();
+// DEV: automaticky přihlásí Admina na localhostu
+if (app.Environment.IsDevelopment())
+{
+    app.Use(async (ctx, next) =>
+    {
+        bool isLocal =
+            ctx.Request.Host.Host is "localhost" or "127.0.0.1" or "::1";
+        bool skip =
+            ctx.Request.Path.StartsWithSegments("/Account/Login") ||
+            ctx.Request.Path.StartsWithSegments("/Account/Logout") ||
+            ctx.Request.Query.ContainsKey("noautologin"); // možnost vypnout: ?noautologin=1
+
+        if (isLocal && !skip && !(ctx.User?.Identity?.IsAuthenticated ?? false))
+        {
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.Name,  "Dev Admin"),
+                new(ClaimTypes.Email, "dev.admin@local"),
+                new(ClaimTypes.Role,  "Admin")
+            };
+            var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(id);
+
+            await ctx.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties { IsPersistent = true });
+        }
+
+        await next();
+    });
+}
 app.UseAuthorization();
 
 // Default – přesměruj na Login
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Account}/{action=Login}/{id?}");
+    pattern: "{controller=Admin}/{action=Index}/{id?}");
 
 // Jistota pro root "/"
 app.MapGet("/", ctx =>
 {
-    ctx.Response.Redirect("/Account/Login");
+    ctx.Response.Redirect("/Admin");
     return Task.CompletedTask;
 });
 

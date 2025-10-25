@@ -1,0 +1,16 @@
+﻿@model FitnessCenter.Web.Models.TrainerViewModel
+@{
+    ViewData["Title"] = "Detail trenéra"; Layout = "_AppLayout";
+}
+<div class="glass p-3">
+    <h3 class="text-white mb-2">@Model.FullName</h3>
+    <div class="text-white-50">E-mail: <span class="text-white">@Model.Email</span></div>
+    <div class="text-white-50">Telefon: <span class="text-white">@Model.Phone</span></div>
+    <div class="text-white-50">Specializace: <span class="text-white">@Model.Specialty</span></div>
+    <div class="text-white-50">Certifikace: <span class="text-white">@Model.Certifications</span></div>
+    <div class="text-white-50">Sazba: <span class="text-white">@(Model.HourlyRate?.ToString("0") ?? "—") Kč/h</span></div>
+    <div class="text-white-50">Aktivní: @(Model.IsActive ? "Ano" : "Ne")</div>
+    <hr class="border-secondary my-3" />
+    <a asp-action="Edit" asp-route-id="@Model.TrainerId" class="btn btn-warning">Upravit</a>
+    <a asp-action="Index" class="btn btn-outline-light">Zpět</a>
+</div>

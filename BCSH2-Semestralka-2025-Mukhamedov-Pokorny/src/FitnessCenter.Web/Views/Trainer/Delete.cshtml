@@ -1,0 +1,13 @@
+﻿@model FitnessCenter.Web.Models.TrainerViewModel
+@{
+    ViewData["Title"] = "Smazat trenéra"; Layout = "_AppLayout";
+}
+<div class="glass p-3">
+    <h3 class="text-white mb-2">Smazat trenéra</h3>
+    <p class="text-white-50">Opravdu smazat <strong class="text-white">@Model.FullName</strong>?</p>
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="TrainerId" />
+        <button class="btn btn-danger" type="submit">Ano, smazat</button>
+        <a asp-action="Index" class="btn btn-outline-light">Zpět</a>
+    </form>
+</div>

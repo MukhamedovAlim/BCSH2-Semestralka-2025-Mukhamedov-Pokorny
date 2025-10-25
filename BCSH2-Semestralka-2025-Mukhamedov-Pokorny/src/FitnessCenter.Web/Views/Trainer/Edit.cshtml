@@ -1,0 +1,13 @@
+﻿@model FitnessCenter.Web.Models.TrainerViewModel
+@{
+    ViewData["Title"] = "Upravit trenéra"; Layout = "_AppLayout";
+}
+<div class="glass p-3">
+    <h3 class="text-white mb-2">Upravit trenéra</h3>
+    <form asp-action="Edit" method="post">
+        <partial name="_TrainerForm" model="Model" />
+        <hr class="border-secondary my-3" />
+        <button class="btn btn-warning" type="submit">Uložit změny</button>
+        <a asp-action="Index" class="btn btn-outline-light">Zpět</a>
+    </form>
+</div>
