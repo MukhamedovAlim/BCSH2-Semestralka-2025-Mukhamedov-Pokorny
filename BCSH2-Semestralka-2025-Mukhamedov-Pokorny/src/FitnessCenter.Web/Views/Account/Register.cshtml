@@ -8,32 +8,39 @@
 <form action="/Account/Register" method="post" novalidate>
     @Html.AntiForgeryToken()
 
-    <!-- ať vidíš případné server-side chyby -->
+    <!-- Souhrn chyb -->
     <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
 
     <div class="row g-2">
         <div class="col-6 mb-2">
             <input name="FirstName" class="form-control form-control-lg" placeholder="Jméno" />
+            <span class="text-danger small" asp-validation-for="FirstName"></span>
         </div>
         <div class="col-6 mb-2">
             <input name="LastName" class="form-control form-control-lg" placeholder="Příjmení" />
+            <span class="text-danger small" asp-validation-for="LastName"></span>
         </div>
     </div>
 
     <div class="mb-2">
-        <input name="Email" class="form-control form-control-lg" placeholder="E-mail" />
+        <input name="Email" type="email" class="form-control form-control-lg" placeholder="E-mail" />
+        <span class="text-danger small" asp-validation-for="Email"></span>
     </div>
 
     <div class="mb-2">
-        <input name="UserName" class="form-control form-control-lg" placeholder="Přihlašovací jméno" />
+        <input name="Address" class="form-control form-control-lg" placeholder="Adresa (volitelné)" />
+    </div>
+    <div class="mb-2">
+        <input name="Phone" class="form-control form-control-lg" placeholder="Telefon (volitelné)" />
     </div>
 
     <div class="mb-2">
         <input name="Password" type="password" class="form-control form-control-lg" placeholder="Heslo" />
+        <span class="text-danger small" asp-validation-for="Password"></span>
     </div>
-
     <div class="mb-2">
         <input name="ConfirmPassword" type="password" class="form-control form-control-lg" placeholder="Potvrzení hesla" />
+        <span class="text-danger small" asp-validation-for="ConfirmPassword"></span>
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Vytvořit účet</button>

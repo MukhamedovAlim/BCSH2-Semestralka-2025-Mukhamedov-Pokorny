@@ -10,11 +10,12 @@
     @Html.AntiForgeryToken()
 
     <div class="mb-2">
-        <label class="visually-hidden" for="UserName">Přihlašovací jméno</label>
-        <input id="UserName" name="UserName"
+        <label class="visually-hidden" for="Email">E-mail</label>
+        <input id="Email" name="Email"
+               type="email"
                class="form-control form-control-lg"
                autocomplete="username"
-               placeholder="Přihlašovací jméno" />
+               placeholder="E-mail" />
     </div>
 
     <div class="mb-2">
@@ -29,12 +30,15 @@
     <button id="loginBtn" class="btn btn-primary btn-lg w-100 mt-2" type="submit">Přihlásit se</button>
 </form>
 
+<div class="text-center mt-3 auth-link">
+    <a href="/Account/Register" class="link-light small">Nemáš účet? Registruj se</a>
+</div>
+
 @section scripts {
 <script>
-// pojistka: i kdyby něco bránilo submitu, vynutíme ho
-document.getElementById('loginBtn').addEventListener('click', function (e) {
-  const f = document.getElementById('loginForm');
-  setTimeout(() => f.submit(), 0);
-});
+  document.getElementById('loginBtn').addEventListener('click', function () {
+    const f = document.getElementById('loginForm');
+    setTimeout(() => f.submit(), 0);
+  });
 </script>
 }

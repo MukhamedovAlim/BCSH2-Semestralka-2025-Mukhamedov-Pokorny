@@ -1,7 +1,8 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Application.Services;
-using FitnessCenter.Infrastructure.Repositories;
+using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
+using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
 
@@ -11,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 // Repozitáře (in-memory)
-builder.Services.AddSingleton<IMembersRepository, InMemoryMembersRepository>();
+builder.Services.AddSingleton<IMembersRepository, OracleMembersRepository>();
 builder.Services.AddSingleton<ILessonRepository, InMemoryLessonsRepository>();
 
 // Aplikační služby
@@ -79,5 +80,27 @@ app.MapGet("/dbtest", async () =>
         return Results.Text($"ERROR: {ex.Message}", "text/plain");
     }
 });
+
+// vlož test člena
+app.MapGet("/members/test-insert", async (IMembersService svc) =>
+{
+    var id = await svc.CreateAsync(new Member
+    {
+        FirstName = "Test",
+        LastName = "User",
+        Email = $"test{DateTime.UtcNow.Ticks}@example.com"
+        // Address/Phone necháme NULL
+    });
+    return Results.Text($"Inserted member id: {id}");
+});
+
+// vypiš členy
+app.MapGet("/members/test-list", async (IMembersService svc) =>
+{
+    var all = await svc.GetAllAsync();
+    var lines = all.Select(m => $"{m.MemberId}: {m.FirstName} {m.LastName} <{m.Email}>");
+    return Results.Text(string.Join("\n", lines));
+});
+
 
 app.Run();

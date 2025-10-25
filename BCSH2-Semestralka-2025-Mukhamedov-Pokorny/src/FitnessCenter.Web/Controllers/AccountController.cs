@@ -1,4 +1,6 @@
 ﻿using System.Security.Claims;
+using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Domain.Entities;
 using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -9,6 +11,13 @@ namespace FitnessCenter.Web.Controllers
 {
     public class AccountController : Controller
     {
+        private readonly IMembersService _members;
+
+        public AccountController(IMembersService members)
+        {
+            _members = members;
+        }
+
         // GET: /Account/Login
         [HttpGet]
         [AllowAnonymous]
@@ -18,41 +27,38 @@ namespace FitnessCenter.Web.Controllers
             return View(new LoginViewModel());
         }
 
-        // POST: /Account/Login  – pevné údaje: member/member, trener/trener
+        // POST: /Account/Login  – e-mail + heslo (heslo teď neověřujeme, jen existence e-mailu v DB)
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
         {
-            // --- 1) Ověření přihlašovacích údajů ---
-            string? role = null;
-
-            if (!string.IsNullOrWhiteSpace(model?.UserName) && model?.Password is not null)
+            if (!ModelState.IsValid)
             {
-                if (model.UserName.Equals("trener", StringComparison.OrdinalIgnoreCase)
-                    && model.Password == "trener")
-                    role = "Trainer";
-                else if (model.UserName.Equals("member", StringComparison.OrdinalIgnoreCase)
-                    && model.Password == "member")
-                    role = "Member";
-                else if (model.UserName.Equals("admin", StringComparison.OrdinalIgnoreCase)
-                    && model.Password == "admin")
-                    role = "Admin";
-            }
-
-            if (role is null)
-            {
-                ModelState.AddModelError(string.Empty, "Neplatné přihlašovací údaje.");
                 ViewData["ReturnUrl"] = returnUrl;
                 return View(model);
             }
 
-            // --- 2) Vytvoř cookie s claimy ---
+            // Najdi člena podle e-mailu
+            var all = await _members.GetAllAsync();
+            var member = all.FirstOrDefault(m =>
+                string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase));
+
+            if (member == null)
+            {
+                ModelState.AddModelError(string.Empty, "Účet s tímto e-mailem neexistuje.");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            // Vytvoř cookie s claimy (role Member)
             var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.Name, model!.UserName),
-        new Claim(ClaimTypes.Role, role)
-    };
+            {
+                new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
+                new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
+                new Claim(ClaimTypes.Email, member.Email),
+                new Claim(ClaimTypes.Role, "Member")
+            };
             var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(id);
 
@@ -65,33 +71,52 @@ namespace FitnessCenter.Web.Controllers
                     ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
                 });
 
-            // --- 3) Preferuj returnUrl (když přesměrovávalo na login), jinak role-based redirect ---
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            return role switch
-            {
-                "Admin" => RedirectToAction("Index", "Admin"),
-                "Trainer" => RedirectToAction("Trainer", "Home"),
-                _ => RedirectToAction("Index", "Home")
-            };
+            return RedirectToAction("Index", "Home"); // dashboard člena
         }
 
-        // GET: /Account/Register (demo)
+        // GET: /Account/Register
         [HttpGet]
         [AllowAnonymous]
         public IActionResult Register() => View(new RegisterViewModel());
 
-        // POST: /Account/Register (demo UX tok – nic neukládá)
+        // POST: /Account/Register – uloží do CLENOVE (ID ze sekvence, SYSDATE pro narození, FK fitness se vybere v repo)
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AllowAnonymous]
-        public IActionResult Register(RegisterViewModel model)
+        public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            // kontrola unikátního e-mailu (přátelská hláška)
+            var all = await _members.GetAllAsync();
+            if (all.Any(m => string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(model.Email), "Tento e-mail už je zaregistrovaný.");
+                return View(model);
+            }
+
+            // vytvoř člena (repo doplní ID ze sekvence, SYSDATE, FK na fitness centrum)
+            var member = new Member
+            {
+                FirstName = model.FirstName?.Trim() ?? "",
+                LastName = model.LastName?.Trim() ?? "",
+                Email = model.Email?.Trim() ?? "",
+                Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address!.Trim(),
+                Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone!.Trim()
+            };
+
+            await _members.CreateAsync(member);
+
+            // po úspěchu jen přesměruj na Login a ukaž zprávu
             TempData["JustRegistered"] = true;
-            TempData["RegisterMsg"] = "Účet byl úspěšně vytvořen. Teď se přihlas.";
+            TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
             return RedirectToAction(nameof(Login));
         }
+
 
         // GET: /Account/Logout
         [Authorize]
@@ -101,7 +126,7 @@ namespace FitnessCenter.Web.Controllers
             return RedirectToAction(nameof(Login));
         }
 
-        // GET: /Account/Denied  → rovnou přesměruje, nic nevykresluje
+        // GET: /Account/Denied  → jen přesměruje
         [HttpGet]
         [AllowAnonymous]
         public IActionResult Denied()
