@@ -1,0 +1,37 @@
+﻿@{
+    ViewData["Title"] = "Koupit permanentku";
+    Layout = "_AppLayout";
+    var items = (IEnumerable<dynamic>)ViewBag.Products;
+}
+
+<div class="glass p-3">
+  <h5 class="text-white mb-3">Vyberte typ permanentky</h5>
+
+  <div class="row g-3">
+    @foreach (var p in items)
+    {
+      <div class="col-12 col-md-4">
+        <div class="card bg-dark text-white h-100">
+          <div class="card-body d-flex flex-column">
+            <h6 class="card-title">@p.Name</h6>
+            <div class="text-white-50 mb-3">Cena: <strong class="text-white">@((decimal)p.Price) Kč</strong></div>
+
+            <form asp-action="Buy" method="post" class="mt-auto">
+              @Html.AntiForgeryToken()  <!-- DŮLEŽITÉ -->
+              <input type="hidden" name="typ" value="@p.Name" />
+              <!-- pošli cenu invariantně, aby se správně svázala i v CZ locale -->
+              <input type="hidden" name="cena"
+                     value="@(((decimal)p.Price).ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+              <button type="submit" class="btn btn-primary w-100">Koupit</button>
+            </form>
+
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="mt-3">
+    <a class="btn btn-outline-light" href="@Url.Action("Index")">← Zpět na platby</a>
+  </div>
+</div>

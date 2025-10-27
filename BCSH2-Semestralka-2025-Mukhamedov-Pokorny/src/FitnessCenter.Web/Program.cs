@@ -13,13 +13,14 @@ var builder = WebApplication.CreateBuilder(args);
 // MVC
 builder.Services.AddControllersWithViews();
 
-// Repozitáře (in-memory)
+// Repozitáře
 builder.Services.AddSingleton<IMembersRepository, OracleMembersRepository>();
 builder.Services.AddSingleton<ILessonRepository, InMemoryLessonsRepository>();
 
 // Aplikační služby
 builder.Services.AddScoped<IMembersService, MembersService>();
 builder.Services.AddScoped<ILessonsService, LessonsService>();
+builder.Services.AddScoped<PaymentsReadRepo>();
 
 // 🔐 Cookie autentizace
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -49,49 +50,21 @@ app.UseStaticFiles();
 
 app.UseRouting();
 app.UseAuthentication();
-// DEV: automaticky přihlásí Admina na localhostu
-if (app.Environment.IsDevelopment())
-{
-    app.Use(async (ctx, next) =>
-    {
-        bool isLocal =
-            ctx.Request.Host.Host is "localhost" or "127.0.0.1" or "::1";
-        bool skip =
-            ctx.Request.Path.StartsWithSegments("/Account/Login") ||
-            ctx.Request.Path.StartsWithSegments("/Account/Logout") ||
-            ctx.Request.Query.ContainsKey("noautologin"); // možnost vypnout: ?noautologin=1
-
-        if (isLocal && !skip && !(ctx.User?.Identity?.IsAuthenticated ?? false))
-        {
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name,  "Dev Admin"),
-                new(ClaimTypes.Email, "dev.admin@local"),
-                new(ClaimTypes.Role,  "Admin")
-            };
-            var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(id);
-
-            await ctx.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties { IsPersistent = true });
-        }
-
-        await next();
-    });
-}
 app.UseAuthorization();
 
-// Default – přesměruj na Login
+// =========================
+//   ROUTING / ENDPOINTS
+// =========================
+
+// Default – nejdřív login
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Admin}/{action=Index}/{id?}");
+    pattern: "{controller=Account}/{action=Login}/{id?}");
 
-// Jistota pro root "/"
+// Root "/" → Login
 app.MapGet("/", ctx =>
 {
-    ctx.Response.Redirect("/Admin");
+    ctx.Response.Redirect("/Account/Login");
     return Task.CompletedTask;
 });
 
@@ -115,7 +88,7 @@ app.MapGet("/dbtest", async () =>
     }
 });
 
-// vlož test člena
+// Test: vlož člena (volá service/repo)
 app.MapGet("/members/test-insert", async (IMembersService svc) =>
 {
     var id = await svc.CreateAsync(new Member
@@ -123,18 +96,17 @@ app.MapGet("/members/test-insert", async (IMembersService svc) =>
         FirstName = "Test",
         LastName = "User",
         Email = $"test{DateTime.UtcNow.Ticks}@example.com"
-        // Address/Phone necháme NULL
+        // Address/Phone volitelně
     });
     return Results.Text($"Inserted member id: {id}");
 });
 
-// vypiš členy
+// Test: výpis členů
 app.MapGet("/members/test-list", async (IMembersService svc) =>
 {
     var all = await svc.GetAllAsync();
     var lines = all.Select(m => $"{m.MemberId}: {m.FirstName} {m.LastName} <{m.Email}>");
     return Results.Text(string.Join("\n", lines));
 });
-
 
 app.Run();
