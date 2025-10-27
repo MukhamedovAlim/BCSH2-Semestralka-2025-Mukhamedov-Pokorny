@@ -3,7 +3,6 @@
     ViewData["Title"] = "Moje lekce";
     Layout = "_AppLayout";
 }
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Trainer","Home")">← Zpět</a>
@@ -11,8 +10,6 @@
     </div>
     <a class="btn btn-warning" href="@Url.Action("Create","Lessons")">+ Vytvořit lekci</a>
 </div>
-
-
 
 @if (Model == null || Model.Count == 0)
 {
@@ -24,7 +21,7 @@ else
         <table class="table table-dark table-sm align-middle">
             <thead>
                 <tr class="text-white-50">
-                    <th>Datum/čas</th><th>Název</th><th>Místnost</th><th>Kapacita</th><th></th>
+                    <th>Datum/čas</th><th>Název</th><th>Kapacita</th><th></th>
                 </tr>
             </thead>
             <tbody>
@@ -33,7 +30,6 @@ else
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                         <td class="text-white">@l.Nazev</td>
-                        <td>@l.Mistnost</td>
                         <td>@l.Kapacita</td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-outline-light" href="@Url.Action("Detail","Lessons", new { id = l.Id })">Detail</a>

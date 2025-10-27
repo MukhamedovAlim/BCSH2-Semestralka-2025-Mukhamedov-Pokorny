@@ -15,11 +15,13 @@ builder.Services.AddControllersWithViews();
 
 // Repozitáře
 builder.Services.AddSingleton<IMembersRepository, OracleMembersRepository>();
-builder.Services.AddSingleton<ILessonRepository, InMemoryLessonsRepository>();
+builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
+builder.Services.AddScoped<OracleLessonsRepository>();
 
 // Aplikační služby
 builder.Services.AddScoped<IMembersService, MembersService>();
 builder.Services.AddScoped<ILessonsService, LessonsService>();
+builder.Services.AddScoped<LessonsRepo>();
 builder.Services.AddScoped<PaymentsReadRepo>();
 
 // 🔐 Cookie autentizace

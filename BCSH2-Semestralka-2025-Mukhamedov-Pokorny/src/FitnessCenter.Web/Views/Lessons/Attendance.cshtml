@@ -3,7 +3,6 @@
     ViewData["Title"] = "Docházka";
     Layout = "_AppLayout";
 }
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Lessons")">← Zpět</a>
@@ -13,7 +12,7 @@
 
 <h5 class="text-white mb-3">@Model.Nazev</h5>
 <div class="text-white-50 mb-3">
-    @Model.Zacatek.ToString("dd.MM.yyyy HH:mm") · @Model.Mistnost · Kapacita: @Model.Kapacita
+    @Model.Zacatek.ToString("dd.MM.yyyy HH:mm") · Kapacita: @Model.Kapacita
 </div>
 
 <div class="text-white-50">

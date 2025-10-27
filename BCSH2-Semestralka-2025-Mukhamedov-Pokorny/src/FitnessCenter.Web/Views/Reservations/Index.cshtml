@@ -4,7 +4,6 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Reservations";
 }
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Home")">← Zpět</a>
@@ -30,7 +29,6 @@ else
                 <tr class="text-white-50">
                     <th>Datum/čas</th>
                     <th>Název</th>
-                    <th>Místnost</th>
                     <th>Kapacita</th>
                     <th class="text-end">Akce</th>
                 </tr>
@@ -41,7 +39,6 @@ else
                 <tr>
                     <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                     <td class="text-white">@l.Nazev</td>
-                    <td>@l.Mistnost</td>
                     <td>@l.Kapacita</td>
                     <td class="text-end">
                         <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">

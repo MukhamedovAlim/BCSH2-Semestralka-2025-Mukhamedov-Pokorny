@@ -3,7 +3,6 @@
     ViewData["Title"] = "Detail lekce";
     Layout = "_AppLayout";
 }
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Trainer","Home")">← Zpět</a>
@@ -12,7 +11,7 @@
 </div>
 
 <div class="text-white-50 mb-3">
-    @Model.Zacatek.ToString("dd.MM.yyyy HH:mm") · @Model.Mistnost · Kapacita: @Model.Kapacita
+    @Model.Zacatek.ToString("dd.MM.yyyy HH:mm") · Kapacita: @Model.Kapacita
 </div>
 
 <form method="post" action="/Lessons/Edit" novalidate>
@@ -27,11 +26,6 @@
             <span asp-validation-for="Nazev" class="text-danger small"></span>
         </div>
         <div class="col-md-6">
-            <label class="form-label text-white">Místnost</label>
-            <input asp-for="Mistnost" class="form-control" />
-            <span asp-validation-for="Mistnost" class="text-danger small"></span>
-        </div>
-        <div class="col-md-6">
             <label class="form-label text-white">Začátek</label>
             <input asp-for="Zacatek" type="datetime-local" class="form-control"
                    value="@Model.Zacatek.ToString("yyyy-MM-ddTHH:mm")" />
@@ -41,11 +35,6 @@
             <label class="form-label text-white">Kapacita</label>
             <input asp-for="Kapacita" type="number" class="form-control" />
             <span asp-validation-for="Kapacita" class="text-danger small"></span>
-        </div>
-        <div class="col-12">
-            <label class="form-label text-white">Popis</label>
-            <textarea asp-for="Popis" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="Popis" class="text-danger small"></span>
         </div>
     </div>
 

@@ -1,52 +1,80 @@
-﻿using System.Threading.Tasks;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Infrastructure.Repositories;
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Member")]
+    [Route("[controller]")] // => /Reservations/...
     public class ReservationsController : Controller
     {
-        private readonly ILessonsService _lessons;
+        private readonly OracleLessonsRepository _repo;
+        private readonly PaymentsReadRepo _members;
 
-        public ReservationsController(ILessonsService lessons)
+        public ReservationsController(OracleLessonsRepository repo, PaymentsReadRepo members)
         {
-            _lessons = lessons;
+            _repo = repo;
+            _members = members;
         }
 
-        // GET: /Reservations
-        [HttpGet]
+        private async Task<int> ResolveMemberId()
+        {
+            if (int.TryParse(User.FindFirst("ClenId")?.Value, out var id) && id > 0)
+                return id;
+
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (string.IsNullOrWhiteSpace(email)) return 0;
+
+            return (await _members.GetMemberIdByEmailAsync(email)) ?? 0;
+        }
+
+        // GET /Reservations
+        [HttpGet("")]
         public async Task<IActionResult> Index()
         {
-            var lessons = await _lessons.GetAllAsync();
-            return View(lessons); // Views/Reservations/Index.cshtml
+            var list = await _repo.GetUpcomingViaProcAsync(); // procedura SP_LESSONS_UPCOMING
+            return View(list); // @model IReadOnlyList<Lesson>
         }
 
-        // GET: /Reservations/Mine
-        [HttpGet]
-        public IActionResult Mine()
+        // GET /Reservations/Mine
+        [HttpGet("Mine")]
+        public async Task<IActionResult> Mine()
         {
-            // Placeholder – vlastní rezervace uživatele sem přidáme později
-            return View(); // Views/Reservations/Mine.cshtml
+            var idClen = await ResolveMemberId();
+            var rows = await _repo.GetMyReservationsViaProcAsync(idClen); // SP_MY_RESERVATIONS
+            return View(rows); // @model List<OracleLessonsRepository.MyReservationRow>
         }
 
-        // POST: /Reservations/Book/5  (zatím jen ukázka)
-        [HttpPost]
+        // POST /Reservations/Book/{id}
+        [HttpPost("Book/{id:int}")]
         [ValidateAntiForgeryToken]
-        public IActionResult Book(int id)
+        public async Task<IActionResult> Book(int id)
         {
-            TempData["ResMsg"] = $"Rezervace lekce #{id} byla vytvořena (demo).";
-            return RedirectToAction(nameof(Index));
+            var idClen = await ResolveMemberId();
+            try
+            {
+                var idRez = await _repo.ReserveLessonAsync(idClen, id);
+                TempData["ResMsg"] = $"Rezervace vytvořena (#{idRez}).";
+                return RedirectToAction(nameof(Mine));
+            }
+            catch (Exception ex)
+            {
+                TempData["ResMsg"] = "Rezervaci se nepodařilo vytvořit: " + ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
         }
 
-        // POST: /Reservations/Cancel/5  (zatím jen ukázka)
-        [HttpPost]
+        // POST /Reservations/Cancel
+        [HttpPost("Cancel")]
         [ValidateAntiForgeryToken]
-        public IActionResult Cancel(int id)
+        public async Task<IActionResult> Cancel([FromForm] int rezId)
         {
-            TempData["ResMsg"] = $"Rezervace lekce #{id} byla zrušena (demo).";
+            var idClen = await ResolveMemberId();
+            await _repo.CancelReservationByIdAsync(idClen, rezId);
+            TempData["ResMsg"] = "Rezervace byla zrušena.";
             return RedirectToAction(nameof(Mine));
         }
+
     }
 }
