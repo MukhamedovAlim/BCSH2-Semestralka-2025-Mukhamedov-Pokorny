@@ -10,9 +10,6 @@ using Oracle.ManagedDataAccess.Types;
 
 namespace FitnessCenter.Infrastructure.Repositories
 {
-    /// <summary>
-    /// Oracle repo pro lekce a rezervace – volá uložené procedury (REF CURSOR) a jednoduché CRUDy.
-    /// </summary>
     public sealed class OracleLessonsRepository : ILessonRepository
     {
         private static async Task<OracleConnection> OpenAsync()
@@ -193,12 +190,12 @@ namespace FitnessCenter.Infrastructure.Repositories
             return null;
         }
 
-        public async Task<int> CreateAsync(Lesson lesson, CancellationToken ct = default)
+        public async Task<int> CreateAsync(Lesson lesson, int trainerId, CancellationToken ct = default)
         {
             const string sql = @"
-                INSERT INTO lekce (idlekce, nazevlekce, datumlekce, obsazenost, trener_idtrener)
-                VALUES (S_LEKCE.NEXTVAL, :nazev, :datum, :kapacita, :idtrener)
-                RETURNING idlekce INTO :idout";
+        INSERT INTO lekce (idlekce, nazevlekce, datumlekce, obsazenost, trener_idtrener)
+        VALUES (S_LEKCE.NEXTVAL, :nazev, :datum, :kapacita, :idtrener)
+        RETURNING idlekce INTO :idout";
 
             using var con = await OpenAsync();
             using var cmd = new OracleCommand(sql, con) { BindByName = true };
@@ -206,7 +203,7 @@ namespace FitnessCenter.Infrastructure.Repositories
             cmd.Parameters.Add("nazev", OracleDbType.Varchar2).Value = lesson.Nazev;
             cmd.Parameters.Add("datum", OracleDbType.Date).Value = lesson.Zacatek;
             cmd.Parameters.Add("kapacita", OracleDbType.Int32).Value = lesson.Kapacita;
-            cmd.Parameters.Add("idtrener", OracleDbType.Int32).Value = 1; // TODO: nahradit ID trenéra (např. z claimu)
+            cmd.Parameters.Add("idtrener", OracleDbType.Int32).Value = trainerId;
             cmd.Parameters.Add("idout", OracleDbType.Int32).Direction = ParameterDirection.Output;
 
             await cmd.ExecuteNonQueryAsync(ct);
@@ -241,6 +238,48 @@ namespace FitnessCenter.Infrastructure.Repositories
             cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
             var rows = await cmd.ExecuteNonQueryAsync(ct);
             return rows > 0;
+        }
+
+        public async Task<int?> GetTrainerIdByEmailAsync(string email)
+        {
+            const string sql = "SELECT idtrener FROM treneri WHERE LOWER(email) = LOWER(:em)";
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("em", OracleDbType.Varchar2).Value = email;
+
+            var obj = await cmd.ExecuteScalarAsync();
+            if (obj == null || obj == DBNull.Value) return null;
+            return Convert.ToInt32(obj.ToString());
+        }
+
+        public async Task<IReadOnlyList<Lesson>> GetForTrainerAsync(int trainerId, CancellationToken ct = default)
+        {
+            const string sql = @"
+        SELECT idlekce, nazevlekce, datumlekce, obsazenost
+          FROM lekce
+         WHERE trener_idtrener = :t
+         ORDER BY datumlekce";
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("t", OracleDbType.Int32).Value = trainerId;
+
+            using var rd = await cmd.ExecuteReaderAsync(ct);
+
+            var list = new List<Lesson>();
+            while (await rd.ReadAsync(ct))
+            {
+                list.Add(new Lesson
+                {
+                    Id = rd.GetInt32(0),
+                    Nazev = rd.GetString(1),
+                    Zacatek = rd.GetDateTime(2),
+                    Kapacita = rd.GetInt32(3),
+                    Mistnost = string.Empty,
+                    Popis = null
+                });
+            }
+            return list;
         }
     }
 }

@@ -8,7 +8,7 @@ using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Infrastructure.Repositories;
 using Oracle.ManagedDataAccess.Client;
 
-    public sealed class OraceMemberRepository : IMembersRepository
+    public sealed class OracleMemberRepository : IMembersRepository
     {
         private static async Task<OracleConnection> OpenAsync()
             => (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();

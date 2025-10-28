@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FitnessCenter.Application.Interfaces;
@@ -10,17 +12,36 @@ namespace FitnessCenter.Web.Controllers
     public class LessonsController : Controller
     {
         private readonly ILessonsService _lessons;
+        private readonly IMembersService _members;
 
-        public LessonsController(ILessonsService lessons)
+        public LessonsController(ILessonsService lessons, IMembersService members)
         {
             _lessons = lessons;
+            _members = members;
         }
 
         // Správa lekcí (list)
         [HttpGet]
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var list = await _lessons.GetAllAsync();
+            // zjistíme ID trenéra z e-mailu přihlášeného uživatele
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
+                return View(Array.Empty<Lesson>());
+            }
+
+            // přes MembersService si necháme vrátit TrainerId
+            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            if (trainerId is null)
+            {
+                TempData["Err"] = "Tvůj účet není svázaný s žádným trenérem v databázi.";
+                return View(Array.Empty<Lesson>());
+            }
+
+            var list = await _lessons.GetForTrainerAsync(trainerId.Value);
             return View(list); // Views/Lessons/Index.cshtml
         }
 
@@ -55,16 +76,62 @@ namespace FitnessCenter.Web.Controllers
             return View(model); // Views/Lessons/Create.cshtml
         }
 
-        // Vytvoření lekce – uložení
+        // Vytvoření lekce – uložení (spáruje přihlášeného trenéra podle e-mailu)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Lesson model)
         {
-            if (!ModelState.IsValid) return View(model);
+            // 1) Základní validace aby se vždy ukázalo proč to padá
+            if (string.IsNullOrWhiteSpace(model.Nazev))
+                ModelState.AddModelError(nameof(model.Nazev), "Název je povinný.");
+            if (model.Kapacita <= 0)
+                ModelState.AddModelError(nameof(model.Kapacita), "Kapacita musí být > 0.");
+            if (model.Zacatek == default)
+                ModelState.AddModelError(nameof(model.Zacatek), "Zadej platný datum a čas.");
 
-            var id = await _lessons.CreateAsync(model);
-            return RedirectToAction(nameof(Detail), new { id });
+            // 2) Když je ModelState nevalidní -> sebereme chyby, dáme do TempData a PRG na GET /Create
+            if (!ModelState.IsValid)
+            {
+                TempData["Err"] = string.Join(" | ", ModelState
+                    .Where(kv => kv.Value?.Errors?.Count > 0)
+                    .SelectMany(kv => kv.Value!.Errors.Select(e => $"{kv.Key}: {e.ErrorMessage}")));
+                return RedirectToAction(nameof(Create));
+            }
+
+            // 3) Dohledat trenéra podle e-mailu z claims
+            var email = User.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
+                return RedirectToAction(nameof(Create));
+            }
+
+            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            if (trainerId is null)
+            {
+                TempData["Err"] = "Tvůj účet není spojen s žádným trenérem v databázi.";
+                return RedirectToAction(nameof(Create));
+            }
+
+            try
+            {
+                // 4) Uložení (repo vkládá do: NAZEVLEKCE, DATUMLEKCE, OBSAZENOST, TRENER_IDTRENER)
+                var id = await _lessons.CreateAsync(model, trainerId.Value);
+
+                // 5) Úspěch -> zelená hláška + PRG (můžeš přesměrovat i na Detail)
+                TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena (ID {id}).";
+                return RedirectToAction(nameof(Create));               // nebo: return RedirectToAction(nameof(Detail), new { id });
+                                                                       // return RedirectToAction("Trainer", "Home");
+            }
+            catch (Exception ex)
+            {
+                // 6) Chyba z DB -> do TempData a PRG zpět na GET
+                TempData["Err"] = $"Chyba při ukládání: {ex.Message}";
+                return RedirectToAction(nameof(Create));
+            }
         }
+
+
 
         // Úprava lekce – uložení
         [HttpPost]

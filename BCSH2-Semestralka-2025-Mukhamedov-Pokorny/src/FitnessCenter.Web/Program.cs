@@ -1,29 +1,36 @@
-﻿using FitnessCenter.Application.Interfaces;
+﻿using System.Security.Claims;
+using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Application.Services;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Infrastructure.Repositories;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // MVC
 builder.Services.AddControllersWithViews();
 
-// Repozitáře
-builder.Services.AddSingleton<IMembersRepository, OraceMemberRepository>();
-builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
-builder.Services.AddScoped<OracleLessonsRepository>();
+// IHttpContextAccessor – potřebné pro LessonsService
+builder.Services.AddHttpContextAccessor();
 
-// Aplikační služby
-builder.Services.AddScoped<IMembersService, MembersService>();
-builder.Services.AddScoped<ILessonsService, LessonsService>();
+// =======================
+//   Repozitáře (Scoped)
+// =======================
+builder.Services.AddScoped<IMembersRepository, OracleMemberRepository>();
+builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
+
+// Read-only/Doplňkové repozitáře
 builder.Services.AddScoped<LessonsRepo>();
 builder.Services.AddScoped<PaymentsReadRepo>();
 builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
+
+// =======================
+//   Aplikační služby
+// =======================
+builder.Services.AddScoped<IMembersService, MembersService>();
+builder.Services.AddScoped<ILessonsService, LessonsService>();
 
 // 🔐 Cookie autentizace
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -46,9 +53,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Doporučení: https redirect klidně nechat i v dev
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -99,7 +104,6 @@ app.MapGet("/members/test-insert", async (IMembersService svc) =>
         FirstName = "Test",
         LastName = "User",
         Email = $"test{DateTime.UtcNow.Ticks}@example.com"
-        // Address/Phone volitelně
     });
     return Results.Text($"Inserted member id: {id}");
 });
@@ -112,4 +116,8 @@ app.MapGet("/members/test-list", async (IMembersService svc) =>
     return Results.Text(string.Join("\n", lines));
 });
 
+/*foreach (var kv in ModelState)
+    foreach (var err in kv.Value.Errors)
+        Console.WriteLine($"ModelState error {kv.Key}: {err.ErrorMessage}");
+*/
 app.Run();

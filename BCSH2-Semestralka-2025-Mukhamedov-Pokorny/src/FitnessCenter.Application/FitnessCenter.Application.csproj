@@ -4,6 +4,9 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\FitnessCenter.Domain\FitnessCenter.Domain.csproj" />
