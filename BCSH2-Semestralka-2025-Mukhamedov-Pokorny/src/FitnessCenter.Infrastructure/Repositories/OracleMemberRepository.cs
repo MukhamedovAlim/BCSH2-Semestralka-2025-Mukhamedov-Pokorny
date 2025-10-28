@@ -1,145 +1,174 @@
-﻿using System.Data;
-using Oracle.ManagedDataAccess.Client;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+using FitnessCenter.Domain.Entities;          // Member
 using FitnessCenter.Infrastructure.Persistence;
-using FitnessCenter.Domain.Entities;
-using Oracle.ManagedDataAccess.Types; // kvůli OracleDecimal
+using FitnessCenter.Infrastructure.Repositories;
+using Oracle.ManagedDataAccess.Client;
 
-namespace FitnessCenter.Infrastructure.Repositories
-{
-    public sealed class OracleMembersRepository : IMembersRepository
+    public sealed class OraceMemberRepository : IMembersRepository
     {
-        public async Task<IEnumerable<Member>> GetAllAsync(CancellationToken ct = default)
+        private static async Task<OracleConnection> OpenAsync()
+            => (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+
+        // ------------------------------------------------------------
+        // CLENOVE – mapování z/do entity Member
+        // ------------------------------------------------------------
+        private static Member ReadMember(OracleDataReader rd)
         {
-            var list = new List<Member>();
-
-            using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand(
-                @"SELECT IDCLEN, JMENO, PRIJMENI, EMAIL 
-                    FROM CLENOVE 
-                ORDER BY IDCLEN", conn);
-
-            using var rd = await cmd.ExecuteReaderAsync(ct);
-            while (await rd.ReadAsync(ct))
+            // Sloupce v SELECTech níže musí odpovídat pořadí zde:
+            // idclen, jmeno, prijmeni, email, adresa, telefon
+            return new Member
             {
-                list.Add(new Member
-                {
-                    MemberId = rd.GetInt32(0),
-                    FirstName = rd.GetString(1),
-                    LastName = rd.GetString(2),
-                    Email = rd.GetString(3)
-                });
-            }
+                MemberId = rd.GetInt32(0),
+                FirstName = rd.GetString(1),
+                LastName = rd.GetString(2),
+                Email = rd.GetString(3),
+                Address = rd.IsDBNull(4) ? null : rd.GetString(4),
+                Phone = rd.IsDBNull(5) ? null : rd.GetString(5),
+            };
+        }
+
+        // ------------------------------------------------------------
+        // READ ALL
+        // ------------------------------------------------------------
+        public async Task<IEnumerable<Member>> GetAllAsync()
+        {
+            const string sql = @"
+                SELECT idclen, jmeno, prijmeni, email, adresa, telefon
+                  FROM clenove
+              ORDER BY prijmeni, jmeno";
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            using var rd = await cmd.ExecuteReaderAsync();
+
+            var list = new List<Member>();
+            while (await rd.ReadAsync())
+                list.Add(ReadMember(rd));
+
             return list;
         }
 
-        public async Task<Member?> GetByIdAsync(int id, CancellationToken ct = default)
+        // ------------------------------------------------------------
+        // READ BY ID
+        // ------------------------------------------------------------
+        public async Task<Member?> GetByIdAsync(int id)
         {
-            using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand(
-                @"SELECT IDCLEN, JMENO, PRIJMENI, EMAIL 
-                    FROM CLENOVE 
-                   WHERE IDCLEN = :id", conn)
-            { BindByName = true };
+            const string sql = @"
+                SELECT idclen, jmeno, prijmeni, email, adresa, telefon
+                  FROM clenove
+                 WHERE idclen = :id";
 
-            cmd.Parameters.Add(":id", OracleDbType.Int32).Value = id;
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("id", id);
 
-            using var rd = await cmd.ExecuteReaderAsync(ct);
-            if (await rd.ReadAsync(ct))
-            {
-                return new Member
-                {
-                    MemberId = rd.GetInt32(0),
-                    FirstName = rd.GetString(1),
-                    LastName = rd.GetString(2),
-                    Email = rd.GetString(3)
-                };
-            }
+            using var rd = await cmd.ExecuteReaderAsync();
+            if (await rd.ReadAsync())
+                return ReadMember(rd);
+
             return null;
         }
 
-        public async Task<int> CreateAsync(Member m, CancellationToken ct = default)
+        // ------------------------------------------------------------
+        // CREATE
+        //  - ID ze sekvence S_CLENOVE
+        //  - DATUMNAROZENI nastavíme SYSDATE (v DB NOT NULL)
+        //  - FITNESSCENTRUM_IDFITNESS zvolíme jako MIN(idfitness) nebo 1
+        // ------------------------------------------------------------
+        public async Task<int> CreateAsync(Member m)
         {
-            using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var tx = conn.BeginTransaction(IsolationLevel.ReadCommitted);
-
-            // 1) Získáme nějaké existující FITNESSCENTRUM_IDFITNESS (první řádek).
-            int fitnessId;
-            using (var pick = new OracleCommand(
-                "SELECT IDFITNESS FROM FITNESSCENTRA WHERE ROWNUM = 1", conn))
-            {
-                pick.Transaction = tx;
-                var obj = await pick.ExecuteScalarAsync(ct);
-                if (obj == null || obj == DBNull.Value)
-                    throw new InvalidOperationException("Tabulka FITNESSCENTRA je prázdná – vlož nejdřív alespoň 1 fitness centrum.");
-                fitnessId = Convert.ToInt32(obj);
-            }
-
-            // 2) INSERT všech povinných sloupců.
-            //    - IDCLEN ze sekvence S_CLENOVE
-            //    - DATUMNAROZENI zatím SYSDATE (později nahradíme parametrem z registrace)
             const string sql = @"
-                INSERT INTO CLENOVE (
-                    IDCLEN, JMENO, PRIJMENI, DATUMNAROZENI, ADRESA, TELEFON, EMAIL, FITNESSCENTRUM_IDFITNESS
-                ) VALUES (
-                    S_CLENOVE.NEXTVAL, :j, :p, SYSDATE, :adr, :tel, :em, :fc
-                )
-                RETURNING IDCLEN INTO :id";
+                INSERT INTO clenove
+                    (idclen, jmeno, prijmeni, datumnarozeni, adresa, telefon, email, fitnesscentrum_idfitness)
+                VALUES
+                    (S_CLENOVE.NEXTVAL, :jmeno, :prijmeni, SYSDATE, :adresa, :telefon, :email,
+                     (SELECT NVL(MIN(idfitness), 1) FROM fitnesscentra))
+                RETURNING idclen INTO :idout";
 
-            using var cmd = new OracleCommand(sql, conn) { BindByName = true };
-            cmd.Transaction = tx;
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
 
-            cmd.Parameters.Add(":j", OracleDbType.Varchar2).Value = m.FirstName;
-            cmd.Parameters.Add(":p", OracleDbType.Varchar2).Value = m.LastName;
-            cmd.Parameters.Add(":adr", OracleDbType.Varchar2).Value = (object?)m.Address ?? DBNull.Value;
-            cmd.Parameters.Add(":tel", OracleDbType.Varchar2).Value = (object?)m.Phone ?? DBNull.Value;
-            cmd.Parameters.Add(":em", OracleDbType.Varchar2).Value = m.Email;
-            cmd.Parameters.Add(":fc", OracleDbType.Int32).Value = fitnessId;
+            cmd.Parameters.Add("jmeno", m.FirstName ?? string.Empty);
+            cmd.Parameters.Add("prijmeni", m.LastName ?? string.Empty);
+            cmd.Parameters.Add("adresa", (object?)m.Address ?? DBNull.Value);
+            cmd.Parameters.Add("telefon", (object?)m.Phone ?? DBNull.Value);
+            cmd.Parameters.Add("email", m.Email ?? string.Empty);
 
-            var idParam = new OracleParameter(":id", OracleDbType.Int32)
-            {
-                Direction = ParameterDirection.Output
-            };
-            cmd.Parameters.Add(idParam);
+            cmd.Parameters.Add("idout", OracleDbType.Int32).Direction = ParameterDirection.Output;
 
-            await cmd.ExecuteNonQueryAsync(ct);
-            tx.Commit();
-
-            int id = idParam.Value is OracleDecimal od ? od.ToInt32() : Convert.ToInt32(idParam.Value);
-            m.MemberId = id;
-            m.CreatedAt = DateTime.UtcNow;
-            return id;
+            await cmd.ExecuteNonQueryAsync();
+            return Convert.ToInt32(cmd.Parameters["idout"].Value.ToString());
         }
 
-        public async Task<bool> UpdateAsync(Member m, CancellationToken ct = default)
+        // ------------------------------------------------------------
+        // UPDATE
+        // ------------------------------------------------------------
+        public async Task<bool> UpdateAsync(Member m)
         {
             const string sql = @"
-                UPDATE CLENOVE
-                   SET JMENO = :j, PRIJMENI = :p, EMAIL = :e, ADRESA = :a, TELEFON = :t
-                 WHERE IDCLEN = :id";
+                UPDATE clenove
+                   SET jmeno   = :jmeno,
+                       prijmeni= :prijmeni,
+                       adresa  = :adresa,
+                       telefon = :telefon,
+                       email   = :email
+                 WHERE idclen  = :id";
 
-            using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand(sql, conn) { BindByName = true };
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
 
-            cmd.Parameters.Add(":j", OracleDbType.Varchar2).Value = m.FirstName;
-            cmd.Parameters.Add(":p", OracleDbType.Varchar2).Value = m.LastName;
-            cmd.Parameters.Add(":e", OracleDbType.Varchar2).Value = m.Email;
-            cmd.Parameters.Add(":a", OracleDbType.Varchar2).Value = (object?)m.Address ?? DBNull.Value;
-            cmd.Parameters.Add(":t", OracleDbType.Varchar2).Value = (object?)m.Phone ?? DBNull.Value;
-            cmd.Parameters.Add(":id", OracleDbType.Int32).Value = m.MemberId;
+            cmd.Parameters.Add("jmeno", m.FirstName ?? string.Empty);
+            cmd.Parameters.Add("prijmeni", m.LastName ?? string.Empty);
+            cmd.Parameters.Add("adresa", (object?)m.Address ?? DBNull.Value);
+            cmd.Parameters.Add("telefon", (object?)m.Phone ?? DBNull.Value);
+            cmd.Parameters.Add("email", m.Email ?? string.Empty);
+            cmd.Parameters.Add("id", m.MemberId);
 
-            var rows = await cmd.ExecuteNonQueryAsync(ct);
+            var rows = await cmd.ExecuteNonQueryAsync();
             return rows > 0;
         }
 
-        public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+        // ------------------------------------------------------------
+        // DELETE
+        // ------------------------------------------------------------
+        public async Task<bool> DeleteAsync(int id)
         {
-            using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand("DELETE FROM CLENOVE WHERE IDCLEN = :id", conn)
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand("DELETE FROM clenove WHERE idclen = :id", con)
             { BindByName = true };
+            cmd.Parameters.Add("id", id);
 
-            cmd.Parameters.Add(":id", OracleDbType.Int32).Value = id;
-            var rows = await cmd.ExecuteNonQueryAsync(ct);
+            var rows = await cmd.ExecuteNonQueryAsync();
             return rows > 0;
+        }
+
+        // ------------------------------------------------------------
+        // TRAINER HELPERS (TRENERI)
+        // ------------------------------------------------------------
+        public async Task<bool> IsTrainerEmailAsync(string email)
+        {
+            const string sql = @"SELECT COUNT(*) FROM treneri WHERE LOWER(email) = LOWER(:email)";
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("email", email);
+
+            var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            return count > 0;
+        }
+
+        public async Task<int?> GetTrainerIdByEmailAsync(string email)
+        {
+            const string sql = @"SELECT idtrener FROM treneri WHERE LOWER(email) = LOWER(:email)";
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("email", email);
+
+            var obj = await cmd.ExecuteScalarAsync();
+            if (obj == null || obj == DBNull.Value) return null;
+            return Convert.ToInt32(obj);
         }
     }
-}

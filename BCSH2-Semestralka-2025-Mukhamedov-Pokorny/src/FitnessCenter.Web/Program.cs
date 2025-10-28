@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 // Repozitáře
-builder.Services.AddSingleton<IMembersRepository, OracleMembersRepository>();
+builder.Services.AddSingleton<IMembersRepository, OraceMemberRepository>();
 builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 builder.Services.AddScoped<OracleLessonsRepository>();
 
@@ -23,6 +23,7 @@ builder.Services.AddScoped<IMembersService, MembersService>();
 builder.Services.AddScoped<ILessonsService, LessonsService>();
 builder.Services.AddScoped<LessonsRepo>();
 builder.Services.AddScoped<PaymentsReadRepo>();
+builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 
 // 🔐 Cookie autentizace
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

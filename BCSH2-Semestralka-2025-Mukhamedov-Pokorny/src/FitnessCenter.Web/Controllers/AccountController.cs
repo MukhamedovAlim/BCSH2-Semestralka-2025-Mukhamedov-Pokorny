@@ -27,7 +27,8 @@ namespace FitnessCenter.Web.Controllers
             return View(new LoginViewModel());
         }
 
-        // POST: /Account/Login  – e-mail + heslo (heslo teď neověřujeme, jen existence e-mailu v DB)
+        // POST: /Account/Login
+        // (heslo teď neověřujeme – jen existence e-mailu; pro produkci přidej hash/ověření)
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AllowAnonymous]
@@ -39,7 +40,7 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // Najdi člena podle e-mailu
+            // 1) najdi člena podle e-mailu
             var all = await _members.GetAllAsync();
             var member = all.FirstOrDefault(m =>
                 string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase));
@@ -51,16 +52,31 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // Vytvoř cookie s claimy (role Member)
+            // 2) zkusit zjistit, zda je trenér (podle existence v tabulce TRENERY)
+            //    -> implementuj v IMembersService metodu IsTrainerEmailAsync(email)
+            bool isTrainer = false;
+            try
+            {
+                isTrainer = await _members.IsTrainerEmailAsync(member.Email);
+            }
+            catch
+            {
+                // pokud metodu zatím nemáš, dočasně necháme false
+                // případně sem můžeš doplnit fallback na jiný repo
+            }
+
+            // 3) claimy (přidáme i ClenId kvůli Home/Index výpočtům permice)
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
                 new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
                 new Claim(ClaimTypes.Email, member.Email),
-                new Claim(ClaimTypes.Role, "Member")
+                new Claim("ClenId", member.MemberId.ToString()),
+                new Claim(ClaimTypes.Role, isTrainer ? "Trainer" : "Member")
             };
-            var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(id);
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
 
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
@@ -71,10 +87,15 @@ namespace FitnessCenter.Web.Controllers
                     ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
                 });
 
+            // 4) upřednostni validní lokální návratovou URL
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            return RedirectToAction("Index", "Home"); // dashboard člena
+            // 5) redirect podle role
+            if (isTrainer)
+                return RedirectToAction("Trainer", "Home");   // Dashboard trenéra
+
+            return RedirectToAction("Index", "Home");          // Dashboard člena
         }
 
         // GET: /Account/Register
@@ -82,7 +103,7 @@ namespace FitnessCenter.Web.Controllers
         [AllowAnonymous]
         public IActionResult Register() => View(new RegisterViewModel());
 
-        // POST: /Account/Register – uloží do CLENOVE (ID ze sekvence, SYSDATE pro narození, FK fitness se vybere v repo)
+        // POST: /Account/Register
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AllowAnonymous]
@@ -91,7 +112,6 @@ namespace FitnessCenter.Web.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // kontrola unikátního e-mailu (přátelská hláška)
             var all = await _members.GetAllAsync();
             if (all.Any(m => string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase)))
             {
@@ -99,7 +119,6 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // vytvoř člena (repo doplní ID ze sekvence, SYSDATE, FK na fitness centrum)
             var member = new Member
             {
                 FirstName = model.FirstName?.Trim() ?? "",
@@ -111,12 +130,10 @@ namespace FitnessCenter.Web.Controllers
 
             await _members.CreateAsync(member);
 
-            // po úspěchu jen přesměruj na Login a ukaž zprávu
             TempData["JustRegistered"] = true;
             TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
             return RedirectToAction(nameof(Login));
         }
-
 
         // GET: /Account/Logout
         [Authorize]
@@ -126,18 +143,19 @@ namespace FitnessCenter.Web.Controllers
             return RedirectToAction(nameof(Login));
         }
 
-        // GET: /Account/Denied  → jen přesměruje
+        // GET: /Account/Denied
         [HttpGet]
         [AllowAnonymous]
         public IActionResult Denied()
         {
             if (User?.Identity?.IsAuthenticated == true)
             {
-                string? target =
-                    User.IsInRole("Admin") ? Url.Action("Admin", "Home") :
-                    User.IsInRole("Trainer") ? Url.Action("Trainer", "Home") :
-                                               Url.Action("Index", "Home");
-                return Redirect(target ?? Url.Action("Login", "Account")!);
+                if (User.IsInRole("Trainer"))
+                    return RedirectToAction("Trainer", "Home");
+                if (User.IsInRole("Admin"))
+                    return RedirectToAction("Admin", "Home");
+
+                return RedirectToAction("Index", "Home");
             }
             return RedirectToAction("Login", "Account");
         }

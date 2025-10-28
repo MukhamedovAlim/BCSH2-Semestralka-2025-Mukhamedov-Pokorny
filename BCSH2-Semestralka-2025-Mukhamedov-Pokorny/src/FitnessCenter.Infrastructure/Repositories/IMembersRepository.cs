@@ -1,12 +1,17 @@
-﻿namespace FitnessCenter.Infrastructure.Repositories;
+﻿using FitnessCenter.Domain.Entities;
 
-using FitnessCenter.Domain.Entities;
-
-public interface IMembersRepository
+namespace FitnessCenter.Infrastructure.Repositories
 {
-    Task<IEnumerable<Member>> GetAllAsync(CancellationToken ct = default);
-    Task<Member?> GetByIdAsync(int id, CancellationToken ct = default);
-    Task<int> CreateAsync(Member m, CancellationToken ct = default);
-    Task<bool> UpdateAsync(Member m, CancellationToken ct = default);
-    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    public interface IMembersRepository
+    {
+        Task<IEnumerable<Member>> GetAllAsync();
+        Task<Member?> GetByIdAsync(int id);
+        Task<int> CreateAsync(Member m);
+        Task<bool> UpdateAsync(Member m);
+        Task<bool> DeleteAsync(int id);
+
+        // DOPLNĚNO:
+        Task<bool> IsTrainerEmailAsync(string email);
+        Task<int?> GetTrainerIdByEmailAsync(string email);
+    }
 }
