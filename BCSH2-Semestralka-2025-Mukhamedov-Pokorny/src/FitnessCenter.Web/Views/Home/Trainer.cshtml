@@ -1,17 +1,13 @@
-﻿@{
+﻿@using System.Linq
+@{
     ViewData["Title"] = "Trenér – Přehled";
     Layout = "_AppLayout";
     ViewBag.Active = "HomeTrainer";
 
     DateTime today = ViewBag.Today is DateTime d ? d : DateTime.Today;
 
-    // Dnešní lekce – demo s Id kvůli routování
-    var lessonsToday = new[]
-    {
-        new { Id = 1, Time = "08:00", Name = "Kruháč",   Room = "Sál A", Slots = "12/20" },
-        new { Id = 2, Time = "17:00", Name = "Jóga",     Room = "Sál B", Slots = "18/20" },
-        new { Id = 3, Time = "19:00", Name = "Crossfit", Room = "Sál A", Slots = "12/12" },
-    };
+    // DNEŠNÍ LEKCE z controlleru
+    var lessonsToday = (IEnumerable<dynamic>)(ViewBag.LessonsToday ?? Enumerable.Empty<object>());
 }
 
 <!-- Úvodní panel -->
@@ -39,7 +35,7 @@
                     <a class="btn btn-sm btn-outline-light" href="@Url.Action("Index","Lessons")">Správa lekcí</a>
                 </div>
 
-                @if (lessonsToday.Length == 0)
+                @if (!lessonsToday.Any())
                 {
                     <div class="text-white-50 small">Dnes nemáš žádné naplánované lekce.</div>
                 }
@@ -65,8 +61,8 @@
                                         <td>@l.Room</td>
                                         <td>@l.Slots</td>
                                         <td class="text-end">
-                                            <a href="@Url.Action("Detail","Lessons", new { id = l.Id })" class="btn btn-sm btn-outline-light">Detail</a>
-                                            <a href="@Url.Action("Attendance","Lessons", new { id = l.Id })" class="btn btn-sm btn-warning ms-1">Docházka</a>
+                                            <a href="@Url.Action("Detail", "Lessons", new { id = l.Id })" class="btn btn-sm btn-outline-light">Detail</a>
+                                            <a href="@Url.Action("Attendance", "Lessons", new { id = l.Id })" class="btn btn-sm btn-warning ms-1">Docházka</a>
                                         </td>
                                     </tr>
                                 }
