@@ -133,6 +133,48 @@ namespace FitnessCenter.Infrastructure.Repositories
             await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task<int> CancelLessonByTrainerAsync(int lessonId, int trainerId, CancellationToken ct = default)
+        {
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand("zrusit_lekci_trener", con)
+            {
+                CommandType = CommandType.StoredProcedure,
+                BindByName = true
+            };
+
+            cmd.Parameters.Add("p_idlecke", OracleDbType.Int32).Value = lessonId;
+            cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = trainerId;
+
+            var outParam = new OracleParameter("p_smazano_rez", OracleDbType.Int32)
+            {
+                Direction = ParameterDirection.Output
+            };
+            cmd.Parameters.Add(outParam);
+
+            try
+            {
+                // ODP.NET podporuje async; tam kde to jde, předej ct
+                await cmd.ExecuteNonQueryAsync(ct);
+
+                // Bezpečný převod výstupu (bývá OracleDecimal)
+                var val = outParam.Value;
+                if (val is OracleDecimal od && !od.IsNull)
+                    return (int)od.Value;
+
+                if (val is decimal dec) return (int)dec;
+                if (val is int i) return i;
+                if (val != null && int.TryParse(val.ToString(), out var parsed)) return parsed;
+
+                return 0;
+            }
+            catch (OracleException ex) when (ex.Number == 20060)
+            {
+                // -20060 z procedury: "Lekce neexistuje nebo ji nevede zadaný trenér."
+                throw new InvalidOperationException(ex.Message, ex);
+            }
+        }
+
+
         // ---------------------------------------------------------------------
         // 4) ILessonRepository – jednoduché CRUDy pro tabulku LEKCE
         // ---------------------------------------------------------------------
@@ -281,5 +323,27 @@ namespace FitnessCenter.Infrastructure.Repositories
             }
             return list;
         }
+        public async Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default)
+        {
+            const string sql = @"
+        SELECT DISTINCT LOWER(c.email)
+        FROM   relekci r
+        JOIN   clenove c
+               ON c.idclen = r.rezervacelekci_clen_idclen
+        WHERE  r.lekce_idlekce = :id
+        ORDER  BY LOWER(c.email)";
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("id", OracleDbType.Int32).Value = lessonId;
+
+            var list = new List<string>();
+            using var rd = await cmd.ExecuteReaderAsync(ct);
+            while (await rd.ReadAsync(ct))
+                list.Add(rd.GetString(0));
+
+            return list;
+        }
+
     }
 }

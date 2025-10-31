@@ -1,0 +1,63 @@
+﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Lesson>
+@{
+    ViewData["Title"] = "Smazat lekci";
+    Layout = "_AppLayout";                 // jistota, že se vezme stejný layout a CSS
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Trainer", "Home")">← Zpět</a>
+        <span class="h3 text-white align-middle mb-0">Smazat lekci</span>
+    </div>
+</div>
+
+@if (TempData["Ok"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Err"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+<div class="glass p-3">
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="text-white-50">Nemáš žádné lekce k zobrazení.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Datum/čas</th>
+                        <th>Název</th>
+                        <th>Kapacita</th>
+                        <th class="text-end">Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model)
+                    {
+                        <tr>
+                            <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@l.Nazev</td>
+                            <td>@l.Kapacita</td>
+                            <td class="text-end">
+                                <form action="@Url.Action("ZrusitLekci", "Trainer")"
+                                      method="post"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Opravdu zrušit lekci @l.Nazev (#@l.Id)?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@l.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

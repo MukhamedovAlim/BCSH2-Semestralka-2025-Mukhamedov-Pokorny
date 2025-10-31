@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,7 +7,6 @@ using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace FitnessCenter.Application.Services
 {
@@ -23,11 +23,11 @@ namespace FitnessCenter.Application.Services
 
         public async Task<IReadOnlyList<Lesson>> GetAllAsync()
         {
-            var data = await _repo.GetAllAsync();
+            var data = await _repo.GetAllAsync(CancellationToken.None);
             return data.OrderBy(x => x.Zacatek).ToList();
         }
 
-        public Task<Lesson?> GetAsync(int id) => _repo.GetByIdAsync(id);
+        public Task<Lesson?> GetAsync(int id) => _repo.GetByIdAsync(id, CancellationToken.None);
 
         public async Task<int> CreateAsync(Lesson lesson)
         {
@@ -37,7 +37,6 @@ namespace FitnessCenter.Application.Services
             return await _repo.CreateAsync(lesson, trainerId, CancellationToken.None);
         }
 
-        // overload
         public Task<int> CreateAsync(Lesson lesson, int trainerId)
             => _repo.CreateAsync(lesson, trainerId, CancellationToken.None);
 
@@ -49,11 +48,12 @@ namespace FitnessCenter.Application.Services
 
         public async Task<IReadOnlyList<Lesson>> GetForTrainerAsync(int trainerId)
         {
-            // nejlepší: použít proceduru s filtrem (už ji máš)
             var list = await _repo.GetForTrainerAsync(trainerId, CancellationToken.None);
             return list.OrderBy(x => x.Zacatek).ToList();
-            // Alternativa, kdybys proceduru neměl:
-            // return (await _repo.GetAllAsync()).Where(x => x.TrainerId == trainerId).OrderBy(x => x.Zacatek).ToList();
         }
+
+        // NOVÉ – e-maily účastníků lekce
+        public Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default)
+            => _repo.GetAttendeeEmailsAsync(lessonId, ct);
     }
 }

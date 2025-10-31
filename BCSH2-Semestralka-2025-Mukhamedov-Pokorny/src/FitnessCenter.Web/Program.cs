@@ -22,7 +22,8 @@ builder.Services.AddScoped<IMembersRepository, OracleMemberRepository>();
 builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 
 // Read-only/Doplňkové repozitáře
-builder.Services.AddScoped<LessonsRepo>();
+//builder.Services.AddScoped<LessonsRepo>();
+builder.Services.AddScoped<OracleLessonsRepository>();
 builder.Services.AddScoped<PaymentsReadRepo>();
 builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 

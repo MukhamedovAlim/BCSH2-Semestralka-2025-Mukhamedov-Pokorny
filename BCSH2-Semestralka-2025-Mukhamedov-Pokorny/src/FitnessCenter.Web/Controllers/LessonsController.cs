@@ -1,10 +1,11 @@
-﻿using System;
-using System.Security.Claims;
-using System.Threading.Tasks;
+﻿using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Domain.Entities;
+using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Application.Interfaces;
-using FitnessCenter.Domain.Entities;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -13,6 +14,7 @@ namespace FitnessCenter.Web.Controllers
     {
         private readonly ILessonsService _lessons;
         private readonly IMembersService _members;
+        private OracleLessonsRepository _repo;
 
         public LessonsController(ILessonsService lessons, IMembersService members)
         {
@@ -56,12 +58,18 @@ namespace FitnessCenter.Web.Controllers
 
         // Docházka ke konkrétní lekci
         [HttpGet]
-        public async Task<IActionResult> Attendance(int id)
+        public async Task<IActionResult> Attendance(int id, CancellationToken ct)
         {
             var lesson = await _lessons.GetAsync(id);
             if (lesson == null) return NotFound();
-            return View(lesson); // Views/Lessons/Attendance.cshtml
+
+            var emails = await _lessons.GetAttendeeEmailsAsync(id, ct);
+            ViewBag.Attendees = emails;
+            ViewBag.AttendeesCount = emails.Count;
+
+            return View(lesson);
         }
+
 
         // Vytvoření lekce – formulář
         [HttpGet]
@@ -131,8 +139,6 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
-
-
         // Úprava lekce – uložení
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -144,6 +150,28 @@ namespace FitnessCenter.Web.Controllers
             if (!ok) return NotFound();
 
             return RedirectToAction(nameof(Detail), new { id = model.Id });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Delete()
+        {
+            // zjistíme trenéra z e-mailu přihlášeného uživatele
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
+                return View(Array.Empty<Lesson>());
+            }
+
+            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            if (trainerId is null)
+            {
+                TempData["Err"] = "Tvůj účet není svázaný s žádným trenérem v databázi.";
+                return View(Array.Empty<Lesson>());
+            }
+
+            var list = await _lessons.GetForTrainerAsync(trainerId.Value);
+            return View(list); // Views/Lessons/Delete.cshtml s @model IReadOnlyList<Lesson>
         }
     }
 }

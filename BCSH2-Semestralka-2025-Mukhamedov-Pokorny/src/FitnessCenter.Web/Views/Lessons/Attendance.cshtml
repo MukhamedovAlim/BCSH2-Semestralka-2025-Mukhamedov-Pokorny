@@ -2,19 +2,48 @@
 @{
     ViewData["Title"] = "Docházka";
     Layout = "_AppLayout";
+    var attendees = ViewBag.Attendees as IReadOnlyList<string> ?? Array.Empty<string>();
+    var count = ViewBag.AttendeesCount as int? ?? attendees.Count;
 }
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Lessons")">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Docházka</span>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Lessons")">← Zpět</a>
+        <span class="h3 text-white align-middle mb-0">Docházka – @Model.Nazev</span>
     </div>
 </div>
 
-<h5 class="text-white mb-3">@Model.Nazev</h5>
-<div class="text-white-50 mb-3">
-    @Model.Zacatek.ToString("dd.MM.yyyy HH:mm") · Kapacita: @Model.Kapacita
-</div>
+<div class="glass p-3">
+    <div class="text-white-50 mb-3">
+        Termín: <span class="text-white">@Model.Zacatek.ToString("dd.MM.yyyy HH:mm")</span>
+        &nbsp;|&nbsp; Kapacita: <span class="text-white">@Model.Kapacita</span>
+        &nbsp;|&nbsp; Přihlášeno: <span class="text-white">@count</span>
+    </div>
 
-<div class="text-white-50">
-    (Placeholder) Sem přijde seznam přihlášených vč. checkboxů pro přítomen/nepřítomen + uložení.
+    @if (!attendees.Any())
+    {
+        <div class="text-white-50">Nikdo zatím není přihlášen.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">#</th>
+                        <th>E-mail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < attendees.Count; i++)
+                    {
+                        <tr>
+                            <td>@(i + 1)</td>
+                            <td>@attendees[i]</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>

@@ -10,11 +10,11 @@ namespace FitnessCenter.Infrastructure.Repositories
         Task<IEnumerable<Lesson>> GetAllAsync(CancellationToken ct = default);
         Task<Lesson?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<int> CreateAsync(Lesson lesson, int trainerId, CancellationToken ct = default);
-
         Task<bool> UpdateAsync(Lesson lesson, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
-
         Task<IReadOnlyList<Lesson>> GetForTrainerAsync(int trainerId, CancellationToken ct = default);
 
+        // NOVÉ – seznam e-mailů přihlášených na lekci
+        Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default);
     }
 }
