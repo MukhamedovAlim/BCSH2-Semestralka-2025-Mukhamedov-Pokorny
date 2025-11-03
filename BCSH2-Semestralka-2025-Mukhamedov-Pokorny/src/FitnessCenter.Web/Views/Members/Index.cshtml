@@ -1,14 +1,24 @@
-﻿@model List<FitnessCenter.Web.Models.MemberViewModel>
+﻿@model IEnumerable<FitnessCenter.Web.Models.MemberViewModel>
 
 @{
     ViewData["Title"] = "Členové";
     Layout = "_AppLayout";
+    // skryje položky v navbaru, nechá jen Odhlásit
+    ViewBag.HideMainNav = true;
 }
 
 <div class="glass p-3">
     <div class="d-flex justify-content-between align-items-center">
-        <h3 class="text-white mb-0">Členové</h3>
-        <a asp-action="Create" class="btn btn-primary">+ Přidat člena</a>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <a class="btn btn-sm btn-outline-light"
+               href="@Url.Action("Admin", "Home")"
+               onclick="if (history.length > 1) { history.back(); return false; }">
+                ← Zpět
+            </a>
+            <h3 class="text-white mb-0">Členové</h3>
+        </div>
+
+        <a asp-action="Create" class="btn btn-sm btn-warning">+ Přidat člena</a>
     </div>
 
     <hr class="border-secondary" />
@@ -35,8 +45,8 @@
                 {
                     <tr>
                         <td>@m.FirstName @m.LastName</td>
-                        <td>@m.Email</td>
-                        <td>@m.Phone</td>
+                        <td>@(string.IsNullOrWhiteSpace(m.Email) ? "—" : m.Email)</td>
+                        <td>@(string.IsNullOrWhiteSpace(m.Phone) ? "—" : m.Phone)</td>
                         <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
                         <td>
                             @if (m.IsActive)

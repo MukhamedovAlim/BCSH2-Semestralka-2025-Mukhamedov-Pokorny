@@ -1,37 +1,68 @@
-﻿using FitnessCenter.Web.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Oracle.ManagedDataAccess.Client;
+using FitnessCenter.Infrastructure.Persistence; // DatabaseManager
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Admin")]
     public class MembersController : Controller
     {
-        // Demo úložiště (nahraď servisem/repozitářem)
-        private static readonly List<MemberViewModel> _data =
-        [
-            new MemberViewModel { MemberId = 1, FirstName = "Jan",  LastName = "Novák",   Email = "jan.novak@example.com",  Phone = "777 111 222", BirthDate = new DateTime(1998,5,2),  IsActive = true },
-            new MemberViewModel { MemberId = 2, FirstName = "Eva",  LastName = "Dvořáková", Email = "eva.d@example.com",     Phone = "777 333 444", BirthDate = new DateTime(2000,9,12), IsActive = true },
-            new MemberViewModel { MemberId = 3, FirstName = "Petr", LastName = "Král",    Email = "petr.kral@example.com",  Phone = null,          BirthDate = null,                    IsActive = false }
-        ];
-
-        // GET: /Members
-        public IActionResult Index()
+        // ===== LIST (z DB view V_CLENOVE_PUBLIC) =====
+        // SELECT idclen, jmeno, prijmeni, email_mask FROM V_CLENOVE_PUBLIC
+        public async Task<IActionResult> Index(CancellationToken ct)
         {
             ViewBag.Active = "Members";
-            var list = _data
-                .OrderBy(m => m.LastName)
-                .ThenBy(m => m.FirstName)
-                .ToList();
+            ViewBag.HideMainNav = true; // schová hlavní položky v _AppLayout
+
+            var list = new List<MemberViewModel>();
+
+            try
+            {
+                using var conn = await DatabaseManager.GetOpenConnectionAsync();
+                using var cmd = new OracleCommand(@"
+                    SELECT idclen, jmeno, prijmeni, email_mask
+                    FROM V_CLENOVE_PUBLIC
+                    ORDER BY prijmeni, jmeno", conn);
+
+                using var rd = await cmd.ExecuteReaderAsync(ct);
+                while (await rd.ReadAsync(ct))
+                {
+                    list.Add(new MemberViewModel
+                    {
+                        MemberId = rd.GetInt32(0),
+                        FirstName = rd.IsDBNull(1) ? "" : rd.GetString(1),
+                        LastName = rd.IsDBNull(2) ? "" : rd.GetString(2),
+                        Email = rd.IsDBNull(3) ? null : rd.GetString(3), // maskovaný e-mail
+                        Phone = null,                                     // ve view je NULL
+                        // volitelné flagy jen pro UI (nebo si je načti jinak)
+                        IsActive = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // přátelské hlášení do UI + prázdný list, ať stránka nespadne
+                TempData["Err"] = "Nepodařilo se načíst seznam členů: " + ex.Message;
+                list = new List<MemberViewModel>();
+            }
+
             return View(list);
         }
+
+        // ===== Zbytek nechávám podle tvého stávajícího flow =====
 
         // GET: /Members/Details/5
         public IActionResult Details(int id)
         {
-            var m = _data.FirstOrDefault(x => x.MemberId == id);
-            if (m is null) return NotFound();
-            return View(m);
+            // Pokud budeš chtít detail také z DB, doplníme dotaz na CLENOVE podle id
+            return NotFound(); // nebo si nech tvůj původní demo kód
         }
 
         // GET: /Members/Create
@@ -43,19 +74,16 @@ namespace FitnessCenter.Web.Controllers
         {
             if (!ModelState.IsValid) return View(vm);
 
-            vm.MemberId = _data.Any() ? _data.Max(x => x.MemberId) + 1 : 1;
-            _data.Add(vm);
-
-            TempData["Ok"] = "Člen byl vytvořen.";
+            // TODO: uložení do CLENOVE (procedura/SQL). Zatím jen info.
+            TempData["Ok"] = "Člen byl vytvořen (doplníme uložení do DB).";
             return RedirectToAction(nameof(Index));
         }
 
         // GET: /Members/Edit/5
         public IActionResult Edit(int id)
         {
-            var m = _data.FirstOrDefault(x => x.MemberId == id);
-            if (m is null) return NotFound();
-            return View(m);
+            // TODO: načíst CLENOVE podle id a předvyplnit
+            return NotFound();
         }
 
         // POST: /Members/Edit/5
@@ -64,35 +92,24 @@ namespace FitnessCenter.Web.Controllers
         {
             if (!ModelState.IsValid) return View(vm);
 
-            var existing = _data.FirstOrDefault(x => x.MemberId == id);
-            if (existing is null) return NotFound();
-
-            existing.FirstName = vm.FirstName;
-            existing.LastName = vm.LastName;
-            existing.Email = vm.Email;
-            existing.Phone = vm.Phone;
-            existing.BirthDate = vm.BirthDate;
-            existing.IsActive = vm.IsActive;
-
-            TempData["Ok"] = "Změny uloženy.";
+            // TODO: update CLENOVE (procedura/SQL)
+            TempData["Ok"] = "Změny uloženy (doplníme update v DB).";
             return RedirectToAction(nameof(Index));
         }
 
         // GET: /Members/Delete/5
         public IActionResult Delete(int id)
         {
-            var m = _data.FirstOrDefault(x => x.MemberId == id);
-            if (m is null) return NotFound();
-            return View(m);
+            // TODO: načíst CLENOVE a potvrzovací view
+            return NotFound();
         }
 
         // POST: /Members/Delete/5
         [HttpPost, ActionName("Delete"), ValidateAntiForgeryToken]
         public IActionResult DeleteConfirmed(int id)
         {
-            var m = _data.FirstOrDefault(x => x.MemberId == id);
-            if (m is not null) _data.Remove(m);
-            TempData["Ok"] = "Člen byl odstraněn.";
+            // TODO: smazat z CLENOVE (procedura/SQL)
+            TempData["Ok"] = "Člen byl odstraněn (doplníme delete v DB).";
             return RedirectToAction(nameof(Index));
         }
     }

@@ -1,11 +1,13 @@
 ﻿using System.Security.Claims;
 using FitnessCenter.Application.Interfaces;
-using FitnessCenter.Domain.Entities;
 using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+using FitnessCenter.Infrastructure.Persistence;           // DatabaseManager
+using Oracle.ManagedDataAccess.Client;                    // OracleCommand/Types
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -23,12 +25,19 @@ namespace FitnessCenter.Web.Controllers
         [AllowAnonymous]
         public IActionResult Login(string? returnUrl = null)
         {
+            // Pokud už je uživatel přihlášený, pošli ho rovnou na jeho dashboard
+            if (User?.Identity?.IsAuthenticated == true)
+            {
+                if (User.IsInRole("Admin")) return RedirectToAction("Admin", "Home");
+                if (User.IsInRole("Trainer")) return RedirectToAction("Trainer", "Home");
+                return RedirectToAction("Index", "Home");
+            }
+
             ViewData["ReturnUrl"] = returnUrl;
             return View(new LoginViewModel());
         }
 
         // POST: /Account/Login
-        // (heslo teď neověřujeme – jen existence e-mailu; pro produkci přidej hash/ověření)
         [HttpPost]
         [ValidateAntiForgeryToken]
         [AllowAnonymous]
@@ -40,7 +49,7 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 1) najdi člena podle e-mailu
+            // 1) Najdi člena podle e-mailu (tvoje stávající logika)
             var all = await _members.GetAllAsync();
             var member = all.FirstOrDefault(m =>
                 string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase));
@@ -52,28 +61,52 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 2) zkusit zjistit, zda je trenér (podle existence v tabulce TRENERY)
-            //    -> implementuj v IMembersService metodu IsTrainerEmailAsync(email)
+            var email = member.Email.Trim();
+
+            // 2) Zjisti role: Admin přes tabulku ADMINI, Trainer přes službu
+            bool isAdmin = false;
+            using (var con = await DatabaseManager.GetOpenConnectionAsync())
+            using (var cmd = new OracleCommand(
+                    "SELECT 1 FROM ADMINI WHERE LOWER(EMAIL)=LOWER(:em) FETCH FIRST 1 ROWS ONLY",
+                    (OracleConnection)con))
+            {
+                cmd.BindByName = true;
+                cmd.Parameters.Add("em", OracleDbType.Varchar2).Value = email;
+                var obj = await cmd.ExecuteScalarAsync();
+                isAdmin = obj != null;
+            }
+
             bool isTrainer = false;
+            int? trainerId = null;
             try
             {
-                isTrainer = await _members.IsTrainerEmailAsync(member.Email);
+                isTrainer = await _members.IsTrainerEmailAsync(email);
+                if (isTrainer)
+                {
+                    // Pokud to tvoje služba umí, získáme i ID trenéra pro claim
+                    // (když ne, try/catch to spolkne a claim se jen nepřidá)
+                    var tid = await _members.GetTrainerIdByEmailAsync(email);
+                    if (tid != null && tid.Value > 0) trainerId = tid.Value;
+                }
             }
             catch
             {
-                // pokud metodu zatím nemáš, dočasně necháme false
-                // případně sem můžeš doplnit fallback na jiný repo
+                // necháme isTrainer=false / trainerId null, a pokračujeme
             }
 
-            // 3) claimy (přidáme i ClenId kvůli Home/Index výpočtům permice)
+            // 3) Claims
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
                 new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
-                new Claim(ClaimTypes.Email, member.Email),
+                new Claim(ClaimTypes.Email, email),
                 new Claim("ClenId", member.MemberId.ToString()),
-                new Claim(ClaimTypes.Role, isTrainer ? "Trainer" : "Member")
+                new Claim(ClaimTypes.Role, "Member") // Member vždy
             };
+
+            if (isTrainer) claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
+            if (trainerId.HasValue) claims.Add(new Claim("TrainerId", trainerId.Value.ToString()));
+            if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, "Admin"));
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
@@ -87,15 +120,14 @@ namespace FitnessCenter.Web.Controllers
                     ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
                 });
 
-            // 4) upřednostni validní lokální návratovou URL
+            // 4) Preferuj bezpečný návrat (pokud je)
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            // 5) redirect podle role
-            if (isTrainer)
-                return RedirectToAction("Trainer", "Home");   // Dashboard trenéra
-
-            return RedirectToAction("Index", "Home");          // Dashboard člena
+            // 5) Redirect podle role – Admin > Trainer > Member
+            if (isAdmin) return RedirectToAction("Admin", "Home");
+            if (isTrainer) return RedirectToAction("Trainer", "Home");
+            return RedirectToAction("Index", "Home");
         }
 
         // GET: /Account/Register
@@ -119,7 +151,7 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            var member = new Member
+            var member = new FitnessCenter.Domain.Entities.Member
             {
                 FirstName = model.FirstName?.Trim() ?? "",
                 LastName = model.LastName?.Trim() ?? "",
@@ -150,11 +182,8 @@ namespace FitnessCenter.Web.Controllers
         {
             if (User?.Identity?.IsAuthenticated == true)
             {
-                if (User.IsInRole("Trainer"))
-                    return RedirectToAction("Trainer", "Home");
-                if (User.IsInRole("Admin"))
-                    return RedirectToAction("Admin", "Home");
-
+                if (User.IsInRole("Admin")) return RedirectToAction("Admin", "Home");
+                if (User.IsInRole("Trainer")) return RedirectToAction("Trainer", "Home");
                 return RedirectToAction("Index", "Home");
             }
             return RedirectToAction("Login", "Account");

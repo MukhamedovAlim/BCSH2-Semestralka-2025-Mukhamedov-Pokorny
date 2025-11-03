@@ -26,7 +26,7 @@ namespace FitnessCenter.Web.Controllers
             _members = members;
         }
 
-        // ===== Member dashboard (beze změny) =====
+        // ===== Member dashboard =====
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> Index()
         {
@@ -71,7 +71,7 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // ===== Trainer dashboard – doplněné o dnešní lekce =====
+        // ===== Trainer dashboard – dnešní lekce =====
         [Authorize(Roles = "Trainer")]
         public async Task<IActionResult> Trainer()
         {
@@ -105,7 +105,7 @@ namespace FitnessCenter.Web.Controllers
                     Time = l.Zacatek.ToString("HH:mm"),
                     Name = l.Nazev,
                     Room = string.IsNullOrWhiteSpace(l.Mistnost) ? "—" : l.Mistnost,
-                    // Aktuálně zobrazíme kapacitu (pokud budeš chtít počet přihlášených, doplníme později)
+                    // Zatím zobrazujeme jen kapacitu (případně doplníme rezervované/volné)
                     Slots = l.Kapacita.ToString()
                 })
                 .ToList();
@@ -116,12 +116,16 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // ===== Admin dashboard (beze změny) =====
+        // ===== Admin dashboard – schovat hlavní menu, nechat jen Odhlásit =====
         [Authorize(Roles = "Admin")]
         public IActionResult Admin()
         {
             ViewBag.Active = "HomeAdmin";
             ViewBag.Today = DateTime.Today;
+
+            // schovej levé/hlavní položky v navbaru (ponechá se jen Odhlásit)
+            ViewBag.HideMainNav = true;
+
             return View();
         }
     }

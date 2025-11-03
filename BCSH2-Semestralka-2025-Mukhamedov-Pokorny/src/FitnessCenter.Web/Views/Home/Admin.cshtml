@@ -7,15 +7,22 @@
     int trainersCount = ViewBag.TrainersCount is int tc ? tc : 0;
     int lessonsToday = ViewBag.LessonsToday is int lt ? lt : 0;
     int pendingPayments = ViewBag.PendingPayments is int pp ? pp : 0;
-    int pendingReservs = ViewBag.PendingReservs is int pr ? pr : 0;
+    int adminMessagesCnt = ViewBag.AdminMessagesCnt is int am ? am : 0;
+
+    DateTime today = ViewBag.Today is DateTime d ? d : DateTime.Today;
 }
 
-<!-- Úvodní panel přes celou šířku -->
+<!-- Úvodní panel -->
 <div class="glass p-3 mb-4">
     <div class="d-flex align-items-center justify-content-between flex-wrap">
         <div>
-            <h3 class="text-white mb-1">Ahoj, @(User.Identity?.Name ?? "admin")</h3>
-            <div class="text-white-50">Administrace Svalovna GYM – centrální přehled a akce.</div>
+            <h3 class="text-white mb-1">Ahoj, admine @(User.Identity?.Name ?? "") 👋</h3>
+            <div class="text-white-50">Dnes je @today.ToString("dddd d. MMMM yyyy")</div>
+        </div>
+        <div class="mt-2 mt-md-0">
+            <a href="@Url.Action("Create", "Members")" class="btn btn-sm btn-warning">
+                + Přidat člena
+            </a>
         </div>
     </div>
 
@@ -58,19 +65,20 @@
             </div>
         </div>
 
-        <!-- Stat: Ke schválení -->
+        <!-- Stat: Zprávy (místo Ke schválení) -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
-                    <h5 class="text-white mb-2">Ke schválení</h5>
-                    <span class="badge bg-danger">@pendingReservs</span>
+                    <h5 class="text-white mb-2">Zprávy</h5>
+                    <span class="badge bg-danger">@adminMessagesCnt</span>
                 </div>
-                <div class="text-white-50 small mb-2">Nevyřízené rezervace.</div>
-                <a class="stretched-link" href="@Url.Action("Index", "Reservations")"></a>
+                <div class="text-white-50 small mb-2">Nástěnka pro adminy a trenéry.</div>
+                <a class="stretched-link" href="@Url.Action("Index", "Messages")"></a>
             </div>
         </div>
     </div>
 </div>
+
 
 <!-- Rychlé akce -->
 <div class="glass p-3">
@@ -105,9 +113,9 @@
 
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
-                <h5 class="text-white mb-1">Vybavení</h5>
-                <div class="text-white-50 small">Evidence a servisní intervaly.</div>
-                <a href="@Url.Action("Index", "Equipment")" class="stretched-link"></a>
+                <h5 class="text-white mb-1">Zprávy</h5>
+                <div class="text-white-50 small">Napsat oznámení pro tým.</div>
+                <a href="@Url.Action("Index", "Messages")" class="stretched-link"></a>
             </div>
         </div>
     </div>
