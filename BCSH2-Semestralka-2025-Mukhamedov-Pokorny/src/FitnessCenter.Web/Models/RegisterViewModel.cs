@@ -11,9 +11,18 @@ namespace FitnessCenter.Web.Models
         public string? Address { get; set; }
         public string? Phone { get; set; }
 
+        [Required, DataType(DataType.Date)]
+        public DateTime? BirthDate { get; set; }   // ?? POVINNÉ pro PR_CLEN_CREATE
+
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Vyber fitness centrum.")]
+        public int FitnessCenterId { get; set; } = 1; // ?? POVINNÉ pro PR_CLEN_CREATE
+
         [Required, DataType(DataType.Password)]
         public string Password { get; set; } = "";
-        [Required, DataType(DataType.Password), Compare(nameof(Password), ErrorMessage = "Hesla se neshodují.")]
+
+        [Required, DataType(DataType.Password),
+         Compare(nameof(Password), ErrorMessage = "Hesla se neshodují.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

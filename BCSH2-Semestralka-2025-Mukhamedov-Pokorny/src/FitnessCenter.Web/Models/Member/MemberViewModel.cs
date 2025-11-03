@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace FitnessCenter.Web.Models;
+namespace FitnessCenter.Web.Models.Member;
 
 public sealed class MemberViewModel
 {

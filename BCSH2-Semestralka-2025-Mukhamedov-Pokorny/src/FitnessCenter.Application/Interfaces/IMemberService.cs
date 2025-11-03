@@ -10,8 +10,11 @@ namespace FitnessCenter.Application.Interfaces
         Task<bool> UpdateAsync(Member m);
         Task<bool> DeleteAsync(int id);
 
-        // DOPLNĚNO:
         Task<bool> IsTrainerEmailAsync(string email);
         Task<int?> GetTrainerIdByEmailAsync(string email);
+
+        //admin
+        Task<int> CreateViaProcedureAsync(Member m);
+        Task UpdateViaProcedureAsync(Member m);
     }
 }

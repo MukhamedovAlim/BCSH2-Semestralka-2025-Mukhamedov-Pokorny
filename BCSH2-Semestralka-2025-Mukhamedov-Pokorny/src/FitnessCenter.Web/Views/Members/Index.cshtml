@@ -1,10 +1,9 @@
-﻿@model IEnumerable<FitnessCenter.Web.Models.MemberViewModel>
-
+﻿@using FitnessCenter.Web.Models.Member
+@model IEnumerable<MemberViewModel>
 @{
     ViewData["Title"] = "Členové";
     Layout = "_AppLayout";
-    // skryje položky v navbaru, nechá jen Odhlásit
-    ViewBag.HideMainNav = true;
+    ViewBag.HideMainNav = true; // skryje položky v navbaru, nechá jen Odhlásit
 }
 
 <div class="glass p-3">
@@ -18,7 +17,11 @@
             <h3 class="text-white mb-0">Členové</h3>
         </div>
 
-        <a asp-action="Create" class="btn btn-sm btn-warning">+ Přidat člena</a>
+        <a href="@Url.Action("Create", "Members")" class="btn btn-sm btn-warning">
+            + Přidat člena
+        </a>
+
+
     </div>
 
     <hr class="border-secondary" />

@@ -1,0 +1,81 @@
+﻿@model FitnessCenter.Web.Models.MemberCreateViewModel
+@{
+    ViewData["Title"] = "Přidat člena";
+    Layout = "_AppLayout";           // necháme app layout (admin režim)
+    ViewBag.HideMainNav = true;
+}
+
+<h1 class="h4 text-white mb-2 d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-light"
+       href="@Url.Action("Index", "Members")"
+       onclick="if (history.length > 1) { history.back(); return false; }">← Zpět</a>
+    Přidat člena
+</h1>
+
+<form action="/Members/Create" method="post" novalidate>
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+
+    <div class="row g-2">
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="FirstName">Jméno</label>
+            <input name="FirstName" id="FirstName" class="form-control form-control-lg" value="@Model?.FirstName" />
+            <span class="text-danger small" asp-validation-for="FirstName"></span>
+        </div>
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="LastName">Příjmení</label>
+            <input name="LastName" id="LastName" class="form-control form-control-lg" value="@Model?.LastName" />
+            <span class="text-danger small" asp-validation-for="LastName"></span>
+        </div>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="Email">E-mail</label>
+            <input name="Email" id="Email" type="email" class="form-control form-control-lg" value="@Model?.Email" />
+            <span class="text-danger small" asp-validation-for="Email"></span>
+        </div>
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="Phone">Telefon</label>
+            <input name="Phone" id="Phone" class="form-control form-control-lg" value="@Model?.Phone" />
+            <span class="text-danger small" asp-validation-for="Phone"></span>
+        </div>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="BirthDate">Datum narození</label>
+            <input name="BirthDate" id="BirthDate" type="date" class="form-control form-control-lg"
+                   value="@(Model?.BirthDate?.ToString("yyyy-MM-dd"))" />
+            <span class="text-danger small" asp-validation-for="BirthDate"></span>
+        </div>
+        <div class="col-12 col-md-6 mb-2">
+            <label class="form-label text-white" for="Address">Adresa</label>
+            <input name="Address" id="Address" class="form-control form-control-lg" value="@Model?.Address" />
+            <span class="text-danger small" asp-validation-for="Address"></span>
+        </div>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label text-white" for="FitnessCenterId">Fitness centrum (ID)</label>
+        <input name="FitnessCenterId" id="FitnessCenterId" type="number" min="1"
+               class="form-control form-control-lg" value="@Model?.FitnessCenterId" />
+        <div class="form-text text-white-50">Dočasně číslem, později nahradíme výběrem fitka.</div>
+        <span class="text-danger small" asp-validation-for="FitnessCenterId"></span>
+    </div>
+
+    <div class="d-flex gap-2 mt-2">
+        <a href="@Url.Action("Index", "Members")" class="btn btn-outline-light btn-lg">Zrušit</a>
+        <button type="submit" class="btn btn-warning btn-lg">Uložit</button>
+    </div>
+</form>
+
+@section scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <style>
+        /* světlý popup kalendáře, aby nebyl “černý na černém” */
+        input[type="date"] {
+            color-scheme: light;
+        }
+    </style>
+}

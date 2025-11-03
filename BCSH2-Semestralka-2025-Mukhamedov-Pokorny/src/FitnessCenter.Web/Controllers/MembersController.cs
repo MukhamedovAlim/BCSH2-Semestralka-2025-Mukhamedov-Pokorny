@@ -1,19 +1,23 @@
-﻿using System;
+﻿using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Domain.Entities;
+using FitnessCenter.Infrastructure.Persistence;
+using FitnessCenter.Web.Models;
+using FitnessCenter.Web.Models.Member; // DatabaseManager
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Oracle.ManagedDataAccess.Client;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FitnessCenter.Web.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Oracle.ManagedDataAccess.Client;
-using FitnessCenter.Infrastructure.Persistence; // DatabaseManager
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Admin")]
     public class MembersController : Controller
     {
+
         // ===== LIST (z DB view V_CLENOVE_PUBLIC) =====
         // SELECT idclen, jmeno, prijmeni, email_mask FROM V_CLENOVE_PUBLIC
         public async Task<IActionResult> Index(CancellationToken ct)
@@ -64,19 +68,50 @@ namespace FitnessCenter.Web.Controllers
             // Pokud budeš chtít detail také z DB, doplníme dotaz na CLENOVE podle id
             return NotFound(); // nebo si nech tvůj původní demo kód
         }
+        private readonly IMembersService _members;
+        public MembersController(IMembersService members) => _members = members;
 
-        // GET: /Members/Create
-        public IActionResult Create() => View(new MemberViewModel());
+        [HttpGet]
+        public IActionResult Create()
+            => View(new MemberCreateViewModel { FitnessCenterId = 1 });
 
-        // POST: /Members/Create
-        [HttpPost, ValidateAntiForgeryToken]
-        public IActionResult Create(MemberViewModel vm)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(MemberCreateViewModel vm)
         {
             if (!ModelState.IsValid) return View(vm);
 
-            // TODO: uložení do CLENOVE (procedura/SQL). Zatím jen info.
-            TempData["Ok"] = "Člen byl vytvořen (doplníme uložení do DB).";
-            return RedirectToAction(nameof(Index));
+            if (!vm.BirthDate.HasValue)
+            {
+                ModelState.AddModelError(nameof(vm.BirthDate), "Zadej datum narození.");
+                return View(vm);
+            }
+
+            var m = new Member
+            {
+                FirstName = vm.FirstName?.Trim() ?? "",
+                LastName = vm.LastName?.Trim() ?? "",
+                Email = vm.Email?.Trim() ?? "",
+                Phone = string.IsNullOrWhiteSpace(vm.Phone) ? null : vm.Phone!.Trim(),
+                Address = string.IsNullOrWhiteSpace(vm.Address) ? null : vm.Address!.Trim(),
+                BirthDate = vm.BirthDate.Value,
+                FitnessCenterId = vm.FitnessCenterId
+            };
+
+            try
+            {
+                // ⬅️ TADY PROBĚHNE VLOŽENÍ DO DB PŘES PROCEDURU
+                var newId = await _members.CreateViaProcedureAsync(m);
+
+                TempData["Ok"] = $"Člen byl vytvořen (ID: {newId}).";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // např. ORA-00001 (unikátní email/telefon)
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(vm);
+            }
         }
 
         // GET: /Members/Edit/5

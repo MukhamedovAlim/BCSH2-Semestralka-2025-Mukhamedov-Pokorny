@@ -134,7 +134,6 @@ namespace FitnessCenter.Web.Controllers
         [HttpGet]
         [AllowAnonymous]
         public IActionResult Register() => View(new RegisterViewModel());
-
         // POST: /Account/Register
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -144,10 +143,23 @@ namespace FitnessCenter.Web.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
+            // duplicitní e-mail (rychlá kontrola na UI vrstvě)
             var all = await _members.GetAllAsync();
             if (all.Any(m => string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase)))
             {
                 ModelState.AddModelError(nameof(model.Email), "Tento e-mail už je zaregistrovaný.");
+                return View(model);
+            }
+
+            // povinné hodnoty pro PR_CLEN_CREATE (DB: NOT NULL)
+            if (!model.BirthDate.HasValue)
+            {
+                ModelState.AddModelError(nameof(model.BirthDate), "Zadej datum narození.");
+                return View(model);
+            }
+            if (model.FitnessCenterId <= 0)
+            {
+                ModelState.AddModelError(nameof(model.FitnessCenterId), "Vyber fitness centrum.");
                 return View(model);
             }
 
@@ -157,15 +169,26 @@ namespace FitnessCenter.Web.Controllers
                 LastName = model.LastName?.Trim() ?? "",
                 Email = model.Email?.Trim() ?? "",
                 Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address!.Trim(),
-                Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone!.Trim()
+                Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone!.Trim(),
+                BirthDate = model.BirthDate.Value,      // ⬅️ nově
+                FitnessCenterId = model.FitnessCenterId // ⬅️ nově
             };
 
-            await _members.CreateAsync(member);
-
-            TempData["JustRegistered"] = true;
-            TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
-            return RedirectToAction(nameof(Login));
+            try
+            {
+                await _members.CreateViaProcedureAsync(member); // ⬅️ procedura PR_CLEN_CREATE
+                TempData["JustRegistered"] = true;
+                TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
+                return RedirectToAction(nameof(Login));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // např. duplicitní e-mail/telefon z UNIQUE constraintu
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(model);
+            }
         }
+
 
         // GET: /Account/Logout
         [Authorize]
