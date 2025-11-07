@@ -3,13 +3,16 @@
     ViewData["Title"] = "Rezervace lekcí";
     Layout = "_AppLayout";
     ViewBag.Active = "Reservations";
+
+    // slovník z controlleru: lessonId -> "Jméno Příjmení"
+    var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Home")">← Zpět</a>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Home")">← Zpět</a>
         <span class="h3 text-white align-middle mb-0">Rezervace lekcí</span>
     </div>
-    <a class="btn btn-warning" href="@Url.Action("Mine","Reservations")">Moje rezervace</a>
+    <a class="btn btn-warning" href="@Url.Action("Mine", "Reservations")">Moje rezervace</a>
 </div>
 
 @if (TempData["ResMsg"] is string msg && !string.IsNullOrWhiteSpace(msg))
@@ -29,25 +32,47 @@ else
                 <tr class="text-white-50">
                     <th>Datum/čas</th>
                     <th>Název</th>
+                    <th>Místo</th>
+                    <th>Trenér</th>   @* nový sloupec *@
                     <th>Kapacita</th>
                     <th class="text-end">Akce</th>
                 </tr>
             </thead>
             <tbody>
-            @foreach (var l in Model)
-            {
-                <tr>
-                    <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
-                    <td class="text-white">@l.Nazev</td>
-                    <td>@l.Kapacita</td>
-                    <td class="text-end">
-                        <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-sm btn-warning">Rezervovat</button>
-                        </form>
-                    </td>
-                </tr>
-            }
+                @foreach (var l in Model)
+                {
+                    // --- parser: "Nazev @Misto" nebo "Nazev (Praha)"
+                    var raw = l.Nazev ?? "";
+                    string nazev = raw, misto = "";
+
+                    var atIdx = raw.LastIndexOf('@');
+                    if (atIdx >= 0) { nazev = raw[..atIdx].Trim(); misto = raw[(atIdx + 1)..].Trim(); }
+
+                    if (string.IsNullOrEmpty(misto))
+                    {
+                        var open = raw.LastIndexOf('(');
+                        var close = raw.LastIndexOf(')');
+                        if (open >= 0 && close > open)
+                        {
+                            misto = raw.Substring(open + 1, close - open - 1).Trim();
+                            nazev = raw.Remove(open).Trim();
+                        }
+                    }
+
+                    <tr>
+                        <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-white">@nazev</td>
+                        <td>@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
+                        <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td> @* trenér *@
+                        <td>@l.Kapacita</td>
+                        <td class="text-end">
+                            <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-warning">Rezervovat</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
             </tbody>
         </table>
     </div>

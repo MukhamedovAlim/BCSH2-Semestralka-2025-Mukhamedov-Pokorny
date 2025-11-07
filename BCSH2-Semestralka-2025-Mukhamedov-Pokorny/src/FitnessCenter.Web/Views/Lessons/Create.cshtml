@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Vytvořit lekci";
     Layout = "_AppLayout";
+    var fitness = ViewBag.FitnessCenters as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -38,11 +40,17 @@
       <span asp-validation-for="Kapacita" class="text-danger small"></span>
     </div>
 
-    <div class="col-12">
-      <label asp-for="Popis" class="form-label text-white"></label>
-      <textarea asp-for="Popis" class="form-control" rows="3" placeholder="Volitelný popis"></textarea>
-      <span asp-validation-for="Popis" class="text-danger small"></span>
-    </div>
+        <div class="col-md-6">
+            <label class="form-label text-white">Kde (fitko)</label>
+            <select name="SelectedFitnessCenterId" class="form-select">
+                <option value="">— Vyber fitness centrum —</option>
+                @foreach (var it in fitness)
+                {
+                    <option value="@it.Value">@it.Text</option>
+                }
+            </select>
+            <div class="form-text text-white-50">Název fitka se automaticky přidá do názvu lekce jako „@@Název“.</div>
+        </div>
   </div>
 
   <button class="btn btn-warning mt-3" type="submit">Uložit</button>
