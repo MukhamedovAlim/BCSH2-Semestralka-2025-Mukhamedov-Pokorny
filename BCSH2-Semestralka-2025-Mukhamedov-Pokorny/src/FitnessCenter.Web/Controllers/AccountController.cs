@@ -1,13 +1,14 @@
-﻿using System.Security.Claims;
-using FitnessCenter.Application.Interfaces;
+﻿using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Infrastructure.Persistence;           // DatabaseManager
 using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-using FitnessCenter.Infrastructure.Persistence;           // DatabaseManager
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;                    // OracleCommand/Types
+using System.Security.Claims;
+
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -18,6 +19,25 @@ namespace FitnessCenter.Web.Controllers
         public AccountController(IMembersService members)
         {
             _members = members;
+        }
+
+        private static async Task<List<SelectListItem>> LoadFitnessForSelectAsync()
+        {
+            var items = new List<SelectListItem>();
+            using var con = await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(
+                "SELECT idfitness, nazev FROM fitnesscentra ORDER BY nazev",
+                (OracleConnection)con);
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                items.Add(new SelectListItem
+                {
+                    Value = rd.GetInt32(0).ToString(),
+                    Text = rd.GetString(1)
+                });
+            }
+            return items;
         }
 
         // GET: /Account/Login
@@ -133,7 +153,12 @@ namespace FitnessCenter.Web.Controllers
         // GET: /Account/Register
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult Register() => View(new RegisterViewModel());
+        public async Task<IActionResult> Register()
+        {
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();   // naplníme dropdown
+            return View(new RegisterViewModel());
+        }
+
         // POST: /Account/Register
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -141,26 +166,33 @@ namespace FitnessCenter.Web.Controllers
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
             if (!ModelState.IsValid)
+            {
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(); // znovu při chybě
                 return View(model);
+            }
 
-            // duplicitní e-mail (rychlá kontrola na UI vrstvě)
+            // duplicitní e-mail – rychlá kontrola
             var all = await _members.GetAllAsync();
             if (all.Any(m => string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase)))
             {
                 ModelState.AddModelError(nameof(model.Email), "Tento e-mail už je zaregistrovaný.");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
                 return View(model);
             }
 
-            // povinné hodnoty pro PR_CLEN_CREATE (DB: NOT NULL)
-            if (!model.BirthDate.HasValue)
+            // pojistka: zvolený FitnessCenter existuje
+            using (var con = await DatabaseManager.GetOpenConnectionAsync())
+            using (var chk = new OracleCommand("SELECT COUNT(*) FROM fitnesscentra WHERE idfitness=:id", (OracleConnection)con))
             {
-                ModelState.AddModelError(nameof(model.BirthDate), "Zadej datum narození.");
-                return View(model);
-            }
-            if (model.FitnessCenterId <= 0)
-            {
-                ModelState.AddModelError(nameof(model.FitnessCenterId), "Vyber fitness centrum.");
-                return View(model);
+                chk.BindByName = true;
+                chk.Parameters.Add("id", model.FitnessCenterId);
+                var exists = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
+                if (!exists)
+                {
+                    ModelState.AddModelError(nameof(model.FitnessCenterId), "Zvolené fitness centrum neexistuje.");
+                    ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                    return View(model);
+                }
             }
 
             var member = new FitnessCenter.Domain.Entities.Member
@@ -168,23 +200,23 @@ namespace FitnessCenter.Web.Controllers
                 FirstName = model.FirstName?.Trim() ?? "",
                 LastName = model.LastName?.Trim() ?? "",
                 Email = model.Email?.Trim() ?? "",
-                Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address!.Trim(),
-                Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone!.Trim(),
-                BirthDate = model.BirthDate.Value,      // ⬅️ nově
-                FitnessCenterId = model.FitnessCenterId // ⬅️ nově
+                Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim(),
+                Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone.Trim(),
+                BirthDate = model.BirthDate!.Value,
+                FitnessCenterId = model.FitnessCenterId
             };
 
             try
             {
-                await _members.CreateViaProcedureAsync(member); // ⬅️ procedura PR_CLEN_CREATE
+                await _members.CreateViaProcedureAsync(member); // PR_CLEN_CREATE
                 TempData["JustRegistered"] = true;
                 TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
                 return RedirectToAction(nameof(Login));
             }
             catch (InvalidOperationException ex)
             {
-                // např. duplicitní e-mail/telefon z UNIQUE constraintu
-                ModelState.AddModelError(string.Empty, ex.Message);
+                ModelState.AddModelError(string.Empty, ex.Message); // duplicitní email/telefon apod.
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
                 return View(model);
             }
         }

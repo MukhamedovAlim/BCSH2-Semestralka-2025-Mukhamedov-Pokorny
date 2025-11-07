@@ -1,10 +1,13 @@
 ﻿@model FitnessCenter.Web.Models.MemberCreateViewModel
 @{
     ViewData["Title"] = "Přidat člena";
-    Layout = "_AppLayout";           // necháme app layout (admin režim)
+    Layout = "_AppLayout";
     ViewBag.HideMainNav = true;
-}
 
+    // převod ViewBag → IEnumerable<SelectListItem>
+    var fitness = ViewBag.FitnessCenters as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                  ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+}
 <h1 class="h4 text-white mb-2 d-flex align-items-center gap-2">
     <a class="btn btn-sm btn-outline-light"
        href="@Url.Action("Index", "Members")"
@@ -56,16 +59,22 @@
         </div>
     </div>
 
+    <!-- ČÍSELNÍK FITNESS CENTER (dropdown) -->
     <div class="mb-2">
-        <label class="form-label text-white" for="FitnessCenterId">Fitness centrum (ID)</label>
-        <input name="FitnessCenterId" id="FitnessCenterId" type="number" min="1"
-               class="form-control form-control-lg" value="@Model?.FitnessCenterId" />
-        <div class="form-text text-white-50">Dočasně číslem, později nahradíme výběrem fitka.</div>
+        <label class="form-label text-white" for="FitnessCenterId">Fitness centrum</label>
+        <select name="FitnessCenterId" id="FitnessCenterId" class="form-select form-select-lg">
+            <option value="">— Vyber fitness centrum —</option>
+            @foreach (var it in fitness)
+            {
+                var selected = (Model?.FitnessCenterId.ToString() == it.Value) ? "selected" : "";
+                <option value="@it.Value" @selected>@it.Text</option>
+            }
+        </select>
         <span class="text-danger small" asp-validation-for="FitnessCenterId"></span>
     </div>
 
     <div class="d-flex gap-2 mt-2">
-        <a href="@Url.Action("Index", "Members")" class="btn btn-outline-light btn-lg">Zrušit</a>
+        <a href="@Url.Action("Index", "Members")" class="btn btn-outline-light btn-lg">Zpět</a>
         <button type="submit" class="btn btn-warning btn-lg">Uložit</button>
     </div>
 </form>
@@ -73,7 +82,7 @@
 @section scripts {
     <partial name="_ValidationScriptsPartial" />
     <style>
-        /* světlý popup kalendáře, aby nebyl “černý na černém” */
+        /* světlejší kalendář v tmavém UI */
         input[type="date"] {
             color-scheme: light;
         }

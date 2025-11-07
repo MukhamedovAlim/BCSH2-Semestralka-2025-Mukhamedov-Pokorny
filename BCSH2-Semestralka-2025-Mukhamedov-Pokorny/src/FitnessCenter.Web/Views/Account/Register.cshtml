@@ -2,13 +2,14 @@
 @{
     ViewData["Title"] = "Registrace";
     Layout = "_AuthLayout";
+    var fitness = ViewBag.FitnessCenters as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                  ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
 }
 <h1 class="h4 text-center mb-2 text-white">Registrace</h1>
 
 <form action="/Account/Register" method="post" novalidate>
     @Html.AntiForgeryToken()
 
-    <!-- Souhrn chyb -->
     <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
 
     <div class="row g-2">
@@ -35,12 +36,19 @@
     </div>
 
     <div class="mb-2">
-        <input name="Password" type="password" class="form-control form-control-lg" placeholder="Heslo" />
-        <span class="text-danger small" asp-validation-for="Password"></span>
+        <input name="BirthDate" type="date" class="form-control form-control-lg" placeholder="Datum narození" />
+        <span class="text-danger small" asp-validation-for="BirthDate"></span>
     </div>
+
     <div class="mb-2">
-        <input name="ConfirmPassword" type="password" class="form-control form-control-lg" placeholder="Potvrzení hesla" />
-        <span class="text-danger small" asp-validation-for="ConfirmPassword"></span>
+        <select name="FitnessCenterId" class="form-control form-control-lg">
+            <option value="">— Vyber fitness centrum —</option>
+            @foreach (var it in fitness)
+            {
+                <option value="@it.Value">@it.Text</option>
+            }
+        </select>
+        <span class="text-danger small" asp-validation-for="FitnessCenterId"></span>
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Vytvořit účet</button>
@@ -49,3 +57,7 @@
 <div class="text-center mt-3 auth-link">
     <a href="/Account/Login" class="link-light small">Už máš účet? Přihlásit</a>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
