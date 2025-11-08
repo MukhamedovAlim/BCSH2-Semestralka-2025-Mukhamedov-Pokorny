@@ -8,6 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo
 using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
 
+// ↓ přidáno: kvůli přímým dotazům do Oracle
+using FitnessCenter.Infrastructure.Persistence;  // DatabaseManager
+using Oracle.ManagedDataAccess.Client;
+
 namespace FitnessCenter.Web.Controllers
 {
     public class HomeController : Controller
@@ -116,15 +120,51 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // ===== Admin dashboard – schovat hlavní menu, nechat jen Odhlásit =====
+        // ===== Admin dashboard – čísla z DB =====
         [Authorize(Roles = "Admin")]
-        public IActionResult Admin()
+        public async Task<IActionResult> Admin()
         {
             ViewBag.Active = "HomeAdmin";
             ViewBag.Today = DateTime.Today;
+            ViewBag.HideMainNav = true; // schovej hlavní menu
 
-            // schovej levé/hlavní položky v navbaru (ponechá se jen Odhlásit)
-            ViewBag.HideMainNav = true;
+            int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0;
+
+            try
+            {
+                using var con = await DatabaseManager.GetOpenConnectionAsync();
+
+                // členové
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM CLENOVE", (OracleConnection)con))
+                    members = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                // trenéři
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", (OracleConnection)con))
+                    trainers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                // dnešní lekce (TRUNC kvůli datu bez času)
+                using (var cmd = new OracleCommand(
+                    @"SELECT COUNT(*) FROM LEKCE WHERE TRUNC(DATUMLEKCE) = TRUNC(SYSDATE)",
+                    (OracleConnection)con))
+                    lessonsToday = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                // neuhrazené platby – uprav ID stavu podle svého číselníku
+                using (var cmd = new OracleCommand(
+                    @"SELECT COUNT(*) FROM PLATBY WHERE STAVPLATBY_IDSTAVPLATBY = 1",
+                    (OracleConnection)con))
+                    pendingPayments = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Nepodařilo se načíst statistiky: " + ex.Message;
+            }
+
+            ViewBag.MembersCount = members;
+            ViewBag.TrainersCount = trainers;
+            ViewBag.LessonsToday = lessonsToday;
+            ViewBag.PendingPayments = pendingPayments;
+
+            ViewBag.AdminMessagesCnt = 0;
 
             return View();
         }

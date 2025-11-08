@@ -7,25 +7,21 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Data;
+using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Admin")]
+    [Route("Members")]
     public class MembersController : Controller
     {
         private readonly IMembersService _members;
 
-        public MembersController(IMembersService members)
-        {
-            _members = members;
-        }
+        public MembersController(IMembersService members) => _members = members;
 
-        // ---------------- helper: číselník fitness center ----------------
+        // ---------- helper: číselník fitness center ----------
         private static async Task<List<SelectListItem>> LoadFitnessForSelectAsync()
         {
             var items = new List<SelectListItem>();
@@ -46,36 +42,45 @@ namespace FitnessCenter.Web.Controllers
             return items;
         }
 
-        // ===== LIST (z DB view V_CLENOVE_PUBLIC) =====
-        // SELECT idclen, jmeno, prijmeni, email_mask FROM V_CLENOVE_PUBLIC
-        [HttpGet]
+        // ===== LIST: GET /Members =====
+        [HttpGet("")]
         public async Task<IActionResult> Index(CancellationToken ct)
         {
             ViewBag.Active = "Members";
-            ViewBag.HideMainNav = true; // schová hlavní položky v _AppLayout
+            ViewBag.HideMainNav = true;
 
-            var list = new List<MemberViewModel>();
+            var list = new System.Collections.Generic.List<MemberVM>();
 
             try
             {
                 using var conn = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-                    SELECT idclen, jmeno, prijmeni, email_mask
-                    FROM V_CLENOVE_PUBLIC
+                    SELECT
+                        idclen,
+                        jmeno,
+                        prijmeni,
+                        email,
+                        telefon,
+                        datumnarozeni,
+                        adresa
+                    FROM CLENOVE
                     ORDER BY prijmeni, jmeno", (OracleConnection)conn);
 
                 using var rd = await cmd.ExecuteReaderAsync(ct);
                 while (await rd.ReadAsync(ct))
                 {
-                    list.Add(new MemberViewModel
+                    list.Add(new MemberVM
                     {
                         MemberId = rd.GetInt32(0),
                         FirstName = rd.IsDBNull(1) ? "" : rd.GetString(1),
                         LastName = rd.IsDBNull(2) ? "" : rd.GetString(2),
-                        Email = rd.IsDBNull(3) ? null : rd.GetString(3), // maskovaný e-mail
-                        Phone = null,                                     // ve view je NULL
+                        Email = rd.IsDBNull(3) ? null : rd.GetString(3),
+                        Phone = rd.IsDBNull(4) ? null : rd.GetString(4),
+                        BirthDate = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
+                        Address = rd.IsDBNull(6) ? null : rd.GetString(6),
                         IsActive = true
                     });
+
                 }
             }
             catch (Exception ex)
@@ -87,50 +92,48 @@ namespace FitnessCenter.Web.Controllers
             return View(list);
         }
 
-        // GET: /Members/Details/5
-        [HttpGet]
-        public IActionResult Details(int id)
-        {
-            return NotFound();
-        }
-
-        // ======================= CREATE =======================
-        // GET
-        [HttpGet]
+        // ===== CREATE (GET): /Members/Create =====
+        // GET: /Members/Create
+        [HttpGet("Create")]
         public async Task<IActionResult> Create()
         {
-            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(); // naplnění dropdownu
-            return View(new MemberCreateViewModel { FitnessCenterId = 0 });
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+            return View(new MemberCreateViewModel());
         }
 
-        // POST
-        [HttpPost]
+        // ===== CREATE (POST): /Members/Create =====
+        // POST: /Members/Create
+        [HttpPost("Create")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberCreateViewModel vm)
         {
-            if (!ModelState.IsValid)
-            {
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(vm);
-            }
+            // vždy znovu naplníme dropdown
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
 
+            // tvrdé validace – důvod, proč se to často „neuloží“
             if (!vm.BirthDate.HasValue)
-            {
                 ModelState.AddModelError(nameof(vm.BirthDate), "Zadej datum narození.");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(vm);
-            }
 
             if (vm.FitnessCenterId <= 0)
-            {
                 ModelState.AddModelError(nameof(vm.FitnessCenterId), "Vyber fitness centrum.");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+
+            // Když je něco špatně, ukaž přesný důvod
+            if (!ModelState.IsValid)
+            {
+                var errs = string.Join("; ", ModelState
+                    .Where(kv => kv.Value?.Errors.Count > 0)
+                    .SelectMany(kv => kv.Value!.Errors.Select(e => $"{kv.Key}: {e.ErrorMessage}")));
+                if (!string.IsNullOrWhiteSpace(errs))
+                    TempData["Err"] = "Neplatný formulář: " + errs;
+
                 return View(vm);
             }
 
-            // Volitelná pojistka: zvolený IDFITNESS existuje?
+            // pojistka: existuje zvolené fitko?
             using (var conn = await DatabaseManager.GetOpenConnectionAsync())
-            using (var chk = new OracleCommand("SELECT COUNT(*) FROM fitnesscentra WHERE idfitness=:id", (OracleConnection)conn))
+            using (var chk = new Oracle.ManagedDataAccess.Client.OracleCommand(
+                       "SELECT COUNT(*) FROM fitnesscentra WHERE idfitness=:id",
+                       (Oracle.ManagedDataAccess.Client.OracleConnection)conn))
             {
                 chk.BindByName = true;
                 chk.Parameters.Add("id", vm.FitnessCenterId);
@@ -138,66 +141,112 @@ namespace FitnessCenter.Web.Controllers
                 if (!exists)
                 {
                     ModelState.AddModelError(nameof(vm.FitnessCenterId), "Zvolené fitness centrum neexistuje.");
-                    ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                    TempData["Err"] = "Zvolené fitness centrum neexistuje.";
                     return View(vm);
                 }
             }
 
-            var m = new Member
+            var m = new FitnessCenter.Domain.Entities.Member
             {
                 FirstName = vm.FirstName?.Trim() ?? "",
                 LastName = vm.LastName?.Trim() ?? "",
                 Email = vm.Email?.Trim() ?? "",
-                Phone = string.IsNullOrWhiteSpace(vm.Phone) ? null : vm.Phone!.Trim(),
-                Address = string.IsNullOrWhiteSpace(vm.Address) ? null : vm.Address!.Trim(),
-                BirthDate = vm.BirthDate.Value,
+                Phone = string.IsNullOrWhiteSpace(vm.Phone) ? null : vm.Phone.Trim(),
+                Address = string.IsNullOrWhiteSpace(vm.Address) ? null : vm.Address.Trim(),
+                BirthDate = vm.BirthDate!.Value,
                 FitnessCenterId = vm.FitnessCenterId
             };
 
             try
             {
-                var newId = await _members.CreateViaProcedureAsync(m); // PR_CLEN_CREATE
+                var newId = await _members.CreateViaProcedureAsync(m); // volá PR_CLEN_CREATE
                 TempData["Ok"] = $"Člen byl vytvořen (ID: {newId}).";
                 return RedirectToAction(nameof(Index));
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                // např. ORA-00001 (unikátní email/telefon)
-                ModelState.AddModelError(string.Empty, ex.Message);
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                // sem spadne např. kolize unikátního emailu/telefonu
+                TempData["Err"] = "Chyba při vytváření člena: " + ex.Message;
                 return View(vm);
             }
         }
 
-        // ======================= EDIT =======================
-        [HttpGet]
-        public IActionResult Edit(int id)
-        {
-            return NotFound();
-        }
-
-        [HttpPost]
+        // ===== DELETE (POST): /Members/Delete =====
+        [HttpPost("Delete")]
         [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, MemberViewModel vm)
+        public async Task<IActionResult> Delete([FromForm] int id)
         {
-            if (!ModelState.IsValid) return View(vm);
+            if (id <= 0)
+            {
+                TempData["Err"] = "Neplatné ID člena.";
+                return RedirectToAction(nameof(Index));
+            }
 
-            TempData["Ok"] = "Změny uloženy (doplníme update v DB).";
-            return RedirectToAction(nameof(Index));
-        }
+            try
+            {
+                var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+                using var tx = con.BeginTransaction();
 
-        // ======================= DELETE =======================
-        [HttpGet]
-        public IActionResult Delete(int id)
-        {
-            return NotFound();
-        }
+                // závislosti
+                try
+                {
+                    using var cmdRez = new OracleCommand(
+                        "DELETE FROM REZERVACE_LEKCI WHERE CLEN_IDCLEN = :id", con)
+                    { BindByName = true, Transaction = tx };
+                    cmdRez.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
+                    await cmdRez.ExecuteNonQueryAsync();
+                }
+                catch (OracleException ox) when (ox.Number == 942) { }
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            TempData["Ok"] = "Člen byl odstraněn (doplníme delete v DB).";
+                try
+                {
+                    using var cmdPlatby = new OracleCommand(
+                        "DELETE FROM PLATBY WHERE CLEN_IDCLEN = :id", con)
+                    { BindByName = true, Transaction = tx };
+                    cmdPlatby.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
+                    await cmdPlatby.ExecuteNonQueryAsync();
+                }
+                catch (OracleException ox) when (ox.Number == 942) { }
+
+                try
+                {
+                    using var cmdClenstvi = new OracleCommand(
+                        "DELETE FROM CLENSTVI WHERE CLEN_IDCLEN = :id", con)
+                    { BindByName = true, Transaction = tx };
+                    cmdClenstvi.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
+                    await cmdClenstvi.ExecuteNonQueryAsync();
+                }
+                catch (OracleException ox) when (ox.Number == 942) { }
+
+                // samotný člen
+                using (var cmdClen = new OracleCommand(
+                    "DELETE FROM CLENOVE WHERE IDCLEN = :id", con))
+                {
+                    cmdClen.BindByName = true;
+                    cmdClen.Transaction = tx;
+                    cmdClen.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
+
+                    var rows = await cmdClen.ExecuteNonQueryAsync();
+                    if (rows == 0)
+                    {
+                        tx.Rollback();
+                        TempData["Err"] = "Člen nebyl nalezen.";
+                        return RedirectToAction(nameof(Index));
+                    }
+                }
+
+                tx.Commit();
+                TempData["Ok"] = "Člen byl smazán.";
+            }
+            catch (OracleException ox)
+            {
+                TempData["Err"] = "Chyba DB při mazání člena: " + ox.Message;
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Chyba při mazání člena: " + ex.Message;
+            }
+
             return RedirectToAction(nameof(Index));
         }
     }

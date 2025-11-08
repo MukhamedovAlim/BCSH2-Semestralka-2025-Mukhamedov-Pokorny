@@ -1,14 +1,33 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 
-namespace FitnessCenter.Web.Models.Member;
-
-public sealed class MemberViewModel
+namespace FitnessCenter.Web.Models.Member
 {
-    public int MemberId { get; set; }
-    [Required, StringLength(100)] public string FirstName { get; set; } = "";
-    [Required, StringLength(100)] public string LastName { get; set; } = "";
-    [Required, EmailAddress] public string Email { get; set; } = "";
-    public string? Phone { get; set; }
-    [DataType(DataType.Date)] public DateTime? BirthDate { get; set; }
-    public bool IsActive { get; set; } = true;
+    public sealed class MemberViewModel
+    {
+        public int MemberId { get; set; }
+
+        [MaxLength(50)]
+        public string FirstName { get; set; } = "";
+
+        [MaxLength(50)]
+        public string LastName { get; set; } = "";
+
+        [EmailAddress, MaxLength(100)]
+        public string Email { get; set; } = "";
+
+        [MaxLength(20)]
+        public string? Phone { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateTime? BirthDate { get; set; }
+
+        [MaxLength(100)]
+        public string? Address { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        // helper pro tabulku
+        public string FullName => $"{FirstName} {LastName}".Trim();
+    }
 }

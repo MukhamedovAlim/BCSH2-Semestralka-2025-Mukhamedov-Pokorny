@@ -1,24 +1,23 @@
-﻿@using FitnessCenter.Web.Models.Member
-@model IEnumerable<MemberViewModel>
+﻿@model List<FitnessCenter.Web.Models.TrainerViewModel>
 @{
-    ViewData["Title"] = "Členové";
+    ViewData["Title"] = "Trenéři";
     Layout = "_AppLayout";
-    ViewBag.HideMainNav = true; // skryje položky v navbaru, nechá jen Odhlásit
+    ViewBag.Active = "Admin";
 }
 
 <div class="glass p-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
             <a class="btn btn-sm btn-outline-light"
                href="@Url.Action("Admin", "Home")"
                onclick="if (history.length > 1) { history.back(); return false; }">
                 ← Zpět
             </a>
-            <h3 class="text-white mb-0">Členové</h3>
+            <h3 class="text-white mb-0">Trenéři</h3>
         </div>
 
-        <a href="@Url.Action("Create", "Members")" class="btn btn-sm btn-warning">
-            + Přidat člena
+        <a href="@Url.Action("Promote", "AdminTrainers")" class="btn btn-sm btn-warning">
+            + Povýšit člena na trenéra
         </a>
     </div>
 
@@ -33,7 +32,6 @@
         <div class="alert alert-danger">@err</div>
     }
 
-
     <div class="table-responsive">
         <table class="table table-dark table-striped align-middle">
             <thead>
@@ -41,28 +39,25 @@
                     <th>Jméno</th>
                     <th>E-mail</th>
                     <th>Telefon</th>
-                    <th>Narozen</th>
                     <th class="text-end">Akce</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var m in Model)
+                @foreach (var t in Model)
                 {
                     <tr>
-                        <td>@m.FirstName @m.LastName</td>
-                        <td>@(string.IsNullOrWhiteSpace(m.Email) ? "—" : m.Email)</td>
-                        <td>@(string.IsNullOrWhiteSpace(m.Phone) ? "—" : m.Phone)</td>
-                        <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
+                        <td>@t.FullName</td>
+                        <td>@t.Email</td>
+                        <td>@t.Phone</td>
                         <td class="text-end">
-                            <form action="@Url.Action("Delete", "Members")"
+                            <form action="@Url.Action("Delete", "AdminTrainers")"
                                   method="post" class="d-inline"
-                                  onsubmit="return confirm('Opravdu smazat tohoto člena?');">
+                                  onsubmit="return confirm('Opravdu zrušit roli trenéra?');">
                                 @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@m.MemberId" />
+                                <input type="hidden" name="id" value="@t.TrainerId" />
                                 <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
                             </form>
                         </td>
-
                     </tr>
                 }
             </tbody>

@@ -1,0 +1,81 @@
+﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Member>
+@{
+    ViewData["Title"] = "Povýšit člena na trenéra";
+    Layout = "_AppLayout";
+}
+
+<div class="glass p-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h3 class="text-white mb-0">Povýšit člena na trenéra</h3>
+        <a href="@Url.Action("Index", "AdminTrainers")" class="btn btn-outline-light btn-sm">← Zpět</a>
+    </div>
+
+    <hr class="border-secondary" />
+
+    @if (TempData["Ok"] is string ok)
+    {
+        <div class="alert alert-success">@ok</div>
+    }
+    @if (TempData["Err"] is string err)
+    {
+        <div class="alert alert-danger">@err</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Jméno</th>
+                    <th>E-mail</th>
+                    <th>Telefon (aktuální)</th>
+                    <th class="text-end">Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model)
+                {
+                    var hasPhone = !string.IsNullOrWhiteSpace(m.Phone);
+
+                    <tr>
+                        <td class="text-white">@($"{m.FirstName} {m.LastName}".Trim())</td>
+                        <td>@m.Email</td>
+                        <td>
+                            @if (hasPhone)
+                            {
+                                <span>@m.Phone</span>
+                                <div class="text-white-50 small">Použije se číslo člena.</div>
+                            }
+                            else
+                            {
+                                <span class="text-white-50">—</span>
+                                <div class="text-white-50 small">Člen nemá telefon — můžeš ho doplnit při povýšení.</div>
+                            }
+                        </td>
+
+                        <td class="text-end">
+                            <form method="post" action="@Url.Action("PromoteMember", "AdminTrainers")" class="d-inline-flex gap-2 align-items-center">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="email" value="@m.Email" />
+                                @if (!hasPhone)
+                                {
+                                    <input type="tel"
+                                           name="phone"
+                                           class="form-control form-control-sm"
+                                           placeholder="Telefon pro trenéra"
+                                           style="width:210px"
+                                           pattern="(\+?420)?\s*\d{3}\s*\d{3}\s*\d{3}|\d{3}\s*\d{3}\s*\d{3}"
+                                           title="Zadej 9 číslic (např. 777888999) nebo s předvolbou +420/420." />
+
+                                }
+
+                                <button type="submit" class="btn btn-sm btn-warning">
+                                    Povýšit
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
