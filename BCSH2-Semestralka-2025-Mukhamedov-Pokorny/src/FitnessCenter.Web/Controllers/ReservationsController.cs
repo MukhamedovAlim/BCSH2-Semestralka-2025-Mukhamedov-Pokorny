@@ -162,7 +162,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 var idRez = await _repo.ReserveLessonAsync(idClen, id);
-                TempData["ResMsg"] = $"Rezervace vytvořena (#{idRez}).";
+                TempData["ResMsg"] = $"Rezervace vytvořena.";
                 return RedirectToAction(nameof(Mine));
             }
             catch (Exception ex)

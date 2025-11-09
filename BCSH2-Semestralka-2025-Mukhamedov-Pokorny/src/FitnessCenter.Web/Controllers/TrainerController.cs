@@ -85,7 +85,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 var zrusenoRez = await _lessons.CancelLessonByTrainerAsync(id, trainerId.Value, ct);
-                TempData["Ok"] = $"Lekce #{id} byla zrušena.";
+                TempData["Ok"] = $"Lekce byla zrušena.";
             }
             catch (InvalidOperationException ex)
             {

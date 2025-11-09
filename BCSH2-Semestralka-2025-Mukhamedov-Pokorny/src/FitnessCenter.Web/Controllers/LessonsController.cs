@@ -177,8 +177,8 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 var id = await _lessons.CreateAsync(model, trainerId.Value);
-                TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena (ID {id}).";
-                return RedirectToAction(nameof(Create)); // nebo RedirectToAction(nameof(Detail), new { id })
+                TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena";
+                return RedirectToAction(nameof(Create));
             }
             catch (Exception ex)
             {
@@ -218,7 +218,7 @@ namespace FitnessCenter.Web.Controllers
             }
 
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
-            return View(list); // Views/Lessons/Delete.cshtml
+            return View(list);
         }
     }
 }

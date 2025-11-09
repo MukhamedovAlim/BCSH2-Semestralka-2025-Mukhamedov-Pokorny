@@ -160,7 +160,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 var newId = await _members.CreateViaProcedureAsync(m); // volá PR_CLEN_CREATE
-                TempData["Ok"] = $"Člen byl vytvořen (ID: {newId}).";
+                TempData["Ok"] = $"Člen byl vytvořen";
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)

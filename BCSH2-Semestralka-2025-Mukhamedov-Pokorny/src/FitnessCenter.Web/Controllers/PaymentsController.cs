@@ -74,7 +74,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 var (idCl, idPl) = await _repo.PurchaseMembershipAsync(email, typ, cena);
-                TempData["Ok"] = $"Zakoupeno: {typ}. Členství #{idCl}, platba #{idPl}.";
+                TempData["Ok"] = $"Zakoupeno: {typ}.";
             }
             catch (Exception ex)
             {

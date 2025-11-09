@@ -125,7 +125,7 @@ namespace FitnessCenter.Web.Controllers
 
                 var newId = outId.Value == null ? 0 : Convert.ToInt32(outId.Value.ToString());
                 TempData["Ok"] = newId > 0
-                    ? $"Člen byl povýšen na trenéra (ID {newId})."
+                    ? "Člen byl povýšen na trenéra."
                     : "Člen už je trenér – hotovo.";
 
                 return RedirectToAction(nameof(Index));
