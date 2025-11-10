@@ -59,5 +59,8 @@ namespace FitnessCenter.Application.Services
         //admin
         public Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId)
             => _repo.CancelLessonByAdminAsync(lessonId);
+
+        public Task<int> GetTodayCountAsync(CancellationToken ct = default)
+    => _repo.GetTodayCountAsync(ct);
     }
 }

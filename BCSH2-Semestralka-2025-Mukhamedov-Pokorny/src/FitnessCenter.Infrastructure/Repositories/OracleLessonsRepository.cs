@@ -388,5 +388,13 @@ namespace FitnessCenter.Infrastructure.Repositories
             }
         }
 
+        public async Task<int> GetTodayCountAsync(CancellationToken ct = default)
+        {
+            const string sql = "SELECT COUNT(*) FROM lekce WHERE TRUNC(datumlekce) = TRUNC(SYSDATE)";
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con);
+            var obj = await cmd.ExecuteScalarAsync(ct);
+            return obj == null || obj == DBNull.Value ? 0 : Convert.ToInt32(obj.ToString());
+        }
     }
 }

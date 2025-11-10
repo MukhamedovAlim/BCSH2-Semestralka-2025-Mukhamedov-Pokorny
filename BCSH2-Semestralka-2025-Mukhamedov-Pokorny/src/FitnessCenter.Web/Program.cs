@@ -20,6 +20,7 @@ builder.Services.AddHttpContextAccessor();
 // =======================
 builder.Services.AddScoped<IMembersRepository, OracleMemberRepository>();
 builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
+builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
 
 // Read-only/Doplňkové repozitáře
 //builder.Services.AddScoped<LessonsRepo>();

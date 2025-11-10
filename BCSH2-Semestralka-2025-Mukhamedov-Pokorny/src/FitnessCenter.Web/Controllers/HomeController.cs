@@ -7,8 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo
 using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
-
-// ↓ přidáno: kvůli přímým dotazům do Oracle
 using FitnessCenter.Infrastructure.Persistence;  // DatabaseManager
 using Oracle.ManagedDataAccess.Client;
 
@@ -109,7 +107,7 @@ namespace FitnessCenter.Web.Controllers
                     Time = l.Zacatek.ToString("HH:mm"),
                     Name = l.Nazev,
                     Room = string.IsNullOrWhiteSpace(l.Mistnost) ? "—" : l.Mistnost,
-                    // Zatím zobrazujeme jen kapacitu (případně doplníme rezervované/volné)
+                    // zatím jen kapacita; můžeš později doplnit „obsazeno/volno“
                     Slots = l.Kapacita.ToString()
                 })
                 .ToList();
@@ -120,39 +118,41 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // ===== Admin dashboard – čísla z DB =====
+        // ===== Admin dashboard – statistiky =====
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Admin()
         {
-            ViewBag.Active = "HomeAdmin";
+            ViewBag.Active = "Admin";
             ViewBag.Today = DateTime.Today;
-            ViewBag.HideMainNav = true; // schovej hlavní menu
+            ViewBag.HideMainNav = true;
 
-            int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0;
+            int members = 0, trainers = 0, lessonsCount = 0, pendingPayments = 0, logCount = 0;
 
             try
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
+                var oc = (OracleConnection)con;
 
-                // členové
-                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM CLENOVE", (OracleConnection)con))
+                // členové (celkem)
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM CLENOVE", oc))
                     members = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // trenéři
-                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", (OracleConnection)con))
+                // trenéři (celkem)
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", oc))
                     trainers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // dnešní lekce (TRUNC kvůli datu bez času)
-                using (var cmd = new OracleCommand(
-                    @"SELECT COUNT(*) FROM LEKCE WHERE TRUNC(DATUMLEKCE) = TRUNC(SYSDATE)",
-                    (OracleConnection)con))
-                    lessonsToday = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                // lekce (celkem) – stejně jako u členů/trenérů
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM LEKCE", oc))
+                    lessonsCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // neuhrazené platby – uprav ID stavu podle svého číselníku
+                // neuhrazené platby – uprav ID stavu podle číselníku
                 using (var cmd = new OracleCommand(
-                    @"SELECT COUNT(*) FROM PLATBY WHERE STAVPLATBY_IDSTAVPLATBY = 1",
-                    (OracleConnection)con))
+                    "SELECT COUNT(*) FROM PLATBY WHERE STAVPLATBY_IDSTAVPLATBY = 1", oc))
                     pendingPayments = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                // log operací (celkem)
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM LOG_OPERACE", oc))
+                    logCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
             catch (Exception ex)
             {
@@ -161,10 +161,10 @@ namespace FitnessCenter.Web.Controllers
 
             ViewBag.MembersCount = members;
             ViewBag.TrainersCount = trainers;
-            ViewBag.LessonsToday = lessonsToday;
+            ViewBag.LessonsToday = lessonsCount;   // badge ve view už čte „lessonsToday“
             ViewBag.PendingPayments = pendingPayments;
-
             ViewBag.AdminMessagesCnt = 0;
+            ViewBag.LogCount = logCount;
 
             return View();
         }

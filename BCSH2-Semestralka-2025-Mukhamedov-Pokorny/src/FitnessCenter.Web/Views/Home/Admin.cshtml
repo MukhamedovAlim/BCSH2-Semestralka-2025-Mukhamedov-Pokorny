@@ -88,6 +88,16 @@
     </div>
 
     <div class="row g-3 mt-1">
+        <!-- Log operací -->
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Log operací</h5>
+                <div class="text-white-50 small">Poslední záznamy: <strong>@((int)(ViewBag.LogCount ?? 0))</strong></div>
+                <a href="@Url.Action("Index", "AdminLogs")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <!-- Správa uživatelů -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Správa uživatelů</h5>
@@ -96,14 +106,16 @@
             </div>
         </div>
 
+        <!-- Lekce & rozvrh (pro admina!) -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Lekce & rozvrh</h5>
                 <div class="text-white-50 small">Plánování, kapacity, lektoři.</div>
-                <a href="@Url.Action("Index", "Lessons")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "AdminLessons")" class="stretched-link"></a>
             </div>
         </div>
 
+        <!-- Platby -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Platby</h5>
@@ -112,6 +124,7 @@
             </div>
         </div>
 
+        <!-- Zprávy -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Zprávy</h5>

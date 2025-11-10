@@ -19,5 +19,7 @@ namespace FitnessCenter.Infrastructure.Repositories
 
         Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId);
 
+        Task<int> GetTodayCountAsync(CancellationToken ct = default);
+
     }
 }
