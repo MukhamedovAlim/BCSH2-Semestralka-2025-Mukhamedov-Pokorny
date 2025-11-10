@@ -55,5 +55,9 @@ namespace FitnessCenter.Application.Services
         // NOVÉ – e-maily účastníků lekce
         public Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default)
             => _repo.GetAttendeeEmailsAsync(lessonId, ct);
+
+        //admin
+        public Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId)
+            => _repo.CancelLessonByAdminAsync(lessonId);
     }
 }

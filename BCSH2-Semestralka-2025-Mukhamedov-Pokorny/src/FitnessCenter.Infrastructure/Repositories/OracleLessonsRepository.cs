@@ -345,5 +345,48 @@ namespace FitnessCenter.Infrastructure.Repositories
             return list;
         }
 
+        //admin
+        public async Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId)
+        {
+            using var con = await OpenAsync();
+            using var tx = con.BeginTransaction();
+            try
+            {
+                using var cmd = con.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.BindByName = true;
+                cmd.CommandText = "PROC_CANCEL_LEKCE";
+
+                cmd.Parameters.Add("p_idlekce", OracleDbType.Int32).Value = lessonId;
+
+                var p1 = new OracleParameter("p_del_relekci", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                var p2 = new OracleParameter("p_del_rez", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                var p3 = new OracleParameter("p_del_lekce", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+
+                cmd.Parameters.Add(p1);
+                cmd.Parameters.Add(p2);
+                cmd.Parameters.Add(p3);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                tx.Commit();
+
+                int ReadInt(OracleParameter p)
+                {
+                    var v = p.Value;
+                    if (v == null || v == DBNull.Value) return 0;
+                    return int.TryParse(v.ToString(), out var n) ? n : 0;
+                }
+
+                return (ReadInt(p1), ReadInt(p2), ReadInt(p3));
+            }
+            catch
+            {
+                tx.Rollback();
+                throw;
+            }
+        }
+
     }
 }

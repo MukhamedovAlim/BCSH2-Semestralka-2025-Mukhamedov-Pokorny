@@ -16,5 +16,8 @@ namespace FitnessCenter.Infrastructure.Repositories
 
         // NOVÉ – seznam e-mailů přihlášených na lekci
         Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default);
+
+        Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId);
+
     }
 }

@@ -1,0 +1,28 @@
+﻿@model IEnumerable<string>
+@{
+    ViewData["Title"] = "Obsazenost lekce";
+    Layout = "_AppLayout";
+    var lessonId = (int)ViewBag.LessonId;
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "AdminLessons")">← Zpět</a>
+        <span class="h3 text-white mb-0">Účastníci lekce #@lessonId</span>
+    </div>
+</div>
+
+<div class="glass p-3">
+    @if (!Model.Any())
+    {
+        <div class="text-white-50">Nikdo není přihlášen.</div>
+    }
+    else
+    {
+        <ul class="list-group list-group-flush">
+            @foreach (var email in Model)
+            {
+                <li class="list-group-item bg-transparent text-white border-secondary">@email</li>
+            }
+        </ul>
+    }
+</div>

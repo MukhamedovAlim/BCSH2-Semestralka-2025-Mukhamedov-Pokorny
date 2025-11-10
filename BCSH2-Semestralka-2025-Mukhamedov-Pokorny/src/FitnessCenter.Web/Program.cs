@@ -25,6 +25,7 @@ builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 //builder.Services.AddScoped<LessonsRepo>();
 builder.Services.AddScoped<OracleLessonsRepository>();
 builder.Services.AddScoped<PaymentsReadRepo>();
+builder.Services.AddScoped<LessonsService>();
 builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 
 // =======================
