@@ -2,36 +2,113 @@
     ViewData["Title"] = "Koupit permanentku";
     Layout = "_AppLayout";
     var items = (IEnumerable<dynamic>)ViewBag.Products;
+    var idx = 0;
 }
 
 <div class="glass p-3">
-  <h5 class="text-white mb-3">Vyberte typ permanentky</h5>
+    <h5 class="text-white mb-3">Vyberte typ permanentky</h5>
 
-  <div class="row g-3">
-    @foreach (var p in items)
-    {
-      <div class="col-12 col-md-4">
-        <div class="card bg-dark text-white h-100">
-          <div class="card-body d-flex flex-column">
-            <h6 class="card-title">@p.Name</h6>
-            <div class="text-white-50 mb-3">Cena: <strong class="text-white">@((decimal)p.Price) Kč</strong></div>
+    <div class="row g-3">
+        @foreach (var p in items)
+        {
+            idx++;
+            var formId = $"buy-form-{idx}";
+            decimal price = (decimal)p.Price;
+            string priceInvariant = price.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            <form asp-action="Buy" method="post" class="mt-auto">
-              @Html.AntiForgeryToken()  <!-- DŮLEŽITÉ -->
-              <input type="hidden" name="typ" value="@p.Name" />
-              <!-- pošli cenu invariantně, aby se správně svázala i v CZ locale -->
-              <input type="hidden" name="cena"
-                     value="@(((decimal)p.Price).ToString(System.Globalization.CultureInfo.InvariantCulture))" />
-              <button type="submit" class="btn btn-primary w-100">Koupit</button>
-            </form>
+            <div class="col-12 col-md-4">
+                <div class="card bg-dark text-white h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h6 class="card-title">@p.Name</h6>
+                        <div class="text-white-50 mb-3">Cena: <strong class="text-white">@price Kč</strong></div>
 
-          </div>
-        </div>
-      </div>
-    }
-  </div>
+                        <form id="@formId" asp-action="Buy" method="post" class="mt-auto">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="typ" value="@p.Name" />
+                            <input type="hidden" name="cena" value="@priceInvariant" />
 
-  <div class="mt-3">
-    <a class="btn btn-outline-light" href="@Url.Action("Index")">← Zpět na platby</a>
-  </div>
+                            <!-- Ovládací tlačítko neodesílá – jen otevře modal se souhrnem -->
+                            <button type="button"
+                                    class="btn btn-primary w-100 js-open-confirm"
+                                    data-form-id="@formId"
+                                    data-typ="@p.Name"
+                                    data-cena="@priceInvariant">
+                                Koupit
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mt-3">
+        <a class="btn btn-outline-light" href="@Url.Action("Index")">← Zpět na platby</a>
+    </div>
 </div>
+
+<!-- Modal: Souhrn nákupu -->
+<div class="modal fade" id="confirmPayModal" tabindex="-1" aria-labelledby="confirmPayLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="confirmPayLabel">Potvrzení nákupu</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2 small text-white-50">Zkontrolujte prosím souhrn před platbou.</div>
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-white-50">Produkt:</span>
+                        <strong id="m-typ" class="text-white"></strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-white-50">Cena:</span>
+                        <strong id="m-cena" class="text-white"></strong>
+                    </div>
+                </div>
+                <ul class="small text-white-50 mb-0">
+                    <li>Platba bude provedena okamžitě po potvrzení.</li>
+                    <li>Potvrzení o platbě uvidíte v přehledu plateb a zašleme jej e-mailem (pokud je nastaven).</li>
+                </ul>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-primary" id="confirmPayBtn">Potvrdit platbu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+          const numberFmt = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 });
+          let currentForm = null;
+
+          document.querySelectorAll('.js-open-confirm').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const formId = btn.getAttribute('data-form-id');
+              const typ    = btn.getAttribute('data-typ') ?? '';
+              const cena   = parseFloat(btn.getAttribute('data-cena') ?? '0');
+
+              currentForm = document.getElementById(formId);
+
+              document.getElementById('m-typ').textContent  = typ;
+              document.getElementById('m-cena').textContent = numberFmt.format(cena) + ' Kč';
+
+              const modal = new bootstrap.Modal(document.getElementById('confirmPayModal'));
+              modal.show();
+            });
+          });
+
+          document.getElementById('confirmPayBtn')?.addEventListener('click', () => {
+            if (currentForm) {
+              currentForm.submit();
+              currentForm = null;
+            }
+          });
+        })();
+    </script>
+}

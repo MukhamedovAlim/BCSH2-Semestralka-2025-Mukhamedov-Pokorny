@@ -5,6 +5,6 @@
         public DateTime Datum { get; set; }
         public string Popis { get; set; } = "";
         public decimal Castka { get; set; }
-        public string Stav { get; set; } = "Zaplaceno"; // demo
+        public string Stav { get; set; } = "Zaplaceno"; 
     }
 }

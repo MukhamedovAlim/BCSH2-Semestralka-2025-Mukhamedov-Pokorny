@@ -7,84 +7,81 @@
 }
 
 @functions {
-    // Vrátí CSS třídu pro badge dle stavu
     public string BadgeClass(string? stav) =>
         (stav ?? "").Trim().ToLowerInvariant() switch
         {
-            "zaplaceno"      => "bg-success",
-            "nezaplaceno"    => "bg-warning",
+            "zaplaceno" => "bg-success",
+            "nezaplaceno" => "bg-warning",
             "čeká na platbu" => "bg-warning",
-            "stornováno"     => "bg-danger",
-            "stornovano"     => "bg-danger",
-            _                => "bg-secondary"
+            "stornováno" => "bg-danger",
+            "stornovano" => "bg-danger",
+            _ => "bg-secondary"
         };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@Url.Action("Index","Home")">← Zpět</a>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Home")">← Zpět</a>
         <span class="h3 text-white align-middle mb-0">Přehled plateb</span>
     </div>
-    @* Žádné tlačítko na rezervace *@
 </div>
 
 <div class="row g-4">
-  <div class="col-12 col-lg-4">
-    <div class="glass p-3 h-100">
-      <h5 class="text-white">Stav členství</h5>
-      <div class="text-white-50">
-          Aktuálně:
-          <strong class="text-white">@clenstviStav</strong>
-      </div>
-      <hr class="border-secondary" />
-      <a class="btn btn-primary btn-sm" href="@Url.Action("Buy","Payments")">Koupit permanentku</a>
-    </div>
-  </div>
-
-  <div class="col-12 col-lg-8">
-    <div class="glass p-3">
-      <h5 class="text-white">Historie plateb</h5>
-
-      @if (TempData["Ok"] is string okMsg)
-{
-    <div class="alert alert-success py-2 my-2">@okMsg</div>
-}
-@if (TempData["Error"] is string errMsg)
-{
-    <div class="alert alert-danger py-2 my-2">@errMsg</div>
-}
-
-
-      @if (Model is null || !Model.Any())
-      {
-          <div class="text-white-50 mt-2">Žádné platby k zobrazení.</div>
-      }
-      else
-      {
-        <div class="table-responsive mt-2">
-          <table class="table table-dark table-borderless align-middle">
-            <thead>
-              <tr class="text-white-50">
-                <th>Datum</th>
-                <th>Popis</th>
-                <th class="text-end">Částka</th>
-                <th>Stav</th>
-              </tr>
-            </thead>
-            <tbody>
-            @foreach (var p in Model)
-            {
-              <tr>
-                <td class="text-white-50">@p.Datum.ToString("dd.MM.yyyy")</td>
-                <td class="text-white text-truncate">@p.Popis</td>
-                <td class="text-end text-white">@p.Castka.ToString("N0") Kč</td>
-                <td><span class="badge @BadgeClass(p.Stav)">@p.Stav</span></td>
-              </tr>
-            }
-            </tbody>
-          </table>
+    <div class="col-12 col-lg-4">
+        <div class="glass p-3 h-100">
+            <h5 class="text-white">Stav členství</h5>
+            <div class="text-white-50">
+                Aktuálně:
+                <strong class="text-white">@clenstviStav</strong>
+            </div>
+            <hr class="border-secondary" />
+            <a class="btn btn-primary btn-sm" href="@Url.Action("Buy", "Payments")">Koupit permanentku</a>
         </div>
-      }
     </div>
-  </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="glass p-3">
+            <h5 class="text-white">Historie plateb</h5>
+
+            @if (TempData["Ok"] is string okMsg)
+            {
+                <div class="alert alert-success py-2 my-2">@okMsg</div>
+            }
+            @if (TempData["Error"] is string errMsg)
+            {
+                <div class="alert alert-danger py-2 my-2">@errMsg</div>
+            }
+
+            @if (Model is null || !Model.Any())
+            {
+                <div class="text-white-50 mt-2">Žádné platby k zobrazení.</div>
+            }
+            else
+            {
+                <div class="table-responsive mt-2">
+                    <table class="table table-dark table-borderless align-middle">
+                        <thead>
+                            <tr class="text-white-50">
+                                <th>Datum</th>
+                                <th>Popis</th>
+                                <th class="text-end">Částka</th>
+                                <th>Stav</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model)
+                            {
+                                <tr>
+                                    <td class="text-white-50">@p.Datum.ToString("dd.MM.yyyy")</td>
+                                    <td class="text-white text-truncate">@p.Popis</td>
+                                    <td class="text-end text-white">@p.Castka.ToString("N0") Kč</td>
+                                    <td><span class="badge @BadgeClass(p.Stav)">@p.Stav</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
 </div>
