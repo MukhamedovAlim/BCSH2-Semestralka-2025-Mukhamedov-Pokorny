@@ -27,18 +27,21 @@
                placeholder="Heslo" />
     </div>
 
-    <button id="loginBtn" class="btn btn-primary btn-lg w-100 mt-2" type="submit">Přihlásit se</button>
+    <button class="btn btn-primary btn-lg w-100 mt-2" type="submit">
+        Přihlásit se
+    </button>
 </form>
 
-<div class="text-center mt-3 auth-link">
-    <a href="/Account/Register" class="link-light small">Nemáš účet? Registruj se</a>
-</div>
+<!-- Akce pod formulářem: nejdřív „bez přihlášení“, pod tím registrace -->
+<div class="mt-3">
+    <a href="@Url.Action("Index", "Public")" class="btn btn-outline-light w-100 mb-2">
+        Pokračovat bez přihlášení
+    </a>
 
-@section scripts {
-<script>
-  document.getElementById('loginBtn').addEventListener('click', function () {
-    const f = document.getElementById('loginForm');
-    setTimeout(() => f.submit(), 0);
-  });
-</script>
-}
+    <div class="text-center">
+        <small class="text-white-50">
+            Nemáš účet?
+            <a href="/Account/Register" class="link-warning text-decoration-none">Registruj se</a>
+        </small>
+    </div>
+</div>

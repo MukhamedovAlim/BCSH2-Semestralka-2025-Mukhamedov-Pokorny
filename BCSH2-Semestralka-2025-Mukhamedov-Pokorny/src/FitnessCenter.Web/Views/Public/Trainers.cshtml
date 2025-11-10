@@ -1,0 +1,16 @@
+﻿@model List<string>
+@{
+    ViewData["Title"] = "Trenéři – veřejný seznam";
+    Layout = "_AppLayout";
+    ViewBag.Active = "Public";
+}
+<div class="glass p-3">
+    <a class="btn btn-sm btn-outline-light mb-3" href="@Url.Action("Index", "Public")">← Zpět</a>
+    <h4 class="text-white mb-3">Naši trenéři</h4>
+    <ul class="list-group list-group-flush">
+        @foreach (var name in Model)
+        {
+            <li class="list-group-item bg-transparent text-white">@name</li>
+        }
+    </ul>
+</div>

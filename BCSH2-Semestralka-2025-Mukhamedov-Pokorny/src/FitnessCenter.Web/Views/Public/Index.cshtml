@@ -1,0 +1,36 @@
+﻿@{
+    ViewData["Title"] = "Vítej – veřejná část";
+    Layout = "_AppLayout";
+    ViewBag.Active = "Public";
+}
+<div class="glass p-3">
+    <h3 class="text-white mb-2">Veřejný přehled</h3>
+    <p class="text-white-50 mb-3">
+        Pro plný přístup se prosím <a href="@Url.Action("Login", "Account")">přihlas</a>
+        nebo <a href="@Url.Action("Register", "Account")">zaregistruj</a>.
+    </p>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="tile glass h-100">
+                <h5 class="text-white mb-1">Rozvrh lekcí</h5>
+                <div class="text-white-50 small">Veřejný náhled nadcházejících lekcí.</div>
+                <a class="stretched-link" href="@Url.Action("Lessons", "Public")"></a>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="tile glass h-100">
+                <h5 class="text-white mb-1">Trenéři</h5>
+                <div class="text-white-50 small">Základní seznam trenérů.</div>
+                <a class="stretched-link" href="@Url.Action("Trainers", "Public")"></a>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="tile glass h-100">
+                <h5 class="text-white mb-1">Registrace</h5>
+                <div class="text-white-50 small">Založ si účet a získej plný přístup.</div>
+                <a class="stretched-link" href="@Url.Action("Register", "Account")"></a>
+            </div>
+        </div>
+    </div>
+</div>
