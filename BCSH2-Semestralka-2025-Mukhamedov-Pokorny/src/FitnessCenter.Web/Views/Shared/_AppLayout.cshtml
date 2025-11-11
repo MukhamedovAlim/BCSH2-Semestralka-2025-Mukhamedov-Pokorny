@@ -3,10 +3,11 @@
     Layout = null;
     var title = ViewData["Title"] as string ?? "Přehled";
 
+    // null-safe kontroly přihlášení a rolí
     bool isAuth = User?.Identity?.IsAuthenticated ?? false;
-    bool isAdmin = isAuth && User.IsInRole("Admin");
-    bool isTrainer = isAuth && User.IsInRole("Trainer");
-    bool isMember = isAuth && User.IsInRole("Member");
+    bool isAdmin = User?.IsInRole("Admin") ?? false;
+    bool isTrainer = User?.IsInRole("Trainer") ?? false;
+    bool isMember = User?.IsInRole("Member") ?? false;
 
     bool hideMainNav = (ViewBag.HideMainNav is bool b && b);
 
@@ -68,6 +69,25 @@
     </style>
 </head>
 <body class="app-bg">
+    @using System.Security.Claims
+    @{
+        bool isImpersonating = User.HasClaim(c => c.Type == "IsImpersonating" && c.Value == "true");
+    }
+    @if (isImpersonating)
+    {
+        <div class="alert alert-danger d-flex justify-content-between align-items-center mb-0 rounded-0">
+            <div>
+                <strong>Režim emulace:</strong>
+                Jste přihlášen jako <em>@User.Identity?.Name</em>.
+            </div>
+            <form action="@Url.Action("Stop", "AdminImpersonation")" method="post" class="ms-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                <button type="submit" class="btn btn-sm btn-light">Návrat k admin účtu</button>
+            </form>
+
+        </div>
+    }
 
     <nav class="navbar navbar-dark" style="background: rgba(0,0,0,.35);">
         <div class="container">

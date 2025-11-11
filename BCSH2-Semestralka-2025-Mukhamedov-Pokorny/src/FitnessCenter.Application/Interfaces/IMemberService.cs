@@ -16,5 +16,6 @@ namespace FitnessCenter.Application.Interfaces
         //admin
         Task<int> CreateViaProcedureAsync(Member m);
         Task UpdateViaProcedureAsync(Member m);
+        Task<Member?> GetByIdAsync(int id, CancellationToken ct = default);
     }
 }

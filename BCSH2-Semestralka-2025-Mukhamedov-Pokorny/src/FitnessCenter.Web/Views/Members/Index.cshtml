@@ -1,5 +1,6 @@
 ﻿@using FitnessCenter.Web.Models.Member
 @model IEnumerable<MemberViewModel>
+
 @{
     ViewData["Title"] = "Členové";
     Layout = "_AppLayout";
@@ -33,7 +34,6 @@
         <div class="alert alert-danger">@err</div>
     }
 
-
     <div class="table-responsive">
         <table class="table table-dark table-striped align-middle">
             <thead>
@@ -54,15 +54,27 @@
                         <td>@(string.IsNullOrWhiteSpace(m.Phone) ? "—" : m.Phone)</td>
                         <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
                         <td class="text-end">
+                            <!-- Emulace uživatele -->
+                            <form action="@Url.Action("Start", "AdminImpersonation")" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@m.MemberId" />
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                <button type="submit" class="btn btn-sm btn-warning me-1">
+                                    Přihlásit se jako
+                                </button>
+                            </form>
+
+                            <!-- Smazat -->
                             <form action="@Url.Action("Delete", "Members")"
                                   method="post" class="d-inline"
                                   onsubmit="return confirm('Opravdu smazat tohoto člena?');">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@m.MemberId" />
-                                <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    Smazat
+                                </button>
                             </form>
                         </td>
-
                     </tr>
                 }
             </tbody>

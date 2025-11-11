@@ -23,6 +23,11 @@ namespace FitnessCenter.Application.Services
         // admin
         public Task<int> CreateViaProcedureAsync(Member m) => repo.CreateViaProcedureAsync(m);
         public Task UpdateViaProcedureAsync(Member m) => repo.UpdateViaProcedureAsync(m);
+
+        public Task<Member?> GetByIdAsync(int id, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 

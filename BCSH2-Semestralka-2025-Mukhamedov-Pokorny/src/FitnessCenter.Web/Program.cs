@@ -6,6 +6,8 @@ using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
+using Microsoft.AspNetCore.Routing; // dej nahoru k usingům
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +25,6 @@ builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
 
 // Read-only/Doplňkové repozitáře
-//builder.Services.AddScoped<LessonsRepo>();
 builder.Services.AddScoped<OracleLessonsRepository>();
 builder.Services.AddScoped<PaymentsReadRepo>();
 builder.Services.AddScoped<LessonsService>();
@@ -34,6 +35,12 @@ builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 // =======================
 builder.Services.AddScoped<IMembersService, MembersService>();
 builder.Services.AddScoped<ILessonsService, LessonsService>();
+
+// =======================
+//   Session + Emulace uživatele
+// =======================
+builder.Services.AddSession(); // musí být přidáno, jinak nepůjde HttpContext.Session
+builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
 
 // 🔐 Cookie autentizace
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -60,12 +67,46 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseSession();       // musí být aktivováno před autentizací
 app.UseAuthentication();
 app.UseAuthorization();
 
 // =========================
 //   ROUTING / ENDPOINTS
 // =========================
+
+// Dočasný výpis zaregistrovaných endpointů (pro diagnostiku 405)
+app.MapGet("/_routes", (IEnumerable<EndpointDataSource> sources) =>
+{
+    var lines = sources
+        .SelectMany(s => s.Endpoints)
+        .OfType<RouteEndpoint>()
+        .Select(e =>
+        {
+            var http = e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods
+                       ?? new[] { "ALL" };
+            return $"{e.RoutePattern.RawText}   [{string.Join(",", http)}]";
+        });
+
+    return Results.Text(string.Join(Environment.NewLine, lines), "text/plain");
+});
+
+// přesný kořen /Members -> Index
+app.MapControllerRoute(
+    name: "members_root",
+    pattern: "Members",
+    defaults: new { controller = "Members", action = "Index" });
+
+// obecné members akce
+app.MapControllerRoute(
+    name: "members",
+    pattern: "Members/{action=Index}/{id?}",
+    defaults: new { controller = "Members" });
+
+// (až potom) default
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Account}/{action=Login}/{id?}");
 
 // Default – nejdřív login
 app.MapControllerRoute(
@@ -119,8 +160,4 @@ app.MapGet("/members/test-list", async (IMembersService svc) =>
     return Results.Text(string.Join("\n", lines));
 });
 
-/*foreach (var kv in ModelState)
-    foreach (var err in kv.Value.Errors)
-        Console.WriteLine($"ModelState error {kv.Key}: {err.ErrorMessage}");
-*/
 app.Run();

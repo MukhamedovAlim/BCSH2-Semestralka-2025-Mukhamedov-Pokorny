@@ -1,0 +1,37 @@
+﻿@model FitnessCenter.Domain.Entities.Member
+@{
+    ViewData["Title"] = "Můj profil";
+    Layout = "_AppLayout";
+}
+
+<div class="glass p-3">
+    <h3 class="text-white mb-3">Můj profil</h3>
+
+    <div class="mb-3">
+        <div><strong>Jméno:</strong> @Model.FirstName @Model.LastName</div>
+        <div><strong>E-mail:</strong> @(string.IsNullOrWhiteSpace(Model.Email) ? "—" : Model.Email)</div>
+        <div><strong>Telefon:</strong> @(string.IsNullOrWhiteSpace(Model.Phone) ? "—" : Model.Phone)</div>
+        <div><strong>Narozen:</strong> @(Model.BirthDate.ToString("dd.MM.yyyy"))</div>
+        <div><strong>Adresa:</strong> @(string.IsNullOrWhiteSpace(Model.Address) ? "—" : Model.Address)</div>
+    </div>
+
+    <hr class="border-secondary" />
+
+    @{
+        var ms = ViewBag.Membership;
+    }
+    @if (ms == null)
+    {
+        <div class="alert alert-warning mb-0">Aktuálně nemáš aktivní permanentku.</div>
+    }
+    else
+    {
+        dynamic m = ms;
+        <div class="alert alert-success mb-0">
+            <strong>Permanentka:</strong> @m.Typ <br />
+            <strong>Platnost:</strong>
+            @(((DateTime)m.Od).ToString("dd.MM.yyyy")) –
+            @(m.Do is DateTime d ? d.ToString("dd.MM.yyyy") : "neomezeně")
+        </div>
+    }
+</div>
