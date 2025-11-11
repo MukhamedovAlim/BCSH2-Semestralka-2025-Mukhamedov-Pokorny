@@ -7,7 +7,12 @@
     // z controlleru:
     var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
     var volnoMap = ViewBag.VolnoMap as IDictionary<int, int> ?? new Dictionary<int, int>();
+
+    bool hasActiveMembership = ViewBag.MembershipActive is bool b && b;
+    DateTime? memFrom = ViewBag.MembershipFrom is DateTime mf ? mf : (DateTime?)null;
+    DateTime? memTo = ViewBag.MembershipTo is DateTime mt ? mt : (DateTime?)null;
 }
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Home")">← Zpět</a>
@@ -36,7 +41,7 @@ else
                     <th>Místo</th>
                     <th>Trenér</th>
                     <th>Volno</th>
-                    <th class="text-end">Akce</th>
+                    <th class="text-end" style="width:1%; white-space:nowrap;">Akce</th>
                 </tr>
             </thead>
             <tbody>
@@ -62,6 +67,14 @@ else
 
                     var volno = volnoMap.TryGetValue(l.Id, out var v) ? v : 0;
 
+                    // Lekce v platnosti členství?
+                    bool inMembershipWindow = hasActiveMembership
+                    && memFrom.HasValue && memTo.HasValue
+                    && l.Zacatek.Date >= memFrom.Value.Date
+                    && l.Zacatek.Date <= memTo.Value.Date;
+
+                    bool allowed = inMembershipWindow && volno > 0;
+
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                         <td class="text-white">@nazev</td>
@@ -77,18 +90,28 @@ else
                                 <span class="badge bg-secondary">0</span>
                             }
                         </td>
-                        <td class="text-end">
-                            @if (volno > 0)
+                        <td class="text-end" style="white-space:nowrap;">
+                            @if (!hasActiveMembership)
+                            {
+                                <span class="badge bg-danger me-2">Bez členství</span>
+                                <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
+                            }
+                            else if (!inMembershipWindow)
+                            {
+                                <span class="badge bg-secondary me-2">Mimo platnost</span>
+                                <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
+                            }
+                            else if (volno <= 0)
+                            {
+                                <span class="badge bg-secondary me-2">PLNO</span>
+                                <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
+                            }
+                            else
                             {
                                 <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-sm btn-warning">Rezervovat</button>
                                 </form>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary me-2">PLNO</span>
-                                <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
                             }
                         </td>
                     </tr>

@@ -62,6 +62,34 @@ namespace FitnessCenter.Web.Controllers
             return map;
         }
 
+        // spočítá volná místa pro zadané lekce
+        private static async Task<Dictionary<int, int>> LoadFreeSlotsMapAsync(IEnumerable<int> lessonIds)
+        {
+            var ids = lessonIds?.Distinct().Where(i => i > 0).ToList() ?? new List<int>();
+            var map = new Dictionary<int, int>();
+            if (ids.Count == 0) return map;
+
+            using var con = await DatabaseManager.GetOpenConnectionAsync();
+            var p = ids.Select((_, i) => $":p{i}").ToArray();
+
+            var sql = $@"
+        SELECT l.idlekce,
+               GREATEST(l.obsazenost - COUNT(r.rezervacelekci_idrezervace), 0) AS volno
+          FROM lekce l
+          LEFT JOIN relekci r ON r.lekce_idlekce = l.idlekce
+         WHERE l.idlekce IN ({string.Join(",", p)})
+         GROUP BY l.idlekce, l.obsazenost";
+
+            using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
+            for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add($"p{i}", ids[i]);
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+                map[rd.GetInt32(0)] = rd.GetInt32(1);
+
+            return map;
+        }
+
 
         // ===================== pomocné loadery trenérů =====================
 
@@ -149,12 +177,19 @@ namespace FitnessCenter.Web.Controllers
         {
             var list = await _repo.GetUpcomingViaProcAsync();
 
-            // trenéři + volná místa
             ViewBag.Trainers = await LoadTrainersByLessonIdsAsync(list.Select(l => l.Id));
-            ViewBag.VolnoMap = await LoadVolnoByLessonIdsAsync(list.Select(l => l.Id));
+            ViewBag.VolnoMap = await LoadFreeSlotsMapAsync(list.Select(l => l.Id));   // ⬅️ DŮLEŽITÉ
+
+            // membership do UI (jak už máš)
+            var idClen = await ResolveMemberId();
+            var ms = await _members.GetMembershipAsync(idClen);
+            ViewBag.MembershipActive = ms.Active;
+            ViewBag.MembershipFrom = ms.From;
+            ViewBag.MembershipTo = ms.To;
 
             return View(list);
         }
+
 
         // GET /Reservations/Mine
         [HttpGet("Mine")]
@@ -183,32 +218,39 @@ namespace FitnessCenter.Web.Controllers
         {
             var idClen = await ResolveMemberId();
 
-            // server-side pojistka: ověřit volno
-            using (var con = await DatabaseManager.GetOpenConnectionAsync())
-            using (var cmd = new OracleCommand(
-                "SELECT volno FROM v_lekce_volne WHERE idlekce = :id",
-                (OracleConnection)con)
-            { BindByName = true })
+            // 1) zjistíme lekci kvůli datu
+            var lesson = await _repo.GetByIdAsync(id);
+            if (lesson == null)
             {
-                cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
-                var obj = await cmd.ExecuteScalarAsync();
-                var volno = (obj == null || obj == DBNull.Value) ? 0 : Convert.ToInt32(obj);
-                if (volno <= 0)
-                {
-                    TempData["ResMsg"] = "Lekce je už plná. Zkus jiný termín.";
-                    return RedirectToAction(nameof(Index));
-                }
+                TempData["ResMsg"] = "Lekce neexistuje.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 2) membership z DB (stejně to ještě ohlídá trigger/procedura, ale UX bude v pohodě)
+            var ms = await _members.GetMembershipAsync(idClen);
+
+            if (!(ms.Active && ms.From.HasValue && ms.To.HasValue))
+            {
+                TempData["ResMsg"] = "Rezervaci nelze vytvořit: nemáš aktivní členství.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var d = lesson.Zacatek.Date;
+            if (d < ms.From.Value.Date || d > ms.To.Value.Date)
+            {
+                TempData["ResMsg"] = "Rezervaci nelze vytvořit: lekce je mimo platnost tvého členství.";
+                return RedirectToAction(nameof(Index));
             }
 
             try
             {
-                await _repo.ReserveLessonAsync(idClen, id);
+                var idRez = await _repo.ReserveLessonAsync(idClen, id);
                 TempData["ResMsg"] = "Rezervace vytvořena.";
                 return RedirectToAction(nameof(Mine));
             }
-            catch (OracleException ex)
+            catch (Exception ex)
             {
-                TempData["ResMsg"] = $"Rezervaci se nepodařilo vytvořit ({ex.Number}): {ex.Message}";
+                TempData["ResMsg"] = "Rezervaci se nepodařilo vytvořit: " + ex.Message;
                 return RedirectToAction(nameof(Index));
             }
         }
