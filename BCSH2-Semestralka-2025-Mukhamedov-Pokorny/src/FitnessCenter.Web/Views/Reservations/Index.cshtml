@@ -4,8 +4,9 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Reservations";
 
-    // slovník z controlleru: lessonId -> "Jméno Příjmení"
+    // z controlleru:
     var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
+    var volnoMap = ViewBag.VolnoMap as IDictionary<int, int> ?? new Dictionary<int, int>();
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -33,8 +34,8 @@ else
                     <th>Datum/čas</th>
                     <th>Název</th>
                     <th>Místo</th>
-                    <th>Trenér</th>   @* nový sloupec *@
-                    <th>Kapacita</th>
+                    <th>Trenér</th>
+                    <th>Volno</th>
                     <th class="text-end">Akce</th>
                 </tr>
             </thead>
@@ -59,17 +60,36 @@ else
                         }
                     }
 
+                    var volno = volnoMap.TryGetValue(l.Id, out var v) ? v : 0;
+
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                         <td class="text-white">@nazev</td>
                         <td>@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
-                        <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td> @* trenér *@
-                        <td>@l.Kapacita</td>
+                        <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td>
+                        <td>
+                            @if (volno > 0)
+                            {
+                                <span class="badge bg-success">@volno</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">0</span>
+                            }
+                        </td>
                         <td class="text-end">
-                            <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-warning">Rezervovat</button>
-                            </form>
+                            @if (volno > 0)
+                            {
+                                <form method="post" action="/Reservations/Book/@l.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-warning">Rezervovat</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary me-2">PLNO</span>
+                                <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
+                            }
                         </td>
                     </tr>
                 }

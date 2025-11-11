@@ -17,6 +17,16 @@
 @if (TempData["Ok"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Err"] is string err) { <div class="alert alert-danger">@err</div> }
 
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@e.ErrorMessage</div>
+        }
+    </div>
+}
+
 <form method="post" asp-action="Create" novalidate>
   @Html.AntiForgeryToken()
   <div asp-validation-summary="All" class="text-danger small mb-2"></div>

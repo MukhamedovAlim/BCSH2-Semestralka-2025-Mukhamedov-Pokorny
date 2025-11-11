@@ -56,7 +56,6 @@ namespace FitnessCenter.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            // zjistíme ID trenéra z e-mailu přihlášeného uživatele
             var email = User.FindFirstValue(ClaimTypes.Email);
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -72,7 +71,7 @@ namespace FitnessCenter.Web.Controllers
             }
 
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
-            return View(list); // Views/Lessons/Index.cshtml
+            return View(list);
         }
 
         // Detail lekce
@@ -110,10 +109,10 @@ namespace FitnessCenter.Web.Controllers
                 Mistnost = "Sál A",
                 Kapacita = 12
             };
-            return View(model); // Views/Lessons/Create.cshtml
+            return View(model);
         }
 
-        // Vytvoření lekce – uložení (spáruje přihlášeného trenéra podle e-mailu)
+        // Vytvoření lekce – uložení
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Lesson model, [FromForm] int? SelectedFitnessCenterId)
@@ -128,7 +127,6 @@ namespace FitnessCenter.Web.Controllers
 
             if (!ModelState.IsValid)
             {
-                // znovu naplníme combobox + zachováme výběr
                 ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
                 ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
                 return View(model);
@@ -149,7 +147,7 @@ namespace FitnessCenter.Web.Controllers
                 return RedirectToAction(nameof(Create));
             }
 
-            // 3) Pokud trenér vybral fitko v comboboxu, doplníme @NázevFitka do názvu lekce
+            // 3) doplnění @NázevFitka do názvu (volitelné)
             if (SelectedFitnessCenterId is > 0)
             {
                 string? fcName = null;
@@ -166,38 +164,98 @@ namespace FitnessCenter.Web.Controllers
 
                 if (!string.IsNullOrWhiteSpace(fcName))
                 {
-                    // aby se @xxx nezdvojoval
                     var atIdx = model.Nazev?.LastIndexOf('@') ?? -1;
                     var baseName = (atIdx >= 0 ? model.Nazev![..atIdx].Trim() : model.Nazev?.Trim()) ?? "";
                     model.Nazev = $"{baseName} @{fcName}";
                 }
             }
 
-            // 4) Uložení
+            // 4) Uložení s ošetřením chyb z triggeru
             try
             {
                 var id = await _lessons.CreateAsync(model, trainerId.Value);
-                TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena";
-                return RedirectToAction(nameof(Create));
+                TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
+            {
+                // 20006 = kapacita < 1, 20007 = snížení pod přihlášené (u insertu spíš 20006)
+                ModelState.AddModelError(string.Empty, ex.Message);
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
+                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
+                return View(model);
+            }
+            catch (OracleException ex)
+            {
+                ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
+                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
+                return View(model);
             }
             catch (Exception ex)
             {
-                TempData["Err"] = $"Chyba při ukládání: {ex.Message}";
-                return RedirectToAction(nameof(Create));
+                ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
+                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
+                return View(model);
             }
+        }
+
+        // Edit formulář (GET)
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var lesson = await _lessons.GetAsync(id);
+            if (lesson == null) return NotFound();
+
+            // pokud používáš combobox na fitka i v Editu:
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+            return View(lesson);
         }
 
         // Úprava lekce – uložení
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Lesson model)
+        public async Task<IActionResult> Edit(int id, Lesson model)
         {
-            if (!ModelState.IsValid) return View("Detail", model);
+            if (id != model.Id) return NotFound();
+            if (!ModelState.IsValid)
+            {
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                return View(model);
+            }
 
-            var ok = await _lessons.UpdateAsync(model);
-            if (!ok) return NotFound();
+            try
+            {
+                var ok = await _lessons.UpdateAsync(model);
+                if (ok)
+                {
+                    TempData["Ok"] = "Lekce byla upravena.";
+                    return RedirectToAction(nameof(Detail), new { id = model.Id });
+                }
 
-            return RedirectToAction(nameof(Detail), new { id = model.Id });
+                ModelState.AddModelError(string.Empty, "Nepodařilo se uložit lekci.");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                return View(model);
+            }
+            catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                return View(model);
+            }
+            catch (OracleException ex)
+            {
+                ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+                return View(model);
+            }
         }
 
         [HttpGet]

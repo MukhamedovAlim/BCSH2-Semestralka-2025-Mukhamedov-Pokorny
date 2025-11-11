@@ -1,18 +1,19 @@
-﻿using System.Security.Claims;
+﻿using FitnessCenter.Domain.Entities;
+using FitnessCenter.Infrastructure.Persistence;      // DatabaseManager
+using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Infrastructure.Repositories;
-using FitnessCenter.Infrastructure.Persistence;      // DatabaseManager
 using Oracle.ManagedDataAccess.Client;              // OracleCommand
-using FitnessCenter.Domain.Entities;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
 {
     [Authorize(Roles = "Member")]
-    [Route("[controller]")] // => /Reservations/...
+    [Route("[controller]")]
     public class ReservationsController : Controller
     {
         private readonly OracleLessonsRepository _repo;
@@ -34,6 +35,33 @@ namespace FitnessCenter.Web.Controllers
 
             return (await _members.GetMemberIdByEmailAsync(email)) ?? 0;
         }
+
+        // helper: načte volná místa pro dané lekce z v_lekce_volne
+        private static async Task<Dictionary<int, int>> LoadVolnoByLessonIdsAsync(IEnumerable<int> lessonIds)
+        {
+            var ids = lessonIds?.Distinct().Where(i => i > 0).ToList() ?? new();
+            var map = new Dictionary<int, int>();
+            if (ids.Count == 0) return map;
+
+            using var con = await DatabaseManager.GetOpenConnectionAsync();
+            var paramNames = ids.Select((_, i) => $":p{i}").ToArray();
+
+            var sql = $@"
+        SELECT idlekce, volno
+        FROM v_lekce_volne
+        WHERE idlekce IN ({string.Join(",", paramNames)})
+    ";
+
+            using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
+            for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add($"p{i}", OracleDbType.Int32).Value = ids[i];
+
+            using var rd = await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection);
+            while (await rd.ReadAsync())
+                map[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0 : rd.GetInt32(1);
+
+            return map;
+        }
+
 
         // ===================== pomocné loadery trenérů =====================
 
@@ -84,15 +112,9 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
 
-                // ⬇⬇⬇ UPRAV PODLE SVÉHO SCHÉMATU ⬇⬇⬇
-                // Pokud máš tabulku "rezervace_lekci" a FK se jmenuje jinak, přepiš zde:
-                //   - název tabulky s rezervacemi (rezervace / rezervace_lekci / reservations ...)
-                //   - název ID rezervace (idrezervace / idrezervace_lekce / id ...)
-                //   - název FK na lekci (lekce_idlekce / idlekce / lekce_id ...)
-                const string RezTable = "rezervace";        // <-- ZKONTROLUJ
-                const string RezIdCol = "idrezervace";      // <-- ZKONTROLUJ
-                const string RezLessonFK = "lekce_idlekce";    // <-- ZKONTROLUJ
-                                                               // ⬆⬆⬆ UPRAV PODLE SVÉHO SCHÉMATU ⬆⬆⬆
+                const string RezTable = "rezervace";
+                const string RezIdCol = "idrezervace";
+                const string RezLessonFK = "lekce_idlekce";
 
                 var p = ids.Select((_, i) => $":p{i}").ToArray();
                 var sql = $@"
@@ -112,8 +134,6 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ex) when (ex.Number == 942) // ORA-00942: tabulka/pohled neexistuje
             {
-                // Nezabij akci – jen nemáme jména trenérů (v UI se ukáže "-")
-                // Tip: zkontroluj ve schématu skutečné názvy tabulek/sloupců a přepiš konstanty výše.
             }
 
             return map;
@@ -128,7 +148,10 @@ namespace FitnessCenter.Web.Controllers
         public async Task<IActionResult> Index()
         {
             var list = await _repo.GetUpcomingViaProcAsync();
+
+            // trenéři + volná místa
             ViewBag.Trainers = await LoadTrainersByLessonIdsAsync(list.Select(l => l.Id));
+            ViewBag.VolnoMap = await LoadVolnoByLessonIdsAsync(list.Select(l => l.Id));
 
             return View(list);
         }
@@ -159,15 +182,33 @@ namespace FitnessCenter.Web.Controllers
         public async Task<IActionResult> Book(int id)
         {
             var idClen = await ResolveMemberId();
+
+            // server-side pojistka: ověřit volno
+            using (var con = await DatabaseManager.GetOpenConnectionAsync())
+            using (var cmd = new OracleCommand(
+                "SELECT volno FROM v_lekce_volne WHERE idlekce = :id",
+                (OracleConnection)con)
+            { BindByName = true })
+            {
+                cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
+                var obj = await cmd.ExecuteScalarAsync();
+                var volno = (obj == null || obj == DBNull.Value) ? 0 : Convert.ToInt32(obj);
+                if (volno <= 0)
+                {
+                    TempData["ResMsg"] = "Lekce je už plná. Zkus jiný termín.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
             try
             {
-                var idRez = await _repo.ReserveLessonAsync(idClen, id);
-                TempData["ResMsg"] = $"Rezervace vytvořena.";
+                await _repo.ReserveLessonAsync(idClen, id);
+                TempData["ResMsg"] = "Rezervace vytvořena.";
                 return RedirectToAction(nameof(Mine));
             }
-            catch (Exception ex)
+            catch (OracleException ex)
             {
-                TempData["ResMsg"] = "Rezervaci se nepodařilo vytvořit: " + ex.Message;
+                TempData["ResMsg"] = $"Rezervaci se nepodařilo vytvořit ({ex.Number}): {ex.Message}";
                 return RedirectToAction(nameof(Index));
             }
         }
