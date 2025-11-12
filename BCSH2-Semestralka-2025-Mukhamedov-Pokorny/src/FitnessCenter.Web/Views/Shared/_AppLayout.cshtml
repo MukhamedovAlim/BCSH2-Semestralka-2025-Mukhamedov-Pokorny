@@ -126,6 +126,11 @@
                                 <a class="nav-link @(ViewBag.Active == "Payments" ? "active" : "")"
                                    href="@Url.Action("Index", "Payments")">Platby</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewBag.Active == "Equipment" ? "active" : "")"
+                                   href="@Url.Action("Index", "Equipment")">Vybavení</a>
+                            </li>
+
                         }
                         if (isTrainer)
                         {

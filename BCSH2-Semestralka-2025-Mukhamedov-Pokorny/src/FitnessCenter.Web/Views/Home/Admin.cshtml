@@ -66,15 +66,15 @@
             </div>
         </div>
 
-        <!-- Stat: Zprávy (místo Ke schválení) -->
+        <!-- Stat: Vybavení-->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
-                    <h5 class="text-white mb-2">Zprávy</h5>
-                    <span class="badge bg-danger">@adminMessagesCnt</span>
+                    <h5 class="text-white mb-2">Vybavení</h5>
+                    <span class="badge bg-info">@((int)(ViewBag.EquipmentCount ?? 0))</span>
                 </div>
-                <div class="text-white-50 small mb-2">Nástěnka pro adminy a trenéry.</div>
-                <a class="stretched-link" href="@Url.Action("Index", "Messages")"></a>
+                <div class="text-white-50 small mb-2">Přehled a správa vybavení.</div>
+                <a class="stretched-link" href="@Url.Action("Index", "Equipment")"></a>
             </div>
         </div>
     </div>

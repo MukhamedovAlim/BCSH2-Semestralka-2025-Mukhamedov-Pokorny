@@ -26,6 +26,7 @@ builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
 
 // Read-only/Doplňkové repozitáře
 builder.Services.AddScoped<OracleLessonsRepository>();
+builder.Services.AddScoped<EquipmentRepository>();
 builder.Services.AddScoped<PaymentsReadRepo>();
 builder.Services.AddScoped<LessonsService>();
 builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();

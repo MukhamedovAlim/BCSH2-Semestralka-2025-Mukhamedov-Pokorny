@@ -126,33 +126,32 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.Today = DateTime.Today;
             ViewBag.HideMainNav = true;
 
-            int members = 0, trainers = 0, lessonsCount = 0, pendingPayments = 0, logCount = 0;
+            int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
             try
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
                 var oc = (OracleConnection)con;
 
-                // členové (celkem)
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM CLENOVE", oc))
                     members = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // trenéři (celkem)
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", oc))
                     trainers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // lekce (celkem) – stejně jako u členů/trenérů
-                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM LEKCE", oc))
-                    lessonsCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                using (var cmd = new OracleCommand(
+                    "SELECT COUNT(*) FROM LEKCE WHERE TRUNC(DATUMLEKCE) = TRUNC(SYSDATE)", oc))
+                    lessonsToday = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // neuhrazené platby – uprav ID stavu podle číselníku
                 using (var cmd = new OracleCommand(
                     "SELECT COUNT(*) FROM PLATBY WHERE STAVPLATBY_IDSTAVPLATBY = 1", oc))
                     pendingPayments = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // log operací (celkem)
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM LOG_OPERACE", oc))
                     logCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                using (var cmd = new OracleCommand("SELECT COUNT(*) FROM VYBAVENI", oc))
+                    equipmentCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
             catch (Exception ex)
             {
@@ -161,10 +160,11 @@ namespace FitnessCenter.Web.Controllers
 
             ViewBag.MembersCount = members;
             ViewBag.TrainersCount = trainers;
-            ViewBag.LessonsToday = lessonsCount;   // badge ve view už čte „lessonsToday“
+            ViewBag.LessonsToday = lessonsToday;
             ViewBag.PendingPayments = pendingPayments;
             ViewBag.AdminMessagesCnt = 0;
             ViewBag.LogCount = logCount;
+            ViewBag.EquipmentCount = equipmentCount;
 
             return View();
         }

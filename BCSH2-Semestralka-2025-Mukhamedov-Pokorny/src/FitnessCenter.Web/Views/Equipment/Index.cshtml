@@ -2,45 +2,139 @@
 @{
     ViewData["Title"] = "Vybavení";
     Layout = "_AppLayout";
-    var filter = ViewBag.Filter as string ?? "Vše";
+    ViewBag.Active = "Equipment";
 
-    // Zpět podle role – ADMIN → Admin/Index
-    var backHref =
-        User.IsInRole("Admin")   ? Url.Action("Index","Admin") :
-        User.IsInRole("Trainer") ? Url.Action("Trainer","Home") :
-                                   Url.Action("Index","Home");
+    var filter = ViewBag.Filter as string ?? "Vše";
+    var fitka = ViewBag.Fitka as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();
+    int? fitkoId = ViewBag.FitkoId as int?;
 }
 
+<!-- Hlavička s tlačítkem Zpět -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@backHref">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Vybavení</span>
+        <a class="btn btn-outline-light me-2"
+           href="@Url.Action("Index", "Equipment")"
+           onclick="if (history.length > 1) { history.back(); return false; }">← Zpět</a>
+        <span class="h4 text-white align-middle">Přidat vybavení</span>
     </div>
 </div>
 
-<div class="glass p-3">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h3 class="text-white mb-0">Vybavení</h3>
-    <div class="btn-group">
-      <a class="btn btn-sm @(filter=="Vše" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="">Vše</a>
-      <a class="btn btn-sm @(filter=="Kardio" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Kardio">Kardio</a>
-      <a class="btn btn-sm @(filter=="Posilovací" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Posilovací">Posilovací</a>
-      <a class="btn btn-sm @(filter=="Volná závaží" ? "btn-primary" : "btn-outline-light")" asp-action="Index" asp-route-typ="Volná závaží">Volná závaží</a>
-    </div>
-  </div>
 
-  <div class="row g-3 mt-2">
-    @foreach (var it in Model)
-    {
-      <div class="col-12 col-md-6 col-xl-4">
-        <div class="tile glass p-3 h-100">
-          <div class="d-flex justify-content-between align-items-start">
-            <h5 class="text-white mb-1">@it.Nazev</h5>
-            <span class="badge bg-secondary">@it.Typ</span>
-          </div>
-          <div class="text-white-50 small">Stav: <strong class="text-white">@it.Stav</strong></div>
-        </div>
-      </div>
+<style>
+    .equipment-toolbar {
+        position: relative;
+        z-index: 1000;
     }
-  </div>
+
+        .equipment-toolbar .safe-click {
+            position: relative;
+            z-index: 1001;
+            pointer-events: auto;
+        }
+
+    .equipment-list .stretched-link {
+        position: static !important;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 equipment-toolbar mb-2">
+    <h3 class="text-white mb-0">Vybavení</h3>
+
+    <div class="d-flex gap-2">
+        <!-- Filtr podle typu -->
+        <div class="btn-group">
+            <a class="btn btn-sm @(filter == "Vše" ? "btn-primary" : "btn-outline-light")"
+               asp-action="Index" asp-controller="Equipment"
+               asp-route-typ="" asp-route-fitko="@(fitkoId)">Vše</a>
+
+            <a class="btn btn-sm @(filter == "Kardio" ? "btn-primary" : "btn-outline-light")"
+               asp-action="Index" asp-controller="Equipment"
+               asp-route-typ="Kardio" asp-route-fitko="@(fitkoId)">Kardio</a>
+
+            <a class="btn btn-sm @(filter == "Posilovací" ? "btn-primary" : "btn-outline-light")"
+               asp-action="Index" asp-controller="Equipment"
+               asp-route-typ="Posilovací" asp-route-fitko="@(fitkoId)">Posilovací</a>
+
+            <a class="btn btn-sm @(filter == "Volná závaží" ? "btn-primary" : "btn-outline-light")"
+               asp-action="Index" asp-controller="Equipment"
+               asp-route-typ="Volná závaží" asp-route-fitko="@(fitkoId)">Volná závaží</a>
+        </div>
+
+        <!-- Filtr podle fitka -->
+        <form method="get" asp-action="Index" asp-controller="Equipment" class="d-flex gap-2">
+            <select name="fitko" class="form-select form-select-sm">
+                <option value="">Všechna fitka</option>
+                @foreach (var f in fitka)
+                {
+                    <option value="@f.Value" @(f.Value == (fitkoId?.ToString() ?? "") ? "selected" : "")>@f.Text</option>
+                }
+            </select>
+            <input type="hidden" name="typ" value="@(filter == "Vše" ? "" : filter)" />
+            <button class="btn btn-sm btn-outline-light" type="submit">Filtrovat</button>
+        </form>
+
+        <!-- Přidat vybavení – pouze Admin -->
+        @if (User.IsInRole("Admin"))
+        {
+            <form method="get" action="@Url.Action("Create", "Equipment")" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-warning safe-click">
+                    + Přidat vybavení
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Err"] is string err && !string.IsNullOrWhiteSpace(err))
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+<div class="glass p-3">
+    @if (!(Model?.Any() ?? false))
+    {
+        <div class="text-white-50">Žádné položky.</div>
+    }
+    else
+    {
+        <div class="row g-3 mt-1">
+            @foreach (var it in Model!)
+            {
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="tile glass p-3 h-100 equipment-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="text-white mb-1">@it.Nazev</h5>
+                            <span class="badge bg-secondary">@it.Typ</span>
+                        </div>
+                        <div class="text-white-50 small mb-2">
+                            Fitko: <strong class="text-white">@it.Fitko</strong>
+                        </div>
+                        <div class="text-white-50 small">
+                            Stav: <strong class="text-white">@it.Stav</strong>
+                        </div>
+
+                        @* Místo „Upravit“ je teď „Smazat“ *@
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <div class="mt-3">
+                                <form method="post"
+                                      asp-action="Delete"
+                                      asp-controller="Equipment"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Opravdu smazat „@it.Nazev“?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@it.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>

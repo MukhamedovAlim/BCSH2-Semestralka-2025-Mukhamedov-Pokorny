@@ -1,9 +1,13 @@
-﻿namespace FitnessCenter.Web.Models
+﻿
+namespace FitnessCenter.Web.Models
 {
-    public class EquipmentViewModel
+    public sealed class EquipmentViewModel
     {
+        public int Id { get; set; }
         public string Nazev { get; set; } = "";
-        public string Typ { get; set; } = ""; // Kardio / Posilovací / Volná závaží
-        public string Stav { get; set; } = "OK"; // demo
+        public string Typ { get; set; } = "";     // "Kardio" / "Posilovací" / "Volná závaží"
+        public string Stav { get; set; } = "OK";  // "OK" / "Oprava" / "Mimo provoz"
+        public int FitkoId { get; set; }
+        public string Fitko { get; set; } = "";
     }
 }
