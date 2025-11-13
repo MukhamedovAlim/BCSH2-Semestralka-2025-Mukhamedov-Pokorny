@@ -4,7 +4,7 @@ namespace FitnessCenter.Web.Models
 {
     public sealed class EquipmentEditViewModel
     {
-        public int? Id { get; set; }                 // null při Create
+        public int Id { get; set; }
 
         [Required, MaxLength(100)]
         public string Nazev { get; set; } = "";

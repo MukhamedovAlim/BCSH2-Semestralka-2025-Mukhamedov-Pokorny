@@ -116,14 +116,14 @@
                         <div class="text-white-50 small">
                             Stav: <strong class="text-white">@it.Stav</strong>
                         </div>
-
-                        @* Místo „Upravit“ je teď „Smazat“ *@
                         @if (User.IsInRole("Admin"))
                         {
-                            <div class="mt-3">
+                            <div class="mt-3 d-flex gap-2">
+                                <a class="btn btn-sm btn-outline-light"
+                                   href="@Url.Action("Edit", "Equipment", new { id = it.Id })">Upravit</a>
+
                                 <form method="post"
-                                      asp-action="Delete"
-                                      asp-controller="Equipment"
+                                      action="@Url.Action("Delete", "Equipment")"
                                       class="d-inline"
                                       onsubmit="return confirm('Opravdu smazat „@it.Nazev“?');">
                                     @Html.AntiForgeryToken()

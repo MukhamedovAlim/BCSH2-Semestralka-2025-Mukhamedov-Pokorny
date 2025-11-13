@@ -25,9 +25,8 @@ namespace FitnessCenter.Web.Controllers
             using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
             using var cmd = new OracleCommand("SELECT idfitness, nazev FROM fitnesscentra ORDER BY nazev", con);
             using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync()){
+            while (await rd.ReadAsync())
                 items.Add(new SelectListItem { Value = rd.GetInt32(0).ToString(), Text = rd.GetString(1) });
-            }
             return items;
         }
         private async Task FillFitnessViewBagAsync()
@@ -38,7 +37,7 @@ namespace FitnessCenter.Web.Controllers
         }
 
         // LIST
-        [HttpGet("")] // => GET /Equipment
+        [HttpGet("")]
         public async Task<IActionResult> Index(string? typ, int? fitko)
         {
             ViewBag.Filter = string.IsNullOrWhiteSpace(typ) ? "Vše" : typ;
@@ -61,7 +60,7 @@ namespace FitnessCenter.Web.Controllers
 
         // CREATE
         [Authorize(Roles = "Admin")]
-        [HttpGet("Create")] // => GET /Equipment/Create
+        [HttpGet("Create")]
         public async Task<IActionResult> Create()
         {
             await FillFitnessViewBagAsync();
@@ -69,11 +68,10 @@ namespace FitnessCenter.Web.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPost("Create")] // => POST /Equipment/Create
+        [HttpPost("Create")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(EquipmentEditViewModel vm)
         {
-            // fallback pro Nazev (kdyby binder neposlal)
             var postedNazev = Request.Form["Nazev"].ToString();
             if (string.IsNullOrWhiteSpace(vm.Nazev) && !string.IsNullOrWhiteSpace(postedNazev))
             {
@@ -84,11 +82,9 @@ namespace FitnessCenter.Web.Controllers
 
             if (!ModelState.IsValid)
             {
-                var errs = ModelState
-                    .Where(kv => kv.Value?.Errors?.Any() == true)
-                    .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value!.Errors.Select(e => e.ErrorMessage))}");
+                var errs = ModelState.Where(kv => kv.Value?.Errors?.Any() == true)
+                                     .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value!.Errors.Select(e => e.ErrorMessage))}");
                 TempData["Err"] = "Form error: " + string.Join(" || ", errs);
-
                 await FillFitnessViewBagAsync();
                 return View(vm);
             }
@@ -116,8 +112,71 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
+        // GET /Equipment/Edit/5
         [Authorize(Roles = "Admin")]
-        [HttpPost, ValidateAntiForgeryToken]
+        [HttpGet("Edit/{id:int}")]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var dto = await _repo.GetByIdAsync(id);
+            if (dto is null) return NotFound();
+
+            await FillFitnessViewBagAsync(); // <-- DŮLEŽITÉ
+
+            var vm = new EquipmentEditViewModel
+            {
+                Id = dto.Id,
+                Nazev = dto.Nazev,
+                Typ = dto.Typ,
+                Stav = dto.Stav,
+                FitkoId = dto.FitkoId
+            };
+            return View(vm);
+        }
+
+        // POST /Equipment/Edit/5
+        [Authorize(Roles = "Admin")]
+        [HttpPost("Edit/{id:int}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, EquipmentEditViewModel vm)
+        {
+            if (vm.Id <= 0) vm.Id = id;
+            if (id != vm.Id)
+                ModelState.AddModelError(nameof(vm.Id), "Nesouhlasí ID v adrese a ve formuláři.");
+
+            if (string.IsNullOrWhiteSpace(vm.Nazev))
+                ModelState.AddModelError(nameof(vm.Nazev), "Zadej název.");
+            if (vm.FitkoId <= 0)
+                ModelState.AddModelError(nameof(vm.FitkoId), "Vyber fitness centrum.");
+
+            if (!ModelState.IsValid)
+            {
+                await FillFitnessViewBagAsync(); // <-- DŮLEŽITÉ i při návratu s chybou
+                return View(vm);
+            }
+
+            var kdo = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
+            var dto = new EquipmentEditDto
+            {
+                Id = vm.Id,
+                Nazev = vm.Nazev.Trim(),
+                Typ = (vm.Typ ?? "K").Trim().ToUpperInvariant(),
+                Stav = string.IsNullOrWhiteSpace(vm.Stav) ? "OK" : vm.Stav.Trim(),
+                FitkoId = vm.FitkoId
+            };
+
+            var ok = await _repo.UpdateAsync(dto, kdo);
+            if (!ok) return NotFound();
+
+            TempData["Ok"] = "Změny uloženy.";
+            return RedirectToAction(nameof(Index));
+        }
+
+
+
+        // DELETE
+        [Authorize(Roles = "Admin")]
+        [HttpPost("Delete")]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
             var kdo = User.FindFirstValue(ClaimTypes.Name) ?? "Admin";
@@ -128,8 +187,7 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                // typicky FK 2292
-                TempData["Err"] = ex.Message;
+                TempData["Err"] = ex.Message; // např. navázané záznamy
             }
             catch (OracleException ox)
             {

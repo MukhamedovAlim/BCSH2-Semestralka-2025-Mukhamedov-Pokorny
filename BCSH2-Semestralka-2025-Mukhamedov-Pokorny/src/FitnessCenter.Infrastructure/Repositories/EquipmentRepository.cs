@@ -155,7 +155,6 @@ RETURNING IDVYBAVENI INTO :id";
             }
         }
 
-        /* /// <summary>Aktualizace vybavení (Admin). Vrací true, pokud byl záznam změněn.</summary>
         public async Task<bool> UpdateAsync(EquipmentEditDto m, string kdo)
         {
             using var con = await OpenAsync();
@@ -163,33 +162,36 @@ RETURNING IDVYBAVENI INTO :id";
 
             try
             {
-                const string sql = @"
-UPDATE VYBAVENI
-   SET NAZEV = :n,
-       TYP   = :t,
-       STAV  = :s,
-       FITNESSCENTRUM_IDFITNESS = :f
- WHERE IDVYBAVENI = :id";
+                int rows = 0;
 
-                int rows;
-                using (var cmd = new OracleCommand(sql, con) { BindByName = true, Transaction = tx })
+                using (var cmd = new OracleCommand("SP_VYBAVENI_UPD", con)
                 {
-                    cmd.Parameters.Add("n", OracleDbType.Varchar2).Value = (m.Nazev ?? "").Trim();
-                    cmd.Parameters.Add("t", OracleDbType.Char, 1).Value = (m.Typ ?? "K").Trim().ToUpperInvariant();
-                    cmd.Parameters.Add("s", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(m.Stav) ? "OK" : m.Stav.Trim();
-                    cmd.Parameters.Add("f", OracleDbType.Int32).Value = m.FitkoId;
-                    cmd.Parameters.Add("id", OracleDbType.Int32).Value = m.Id;
+                    BindByName = true,
+                    Transaction = tx,
+                    CommandType = System.Data.CommandType.StoredProcedure
+                })
+                {
+                    cmd.Parameters.Add("p_id", OracleDbType.Int32).Value = m.Id;
+                    cmd.Parameters.Add("p_nazev", OracleDbType.Varchar2).Value = (m.Nazev ?? "").Trim();
+                    cmd.Parameters.Add("p_typ", OracleDbType.Char, 1).Value = (m.Typ ?? "K").Trim().ToUpperInvariant();
+                    cmd.Parameters.Add("p_stav", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(m.Stav) ? "OK" : m.Stav.Trim();
+                    cmd.Parameters.Add("p_fitko", OracleDbType.Int32).Value = m.FitkoId;
 
-                    rows = await cmd.ExecuteNonQueryAsync();
+                    var pRows = new OracleParameter("p_rows", OracleDbType.Int32)
+                    { Direction = System.Data.ParameterDirection.Output };
+                    cmd.Parameters.Add(pRows);
+
+                    await cmd.ExecuteNonQueryAsync();
+                    rows = Convert.ToInt32(pRows.Value.ToString());
                 }
 
                 using (var log = new OracleCommand(
-                    "INSERT INTO LOG_OPERACE(TABULKA,OPERACE,KDO,POPIS) VALUES('VYBAVENI','UPDATE',:kdo,:popis)",
-                    con)
+                    "INSERT INTO LOG_OPERACE(TABULKA,OPERACE,KDO,POPIS) VALUES('VYBAVENI','UPDATE',:kdo,:popis)", con)
                 { BindByName = true, Transaction = tx })
                 {
                     log.Parameters.Add("kdo", OracleDbType.Varchar2).Value = kdo;
-                    log.Parameters.Add("popis", OracleDbType.Varchar2).Value = $"Upraveno ID={m.Id}: {m.Nazev} ({m.Typ}/{m.Stav})";
+                    log.Parameters.Add("popis", OracleDbType.Varchar2).Value =
+                        $"Upraveno ID={m.Id}: {m.Nazev} ({m.Typ}/{m.Stav})";
                     await log.ExecuteNonQueryAsync();
                 }
 
@@ -227,7 +229,7 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                 FitkoId = rd.GetInt32(4)
             };
         }
-        */
+
         public async Task<bool> DeleteAsync(int id, string kdo)
         {
             using var con = (Oracle.ManagedDataAccess.Client.OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
