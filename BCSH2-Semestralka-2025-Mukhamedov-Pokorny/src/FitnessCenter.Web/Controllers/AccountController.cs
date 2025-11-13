@@ -115,18 +115,28 @@ namespace FitnessCenter.Web.Controllers
             }
 
             // 3) Claims
+            var memberIdStr = member.MemberId.ToString();
+
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
-                new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
-                new Claim(ClaimTypes.Email, email),
-                new Claim("ClenId", member.MemberId.ToString()),
-                new Claim(ClaimTypes.Role, "Member") // Member vždy
-            };
+{
+    new Claim(ClaimTypes.NameIdentifier, memberIdStr),
+
+    // sjednocení s emulací – ať je to všude stejné
+    new Claim("MemberId", memberIdStr),
+    new Claim("UserId", memberIdStr),
+
+    // kvůli starším částem kódu klidně necháme i ClenId
+    new Claim("ClenId", memberIdStr),
+
+    new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
+    new Claim(ClaimTypes.Email, email),
+    new Claim(ClaimTypes.Role, "Member") // Member vždy
+};
 
             if (isTrainer) claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
             if (trainerId.HasValue) claims.Add(new Claim("TrainerId", trainerId.Value.ToString()));
             if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);

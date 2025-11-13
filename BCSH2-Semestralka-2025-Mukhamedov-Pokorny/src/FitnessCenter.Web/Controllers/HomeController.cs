@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FitnessCenter.Web.Infrastructure.Security;
 
 using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo
 using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
@@ -34,17 +35,8 @@ namespace FitnessCenter.Web.Controllers
         {
             ViewBag.Active = "Home";
 
-            int clenId = 0;
-            int.TryParse(User.FindFirst("ClenId")?.Value, out clenId);
-            if (clenId == 0)
-            {
-                var email = User.FindFirst(ClaimTypes.Email)?.Value;
-                if (!string.IsNullOrWhiteSpace(email))
-                {
-                    var resolved = await _payments.GetMemberIdByEmailAsync(email);
-                    clenId = resolved ?? 0;
-                }
-            }
+            // 🔑 univerzální – funguje pro normálního člena i emulaci
+            int clenId = User.GetRequiredCurrentMemberId();
 
             var ms = await _payments.GetMembershipAsync(clenId);
             ViewBag.permActive = ms.Active;

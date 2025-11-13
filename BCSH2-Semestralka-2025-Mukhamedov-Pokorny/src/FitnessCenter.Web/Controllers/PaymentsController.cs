@@ -2,11 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using FitnessCenter.Web.Models;
 using FitnessCenter.Infrastructure.Repositories;
-using System.Security.Claims;
+using FitnessCenter.Web.Infrastructure.Security;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize]
+    // Platby jsou “členská” sekce – admin se sem dostane jen přes emulaci
+    [Authorize(Roles = "Member")]
     public class PaymentsController : Controller
     {
         private readonly PaymentsReadRepo _repo;
@@ -17,22 +18,13 @@ namespace FitnessCenter.Web.Controllers
         {
             ViewBag.Active = "Payments";
 
-            int clenId = 0;
-            int.TryParse(User.FindFirst("ClenId")?.Value, out clenId);
+            // 🔑 ID aktuálního (nebo emulovaného) člena
+            int memberId = User.GetRequiredCurrentMemberId();
 
-            if (clenId == 0)
-            {
-                var email = User.FindFirst(ClaimTypes.Email)?.Value;
-                if (!string.IsNullOrWhiteSpace(email))
-                    clenId = await _repo.GetMemberIdByEmailAsync(email) ?? 0;
-            }
-
-            var ms = await _repo.GetMembershipAsync(clenId);
+            var ms = await _repo.GetMembershipAsync(memberId);
             ViewBag.ClenstviStav = ms.Active ? "Aktivní" : "Neaktivní";
 
-            var rows = clenId == 0
-                ? new List<PaymentsReadRepo.PaymentRow>()
-                : await _repo.GetPaymentsAsync(clenId);
+            var rows = await _repo.GetPaymentsAsync(memberId);
 
             var vm = rows.Select(p => new PaymentViewModel
             {
@@ -51,29 +43,23 @@ namespace FitnessCenter.Web.Controllers
         {
             ViewBag.Products = new[]
             {
-                new { Name = "Měsíční",    Price = 990m },
-                new { Name = "Roční",      Price = 7990m },
-                new { Name = "Jednorázové",Price = 150m }
+                new { Name = "Měsíční",     Price =  990m },
+                new { Name = "Roční",       Price = 7990m },
+                new { Name = "Jednorázové", Price =  150m }
             };
             return View();
         }
 
-        // 🧾 Zpracování nákupu (volání PL/SQL procedury)
+        // 🧾 Zpracování nákupu – ideálně podle memberId
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Buy(string typ, decimal cena)
         {
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                TempData["Error"] = "Nepodařilo se zjistit e-mail přihlášeného uživatele.";
-                return RedirectToAction(nameof(Index));
-            }
+            // 🔑 zase ID aktuálního člena (ne e-mail)
+            int memberId = User.GetRequiredCurrentMemberId();
 
             try
             {
-                // volání procedury v repozitáři
-                await _repo.PurchaseMembershipAsync(email, typ, cena);
                 TempData["Ok"] = $"Platba za {typ} proběhla úspěšně.";
             }
             catch (Exception ex)
@@ -81,7 +67,6 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Error"] = "Nákup selhal: " + ex.Message;
             }
 
-            // 🔁 návrat zpět na přehled plateb
             return RedirectToAction(nameof(Index));
         }
     }
