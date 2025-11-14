@@ -1,15 +1,15 @@
-﻿using System;
+﻿using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
+using FitnessCenter.Infrastructure.Persistence;  // DatabaseManager
+using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo, AdminStatsRepository
+using FitnessCenter.Web.Infrastructure.Security;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Oracle.ManagedDataAccess.Client;
+using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Web.Infrastructure.Security;
-
-using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo
-using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
-using FitnessCenter.Infrastructure.Persistence;  // DatabaseManager
-using Oracle.ManagedDataAccess.Client;
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -18,15 +18,18 @@ namespace FitnessCenter.Web.Controllers
         private readonly PaymentsReadRepo _payments;
         private readonly ILessonsService _lessons;
         private readonly IMembersService _members;
+        private readonly AdminStatsRepository _stats;
 
         public HomeController(
             PaymentsReadRepo payments,
             ILessonsService lessons,
-            IMembersService members)
+            IMembersService members,
+            AdminStatsRepository stats)
         {
             _payments = payments;
             _lessons = lessons;
             _members = members;
+            _stats = stats;
         }
 
         // ===== Member dashboard =====
@@ -35,7 +38,6 @@ namespace FitnessCenter.Web.Controllers
         {
             ViewBag.Active = "Home";
 
-            // 🔑 univerzální – funguje pro normálního člena i emulaci
             int clenId = User.GetRequiredCurrentMemberId();
 
             var ms = await _payments.GetMembershipAsync(clenId);
@@ -74,7 +76,6 @@ namespace FitnessCenter.Web.Controllers
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
 
-            // trainerId podle e-mailu přihlášeného uživatele
             var email = User.FindFirstValue(ClaimTypes.Email);
             var trainerId = string.IsNullOrWhiteSpace(email)
                 ? (int?)null
@@ -99,7 +100,6 @@ namespace FitnessCenter.Web.Controllers
                     Time = l.Zacatek.ToString("HH:mm"),
                     Name = l.Nazev,
                     Room = string.IsNullOrWhiteSpace(l.Mistnost) ? "—" : l.Mistnost,
-                    // zatím jen kapacita; můžeš později doplnit „obsazeno/volno“
                     Slots = l.Kapacita.ToString()
                 })
                 .ToList();
@@ -110,14 +110,35 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // ===== Admin dashboard – statistiky =====
+        private static async Task<List<SelectListItem>> LoadFitnessCentersAsync()
+        {
+            var items = new List<SelectListItem>();
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand("SELECT idfitness, nazev FROM fitnesscentra ORDER BY nazev", con);
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+                items.Add(new SelectListItem { Value = rd.GetInt32(0).ToString(), Text = rd.GetString(1) });
+            return items;
+        }
+
+
+        
+        // ===== Admin dashboard – statistiky + 3 funkce =====
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Admin()
+        public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null)
         {
             ViewBag.Active = "Admin";
             ViewBag.Today = DateTime.Today;
             ViewBag.HideMainNav = true;
+            ViewBag.FitnessCenters = await LoadFitnessCentersAsync();
+            ViewBag.Fitka = ViewBag.FitnessCenters;
 
+            // --------- parametry pro funkce (lze kdykoli převést na filtry ve view) ----------
+            int fitkoId = fitko.GetValueOrDefault(1);
+            var from = od ?? DateTime.Today.AddDays(-30);
+            var to = @do ?? DateTime.Today;
+
+            // ---------- „tvé“ stávající rychlé statistiky ----------
             int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
             try
@@ -158,7 +179,34 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.LogCount = logCount;
             ViewBag.EquipmentCount = equipmentCount;
 
+            // ---------- 3 FUNKCE ----------
+            try
+            {
+                // f_pocet_aktivnich_clenu(p_idfitness) -> INT
+                ViewBag.ActiveMembersFunc = await _stats.GetActiveMembersAsync(fitkoId);
+
+                // f_prijem_obdobi(p_od, p_do) -> NUMBER (decimal)
+                ViewBag.IncomeFunc = await _stats.GetIncomeAsync(from, to);
+
+                // f_statistika_lekce(p_idlekce) -> VARCHAR2
+                var lessonId = await _stats.GetLatestUpcomingLessonIdAsync();
+                ViewBag.LessonFuncText = lessonId is int lid
+                    ? await _stats.GetLessonStatAsync(lid)
+                    : "Žádná nadcházející lekce nenalezena.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
+            }
+
+            // předáme i parametry, aby je view mohlo vypsat
+            ViewBag.FitkoId = fitkoId;
+            ViewBag.PeriodFrom = from;
+            ViewBag.PeriodTo = to;
+
             return View();
+
+
         }
     }
 }

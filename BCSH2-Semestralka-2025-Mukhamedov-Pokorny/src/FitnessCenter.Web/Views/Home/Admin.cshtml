@@ -7,9 +7,22 @@
     int trainersCount = ViewBag.TrainersCount is int tc ? tc : 0;
     int lessonsToday = ViewBag.LessonsToday is int lt ? lt : 0;
     int pendingPayments = ViewBag.PendingPayments is int pp ? pp : 0;
-    int adminMessagesCnt = ViewBag.AdminMessagesCnt is int am ? am : 0;
 
     DateTime today = ViewBag.Today is DateTime d ? d : DateTime.Today;
+
+    // ---- pro funkční boxy (DB funkce) ----
+    int fitkoId = ViewBag.FitkoId is int f ? f : 1;
+    DateTime periodFrom = ViewBag.PeriodFrom is DateTime pf ? pf : DateTime.Today.AddDays(-30);
+    DateTime periodTo = ViewBag.PeriodTo is DateTime pt ? pt : DateTime.Today;
+
+    int activeMembersFunc = ViewBag.ActiveMembersFunc is int amf ? amf : 0;
+    decimal incomeFunc = ViewBag.IncomeFunc is decimal inc ? inc : 0m;
+    string lessonFuncText = ViewBag.LessonFuncText as string ?? "—";
+
+    // stejné jako jinde – vyber fitka přes SelectListItem
+    var fitness = ViewBag.FitnessCenters as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                  ?? ViewBag.Fitka as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                  ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
 }
 
 <!-- Úvodní panel -->
@@ -23,14 +36,13 @@
             <a href="@Url.Action("Create", "Members")" class="btn btn-sm btn-warning">
                 + Přidat člena
             </a>
-            </a>
         </div>
     </div>
 
     <hr class="border-secondary my-3" />
 
     <div class="row g-3">
-        <!-- Stat: Členové -->
+        <!-- Členové -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
@@ -42,7 +54,7 @@
             </div>
         </div>
 
-        <!-- Stat: Trenéři -->
+        <!-- Trenéři -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
@@ -54,7 +66,7 @@
             </div>
         </div>
 
-        <!-- Stat: Dnešní lekce -->
+        <!-- Dnešní lekce -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
@@ -66,7 +78,7 @@
             </div>
         </div>
 
-        <!-- Stat: Vybavení-->
+        <!-- Vybavení -->
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between">
@@ -80,7 +92,6 @@
     </div>
 </div>
 
-
 <!-- Rychlé akce -->
 <div class="glass p-3">
     <div class="d-flex align-items-center justify-content-between flex-wrap">
@@ -88,7 +99,6 @@
     </div>
 
     <div class="row g-3 mt-1">
-        <!-- Log operací -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Log operací</h5>
@@ -96,8 +106,6 @@
                 <a href="@Url.Action("Index", "AdminLogs")" class="stretched-link"></a>
             </div>
         </div>
-
-        <!-- Správa uživatelů -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Správa uživatelů</h5>
@@ -105,8 +113,6 @@
                 <a href="@Url.Action("Index", "Members")" class="stretched-link"></a>
             </div>
         </div>
-
-        <!-- Lekce & rozvrh (pro admina!) -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Lekce & rozvrh</h5>
@@ -114,8 +120,6 @@
                 <a href="@Url.Action("Index", "AdminLessons")" class="stretched-link"></a>
             </div>
         </div>
-
-        <!-- Platby -->
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Platby</h5>
@@ -123,13 +127,63 @@
                 <a href="@Url.Action("Index", "Payments")" class="stretched-link"></a>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Zprávy -->
-        <div class="col-12 col-md-6 col-xl-3">
-            <div class="tile glass quick-tile position-relative h-100">
-                <h5 class="text-white mb-1">Zprávy</h5>
-                <div class="text-white-50 small">Napsat oznámení pro tým.</div>
-                <a href="@Url.Action("Index", "Messages")" class="stretched-link"></a>
+<!-- ===== Boxy napojené na DB FUNKCE ===== -->
+<div class="glass p-3 mt-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <h4 class="text-white mb-0">Funkční přehled (DB funkce)</h4>
+    </div>
+
+    <!-- Filtr (fitko + období) -->
+    <div class="mt-3">
+        <form method="get" asp-action="Admin" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label text-white">Fitness centrum</label>
+                <select name="fitko" class="form-select">
+                    @foreach (var it in fitness)
+                    {
+                        var sel = (fitkoId.ToString() == it.Value) ? "selected" : null;
+                        <option value="@it.Value" @sel>@it.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label text-white">Od</label>
+                <input type="date" name="od" class="form-control" value="@periodFrom.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label text-white">Do</label>
+                <input type="date" name="do" class="form-control" value="@periodTo.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-3">
+                <button class="btn btn-warning w-100" type="submit">Použít</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Výstupy funkcí -->
+    <div class="row g-3 mt-1">
+        <div class="col-12 col-md-4">
+            <div class="glass p-3 h-100">
+                <div class="text-white-50 small">Aktivní členové (fitko)</div>
+                <div class="display-6 text-white">@activeMembersFunc</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="glass p-3 h-100">
+                <div class="text-white-50 small">Příjem za období</div>
+                <div class="text-white">@periodFrom.ToString("d.M.yyyy") – @periodTo.ToString("d.M.yyyy")</div>
+                <div class="display-6 text-white mt-1">@incomeFunc.ToString("N0") Kč</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="glass p-3 h-100">
+                <div class="text-white-50 small">Statistika nejbližší lekce</div>
+                <div class="text-white">@lessonFuncText</div>
             </div>
         </div>
     </div>

@@ -1,6 +1,7 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
+using FitnessCenter.Web.Infrastructure.Security;
 using FitnessCenter.Web.Models;
 using FitnessCenter.Web.Models.Member;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
-using FitnessCenter.Web.Infrastructure.Security;
+using System.Text;
 using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
 
 namespace FitnessCenter.Web.Controllers
@@ -58,8 +59,6 @@ namespace FitnessCenter.Web.Controllers
         {
             ViewBag.Active = "Members";
             ViewBag.HideMainNav = true;
-
-            // aby to šlo předvyplnit ve view
             ViewBag.Search = search;
             ViewBag.Sort = sort;
 
@@ -69,16 +68,23 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var conn = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-            SELECT
-                idclen,
-                jmeno,
-                prijmeni,
-                email,
-                telefon,
-                datumnarozeni,
-                adresa
-            FROM CLENOVE
-            ORDER BY prijmeni, jmeno", (OracleConnection)conn);
+    SELECT
+      c.idclen,
+      c.jmeno,
+      c.prijmeni,
+      c.email,
+      c.telefon,
+      c.datumnarozeni,
+      c.adresa,
+      c.fitnesscentrum_idfitness,
+      f.nazev AS fitko,
+      CASE
+        WHEN EXISTS (SELECT 1 FROM TRENERI t WHERE LOWER(t.email) = LOWER(c.email))
+        THEN 1 ELSE 0
+      END AS is_trainer
+    FROM CLENOVE c
+    LEFT JOIN FITNESSCENTRA f ON f.idfitness = c.fitnesscentrum_idfitness
+    ORDER BY c.prijmeni, c.jmeno", (OracleConnection)conn);
 
                 using var rd = await cmd.ExecuteReaderAsync(ct);
                 while (await rd.ReadAsync(ct))
@@ -88,10 +94,13 @@ namespace FitnessCenter.Web.Controllers
                         MemberId = rd.GetInt32(0),
                         FirstName = rd.IsDBNull(1) ? "" : rd.GetString(1),
                         LastName = rd.IsDBNull(2) ? "" : rd.GetString(2),
-                        Email = rd.IsDBNull(3) ? null : rd.GetString(3),
+                        Email = rd.IsDBNull(3) ? "" : rd.GetString(3),
                         Phone = rd.IsDBNull(4) ? null : rd.GetString(4),
                         BirthDate = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
                         Address = rd.IsDBNull(6) ? null : rd.GetString(6),
+                        FitnessId = rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
+                        FitnessName = rd.IsDBNull(8) ? "" : rd.GetString(8),
+                        IsTrainer = !rd.IsDBNull(9) && rd.GetInt32(9) == 1,
                         IsActive = true
                     });
                 }
@@ -99,37 +108,25 @@ namespace FitnessCenter.Web.Controllers
             catch (Exception ex)
             {
                 TempData["Err"] = "Nepodařilo se načíst seznam členů: " + ex.Message;
-                list = new List<MemberViewModel>();
+                list = new List<MemberVM>();
             }
 
-            // 🔎 Filtrování podle jména (Jméno + Příjmení)
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
-                list = list
-                    .Where(m => ($"{m.FirstName} {m.LastName}").ToLower().Contains(s))
-                    .ToList();
+                list = list.Where(m => ($"{m.FirstName} {m.LastName}").ToLower().Contains(s)).ToList();
             }
 
-            // 🔢 Řazení podle příjmení (A→Z / Z→A)
             list = sort switch
             {
-                "az" => list
-                    .OrderBy(m => m.LastName)
-                    .ThenBy(m => m.FirstName)
-                    .ToList(),
-                "za" => list
-                    .OrderByDescending(m => m.LastName)
-                    .ThenByDescending(m => m.FirstName)
-                    .ToList(),
-                _ => list
-                    .OrderBy(m => m.LastName)
-                    .ThenBy(m => m.FirstName)
-                    .ToList()
+                "az" => list.OrderBy(m => m.LastName).ThenBy(m => m.FirstName).ToList(),
+                "za" => list.OrderByDescending(m => m.LastName).ThenByDescending(m => m.FirstName).ToList(),
+                _ => list.OrderBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()
             };
 
             return View(list);
         }
+
 
         // ===== CREATE (GET): /Members/Create =====
         [HttpGet("/Members/Create")]
@@ -204,9 +201,9 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
-        // ===== DELETE (POST): /Members/Delete =====
         [HttpPost("/Members/Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete([FromForm] int id)
         {
             if (id <= 0)
@@ -217,44 +214,180 @@ namespace FitnessCenter.Web.Controllers
 
             try
             {
-                var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+                using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
                 using var tx = con.BeginTransaction();
 
-                // závislosti
-                var deleteSql = new[]
-                {
-                    "DELETE FROM REZERVACE_LEKCI WHERE CLEN_IDCLEN = :id",
-                    "DELETE FROM PLATBY WHERE CLEN_IDCLEN = :id",
-                    "DELETE FROM CLENSTVI WHERE CLEN_IDCLEN = :id"
-                };
+                // 1) NAČTI DETAILY PRO LIDSKÝ VÝSTUP (bez ID)
+                var rezList = new List<string>();
+                var payList = new List<string>();
+                var memList = new List<string>();
 
-                foreach (var sql in deleteSql)
+                // Rezervace (zkusíme view v_clen_rezervace; fallback na joiny)
+                try
                 {
-                    try
+                    using var cmdRez = new OracleCommand(@"
+                SELECT nazevlekce, datumlekce
+                FROM v_clen_rezervace
+                WHERE id_clena = :id
+                ORDER BY datumlekce", con)
+                    { BindByName = true, Transaction = tx };
+                    cmdRez.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                    using var rd = await cmdRez.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
                     {
-                        using var cmd = new OracleCommand(sql, con)
-                        { BindByName = true, Transaction = tx };
-                        cmd.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
-                        await cmd.ExecuteNonQueryAsync();
+                        var nazev = rd.IsDBNull(0) ? "Lekce" : rd.GetString(0);
+                        var dt = rd.IsDBNull(1) ? (DateTime?)null : rd.GetDateTime(1);
+                        rezList.Add(dt.HasValue
+                            ? $"{nazev} – {dt.Value:dd.MM.yyyy HH:mm}"
+                            : nazev);
                     }
-                    catch (OracleException ox) when (ox.Number == 942) { }
+                }
+                catch (OracleException ox) when (ox.Number == 942) // view neexistuje
+                {
+                    using var cmdRez2 = new OracleCommand(@"
+                SELECT l.nazevlekce, l.datumlekce
+                FROM   REZERVACELEKCI r
+                JOIN   RELEKCI rl ON rl.REZERVACELEKCI_IDREZERVACE = r.IDREZERVACE
+                                  AND rl.REZERVACELEKCI_CLEN_IDCLEN = r.CLEN_IDCLEN
+                JOIN   LEKCE l    ON l.IDLEKCE = rl.LEKCE_IDLEKCE
+                WHERE  r.CLEN_IDCLEN = :id
+                ORDER  BY l.DATUMLEKCE", con)
+                    { BindByName = true, Transaction = tx };
+                    cmdRez2.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                    using var rd = await cmdRez2.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        var nazev = rd.IsDBNull(0) ? "Lekce" : rd.GetString(0);
+                        var dt = rd.IsDBNull(1) ? (DateTime?)null : rd.GetDateTime(1);
+                        rezList.Add(dt.HasValue
+                            ? $"{nazev} – {dt.Value:dd.MM.yyyy HH:mm}"
+                            : nazev);
+                    }
                 }
 
-                using var cmdMember = new OracleCommand(
-                    "DELETE FROM CLENOVE WHERE IDCLEN = :id", con)
-                { BindByName = true, Transaction = tx };
-                cmdMember.Parameters.Add("id", OracleDbType.Int32, id, ParameterDirection.Input);
+                // Platby (částka + stav + datum)
+                using (var cmdPay = new OracleCommand(@"
+            SELECT p.CASTKA, NVL(s.STAVPLATBY,'(neznámý)'), p.DATUMPLATBY
+            FROM   PLATBY p
+            LEFT   JOIN STAVYPLATEB s ON s.IDSTAVPLATBY = p.STAVPLATBY_IDSTAVPLATBY
+            WHERE  p.CLEN_IDCLEN = :id
+            ORDER  BY p.DATUMPLATBY", con)
+                { BindByName = true, Transaction = tx })
+                {
+                    cmdPay.Parameters.Add("id", OracleDbType.Int32).Value = id;
+                    using var rd = await cmdPay.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        var castka = rd.IsDBNull(0) ? 0m : rd.GetDecimal(0);
+                        var stav = rd.GetString(1);
+                        var dt = rd.IsDBNull(2) ? (DateTime?)null : rd.GetDateTime(2);
+                        payList.Add(dt.HasValue
+                            ? $"{castka:0} Kč – {stav} – {dt.Value:dd.MM.yyyy}"
+                            : $"{castka:0} Kč – {stav}");
+                    }
+                }
 
-                var rows = await cmdMember.ExecuteNonQueryAsync();
-                if (rows == 0)
+                // Členství (typ + období)
+                using (var cmdMem = new OracleCommand(@"
+            SELECT NVL(tc.NAZEV,'(typ neuveden)'), cl.ZAHAJENI, cl.UKONCENI
+            FROM   CLENSTVI cl
+            LEFT   JOIN TYPYCLENSTVI tc ON tc.IDTYPCLENSTVI = cl.TYPCLENSTVI_IDTYPCLENSTVI
+            WHERE  cl.CLEN_IDCLEN = :id
+            ORDER  BY cl.ZAHAJENI", con)
+                { BindByName = true, Transaction = tx })
+                {
+                    cmdMem.Parameters.Add("id", OracleDbType.Int32).Value = id;
+                    using var rd = await cmdMem.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        var typ = rd.GetString(0);
+                        var od = rd.IsDBNull(1) ? (DateTime?)null : rd.GetDateTime(1);
+                        var @do = rd.IsDBNull(2) ? (DateTime?)null : rd.GetDateTime(2);
+                        if (od.HasValue && @do.HasValue)
+                            memList.Add($"{typ}: {od.Value:dd.MM.yyyy} – {@do.Value:dd.MM.yyyy}");
+                        else
+                            memList.Add(typ);
+                    }
+                }
+
+                // 2) SMAZÁNÍ (od dětí k rodiči)
+                static async Task<int> ExecDelAsync(OracleConnection c, OracleTransaction t, string sql, int memberId)
+                {
+                    using var cmd = new OracleCommand(sql, c) { BindByName = true, Transaction = t };
+                    cmd.Parameters.Add("id", OracleDbType.Int32).Value = memberId;
+                    return await cmd.ExecuteNonQueryAsync();
+                }
+
+                // a) vazby lekce–rezervace daného člena
+                var delRelekci = await ExecDelAsync(con, tx, @"
+            DELETE FROM RELEKCI rl
+            WHERE EXISTS (
+              SELECT 1
+                FROM REZERVACELEKCI r
+               WHERE r.IDREZERVACE = rl.REZERVACELEKCI_IDREZERVACE
+                 AND r.CLEN_IDCLEN  = :id
+            )", id);
+
+                // b) rezervace
+                var delRez = await ExecDelAsync(con, tx,
+                    "DELETE FROM REZERVACELEKCI WHERE CLEN_IDCLEN = :id", id);
+
+                // c) členství
+                var delClenstvi = await ExecDelAsync(con, tx,
+                    "DELETE FROM CLENSTVI WHERE CLEN_IDCLEN = :id", id);
+
+                // d) platby
+                var delPlatby = await ExecDelAsync(con, tx,
+                    "DELETE FROM PLATBY WHERE CLEN_IDCLEN = :id", id);
+
+                // e) dokumenty – pokud je používáš pro členy (nepovinné)
+                int delDok = 0;
+                try
+                {
+                    delDok = await ExecDelAsync(con, tx,
+                        "DELETE FROM DOKUMENTY WHERE CLEN_IDCLEN = :id", id);
+                }
+                catch (OracleException ox) when (ox.Number == 942) { /* tabulka neexistuje – OK */ }
+
+                // f) samotný člen
+                int delClen;
+                using (var cmdMember = new OracleCommand("DELETE FROM CLENOVE WHERE IDCLEN = :id", con)
+                { BindByName = true, Transaction = tx })
+                {
+                    cmdMember.Parameters.Add("id", OracleDbType.Int32).Value = id;
+                    delClen = await cmdMember.ExecuteNonQueryAsync();
+                }
+
+                if (delClen == 0)
                 {
                     tx.Rollback();
-                    TempData["Err"] = "Člen nebyl nalezen.";
+                    TempData["Err"] = "Člen nebyl nalezen nebo už byl smazán.";
                     return RedirectToAction(nameof(Index));
                 }
 
                 tx.Commit();
-                TempData["Ok"] = "Člen byl smazán.";
+
+                // 3) LIDSKÁ ZPRÁVA – bez ID, jen popisy
+                string JoinPreview(IEnumerable<string> list, int max = 5, string emptyText = "žádné")
+                {
+                    var arr = list.Take(max).ToList();
+                    if (arr.Count == 0) return emptyText;
+                    var more = list.Count() - arr.Count;
+                    return more > 0 ? $"{string.Join(", ", arr)} a další {more}…" : string.Join(", ", arr);
+                }
+
+                var sb = new StringBuilder();
+                if (rezList.Any()) sb.AppendLine($"Rezervace: {JoinPreview(rezList)}.");
+                if (payList.Any()) sb.AppendLine($"Platby: {JoinPreview(payList)}.");
+                if (memList.Any()) sb.AppendLine($"Členství: {JoinPreview(memList)}.");
+                if (delDok > 0) sb.AppendLine($"Dokumenty: {delDok} souborů smazáno.");
+
+                // kdyby byl uživatel „čistý“ bez záznamů
+                if (sb.Length == 0) sb.Append("Uživatel neměl žádné rezervace, platby ani členství.");
+
+                TempData["Ok"] = $"Člen byl smazán. {sb}";
             }
             catch (OracleException ox)
             {

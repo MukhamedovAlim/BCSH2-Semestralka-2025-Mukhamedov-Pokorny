@@ -26,8 +26,13 @@ namespace FitnessCenter.Web.Models.Member
         public string? Address { get; set; }
 
         public bool IsActive { get; set; } = true;
+        public int FitnessId { get; set; }
+        [MaxLength(100)]
+        public string FitnessName { get; set; } = "";
 
-        // helper pro tabulku
         public string FullName => $"{FirstName} {LastName}".Trim();
+
+        public bool IsTrainer { get; set; } = false;
+
     }
 }

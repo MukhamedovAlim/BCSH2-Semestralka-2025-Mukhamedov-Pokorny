@@ -1,11 +1,15 @@
-﻿using System.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
 using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
-using System.Linq;
+using Oracle.ManagedDataAccess.Types;
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -18,6 +22,22 @@ namespace FitnessCenter.Web.Controllers
         public AdminTrainersController(IMembersService members)
         {
             _members = members;
+        }
+
+        // ---- helper: bezpečné čtení INT z Oracle OUT parametru ----
+        private static int ReadOutInt(OracleParameter p)
+        {
+            var v = p?.Value;
+            if (v is null) return 0;
+
+            if (v is OracleDecimal od && !od.IsNull)
+                return (int)od.Value;
+
+            if (v is decimal dec) return (int)dec;
+            if (v is int i) return i;
+            if (v is long l) return (int)l;
+
+            return int.TryParse(v.ToString(), out var parsed) ? parsed : 0;
         }
 
         // GET /AdminTrainers
@@ -36,9 +56,9 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-            SELECT idtrener, jmeno, prijmeni, email, telefon
-              FROM TRENERI
-             ORDER BY prijmeni, jmeno", (OracleConnection)con);
+                    SELECT idtrener, jmeno, prijmeni, email, telefon
+                      FROM TRENERI
+                     ORDER BY prijmeni, jmeno", (OracleConnection)con);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
@@ -58,7 +78,7 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Err"] = "Nepodařilo se načíst trenéry: " + ex.Message;
             }
 
-            // 🔎 Filtrování podle jména (Jméno + Příjmení)
+            // filtrace podle jména
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
@@ -67,21 +87,12 @@ namespace FitnessCenter.Web.Controllers
                     .ToList();
             }
 
-            // 🔢 Řazení podle příjmení (A→Z / Z→A)
+            // řazení podle příjmení
             list = sort switch
             {
-                "az" => list
-                    .OrderBy(t => t.LastName)
-                    .ThenBy(t => t.FirstName)
-                    .ToList(),
-                "za" => list
-                    .OrderByDescending(t => t.LastName)
-                    .ThenByDescending(t => t.FirstName)
-                    .ToList(),
-                _ => list
-                    .OrderBy(t => t.LastName)
-                    .ThenBy(t => t.FirstName)
-                    .ToList()
+                "az" => list.OrderBy(t => t.LastName).ThenBy(t => t.FirstName).ToList(),
+                "za" => list.OrderByDescending(t => t.LastName).ThenByDescending(t => t.FirstName).ToList(),
+                _ => list.OrderBy(t => t.LastName).ThenBy(t => t.FirstName).ToList()
             };
 
             return View(list); // /Views/AdminTrainers/Index.cshtml
@@ -96,7 +107,7 @@ namespace FitnessCenter.Web.Controllers
 
             var members = await _members.GetAllAsync();
 
-            // odfiltruj už povýšené (jsou v TRENERI)
+            // už povýšení (jsou v TRENERI)
             HashSet<string> trainerEmails = new(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -106,7 +117,7 @@ namespace FitnessCenter.Web.Controllers
                 while (await rd.ReadAsync())
                     if (!rd.IsDBNull(0)) trainerEmails.Add(rd.GetString(0));
             }
-            catch { /* necháme bez pádu */ }
+            catch { /* ignoruj – jen filtrace nebude dokonalá */ }
 
             var onlyNotTrainers = members
                 .Where(m => !string.IsNullOrWhiteSpace(m.Email) && !trainerEmails.Contains(m.Email!))
@@ -129,11 +140,13 @@ namespace FitnessCenter.Web.Controllers
 
             try
             {
-                // varianta A – když má člen telefon, vezme se z CLENOVE; jinak použij vstup
+                // pokud má člen telefon v CLENOVE, nepředávej ho (procedura si ho vezme),
+                // jinak pošli z formuláře
                 var member = (await _members.GetAllAsync())
                              .FirstOrDefault(m => string.Equals(m.Email, email, StringComparison.OrdinalIgnoreCase));
-                var memberHasPhone = !string.IsNullOrWhiteSpace(member?.Phone);
-                var telefonForProc = memberHasPhone ? null : (string.IsNullOrWhiteSpace(phone) ? null : phone.Trim());
+                var telefonForProc = string.IsNullOrWhiteSpace(member?.Phone)
+                    ? (string.IsNullOrWhiteSpace(phone) ? null : phone.Trim())
+                    : null;
 
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand("PROMOTE_TO_TRAINER", (OracleConnection)con)
@@ -143,15 +156,15 @@ namespace FitnessCenter.Web.Controllers
                 };
                 cmd.Parameters.Add("p_email", OracleDbType.Varchar2, email, ParameterDirection.Input);
                 cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2,
-                                   (object?)telefonForProc ?? DBNull.Value, ParameterDirection.Input);
+                                    (object?)telefonForProc ?? DBNull.Value, ParameterDirection.Input);
 
-                var outId = new OracleParameter("p_idtrener", OracleDbType.Int32)
+                var pOut = new OracleParameter("p_idtrener", OracleDbType.Decimal)
                 { Direction = ParameterDirection.Output };
-                cmd.Parameters.Add(outId);
+                cmd.Parameters.Add(pOut);
 
                 await cmd.ExecuteNonQueryAsync();
 
-                var newId = outId.Value == null ? 0 : Convert.ToInt32(outId.Value.ToString());
+                var newId = ReadOutInt(pOut);
                 TempData["Ok"] = newId > 0
                     ? "Člen byl povýšen na trenéra."
                     : "Člen už je trenér – hotovo.";
@@ -175,27 +188,81 @@ namespace FitnessCenter.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete([FromForm] int id)
         {
+            if (id <= 0)
+            {
+                TempData["Err"] = "Neplatné ID trenéra.";
+                return RedirectToAction(nameof(Index));
+            }
+
             try
             {
-                using var con = await DatabaseManager.GetOpenConnectionAsync();
-                using var cmd = new OracleCommand("DEMOTE_TRAINER", (OracleConnection)con)
+                using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+
+                // 1) Zkus FORCE variantu (s počty smazaných věcí)
+                try
+                {
+                    using var cmd = new OracleCommand("DEMOTE_TRAINER_FORCE", con)
+                    {
+                        CommandType = CommandType.StoredProcedure,
+                        BindByName = true
+                    };
+                    cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = id;
+
+                    var pLek = new OracleParameter("p_del_lekci", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                    var pVaz = new OracleParameter("p_del_vazeb", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                    var pRez = new OracleParameter("p_del_rez", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+
+                    cmd.Parameters.Add(pLek);
+                    cmd.Parameters.Add(pVaz);
+                    cmd.Parameters.Add(pRez);
+
+                    await cmd.ExecuteNonQueryAsync();
+
+                    int zLek = ReadOutInt(pLek);
+                    int zVaz = ReadOutInt(pVaz);
+                    int zRez = ReadOutInt(pRez);
+
+                    var parts = new List<string>();
+                    if (zLek > 0) parts.Add($"{zLek} zrušených lekcí");
+                    if (zVaz > 0) parts.Add($"{zVaz} odstraněných vazeb");
+                    if (zRez > 0) parts.Add($"{zRez} smazaných rezervací");
+                    var tail = parts.Count > 0 ? " (" + string.Join(", ", parts) + ")" : "";
+
+                    TempData["Ok"] = "Trenér byl zrušen (ponechán jako člen)" + tail + ".";
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (OracleException ox) when (
+                       ox.Number == 6550   // PLS-00302/PLS-00201… – kompilační/param chyby
+                    || ox.Number == 4043   // ORA-04043: objekt neexistuje
+                    || ox.Number == 6553)  // jiné PL/SQL chyby, procedura není k dispozici
+                {
+                }
+
+                // 2) Fallback – původní DEMOTE_TRAINER (selže, pokud má lekce)
+                using (var cmd2 = new OracleCommand("DEMOTE_TRAINER", con)
                 {
                     CommandType = CommandType.StoredProcedure,
                     BindByName = true
-                };
-                cmd.Parameters.Add("p_idtrener", OracleDbType.Int32, id, ParameterDirection.Input);
-                await cmd.ExecuteNonQueryAsync();
-
-                TempData["Ok"] = "Trenér byl zrušen (ponechán jako člen).";
+                })
+                {
+                    cmd2.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = id;
+                    await cmd2.ExecuteNonQueryAsync();
+                    TempData["Ok"] = "Trenér byl zrušen (ponechán jako člen).";
+                }
             }
             catch (OracleException ox) when (ox.Number == 20045)
             {
-                TempData["Err"] = "Nelze zrušit trenéra: má přiřazené lekce.";
+                TempData["Err"] = "Nelze zrušit trenéra: má přiřazené lekce. Použij variantu FORCE (DEMOTE_TRAINER_FORCE).";
+            }
+            catch (OracleException ox)
+            {
+                TempData["Err"] = $"Chyba DB při rušení trenéra: {ox.Message}";
             }
             catch (Exception ex)
             {
                 TempData["Err"] = "Chyba při rušení trenéra: " + ex.Message;
             }
+
             return RedirectToAction(nameof(Index));
         }
     }
