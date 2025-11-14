@@ -5,6 +5,7 @@
     ViewBag.Active = "Equipment";
 
     var filter = ViewBag.Filter as string ?? "Vše";
+    var selectedTyp = ViewBag.SelectedTyp as string; // "K","P","V" nebo null
     var fitka = ViewBag.Fitka as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();
     int? fitkoId = ViewBag.FitkoId as int?;
 }
@@ -19,68 +20,52 @@
     </div>
 </div>
 
-
-<style>
-    .equipment-toolbar {
-        position: relative;
-        z-index: 1000;
-    }
-
-        .equipment-toolbar .safe-click {
-            position: relative;
-            z-index: 1001;
-            pointer-events: auto;
-        }
-
-    .equipment-list .stretched-link {
-        position: static !important;
-    }
-</style>
-
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 equipment-toolbar mb-2">
     <h3 class="text-white mb-0">Vybavení</h3>
 
-    <div class="d-flex gap-2">
-        <!-- Filtr podle typu -->
-        <div class="btn-group">
-            <a class="btn btn-sm @(filter == "Vše" ? "btn-primary" : "btn-outline-light")"
-               asp-action="Index" asp-controller="Equipment"
-               asp-route-typ="" asp-route-fitko="@(fitkoId)">Vše</a>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <!-- JEDEN formulář pro typ + fitko -->
+        <form method="get"
+              action="@Url.Action("Index", "Equipment")"
+              class="d-flex gap-2 align-items-center flex-wrap mb-0">
 
-            <a class="btn btn-sm @(filter == "Kardio" ? "btn-primary" : "btn-outline-light")"
-               asp-action="Index" asp-controller="Equipment"
-               asp-route-typ="Kardio" asp-route-fitko="@(fitkoId)">Kardio</a>
+            <div class="btn-group" role="group" aria-label="Typ vybavení">
+                <input type="radio" class="btn-check" name="typ" id="typAll" value=""
+                       @(string.IsNullOrEmpty(selectedTyp) ? "checked" : "") />
+                <label class="btn btn-sm btn-outline-light" for="typAll">Vše</label>
 
-            <a class="btn btn-sm @(filter == "Posilovací" ? "btn-primary" : "btn-outline-light")"
-               asp-action="Index" asp-controller="Equipment"
-               asp-route-typ="Posilovací" asp-route-fitko="@(fitkoId)">Posilovací</a>
+                <input type="radio" class="btn-check" name="typ" id="typK" value="K"
+                       @(selectedTyp == "K" ? "checked" : "") />
+                <label class="btn btn-sm btn-outline-light" for="typK">Kardio</label>
 
-            <a class="btn btn-sm @(filter == "Volná závaží" ? "btn-primary" : "btn-outline-light")"
-               asp-action="Index" asp-controller="Equipment"
-               asp-route-typ="Volná závaží" asp-route-fitko="@(fitkoId)">Volná závaží</a>
-        </div>
+                <input type="radio" class="btn-check" name="typ" id="typP" value="P"
+                       @(selectedTyp == "P" ? "checked" : "") />
+                <label class="btn btn-sm btn-outline-light" for="typP">Posilovací</label>
 
-        <!-- Filtr podle fitka -->
-        <form method="get" asp-action="Index" asp-controller="Equipment" class="d-flex gap-2">
-            <select name="fitko" class="form-select form-select-sm">
+                <input type="radio" class="btn-check" name="typ" id="typV" value="V"
+                       @(selectedTyp == "V" ? "checked" : "") />
+                <label class="btn btn-sm btn-outline-light" for="typV">Volná závaží</label>
+            </div>
+
+            <select name="fitko" class="form-select form-select-sm" style="width: 180px;">
                 <option value="">Všechna fitka</option>
                 @foreach (var f in fitka)
                 {
-                    <option value="@f.Value" @(f.Value == (fitkoId?.ToString() ?? "") ? "selected" : "")>@f.Text</option>
+                    <option value="@f.Value" @(f.Value == (fitkoId?.ToString() ?? "") ? "selected" : "")>
+                        @f.Text
+                    </option>
                 }
             </select>
-            <input type="hidden" name="typ" value="@(filter == "Vše" ? "" : filter)" />
+
             <button class="btn btn-sm btn-outline-light" type="submit">Filtrovat</button>
         </form>
 
         <!-- Přidat vybavení – pouze Admin -->
         @if (User.IsInRole("Admin"))
         {
-            <form method="get" action="@Url.Action("Create", "Equipment")" class="d-inline">
-                <button type="submit" class="btn btn-sm btn-warning safe-click">
-                    + Přidat vybavení
-                </button>
-            </form>
+            <a href="@Url.Action("Create", "Equipment")" class="btn btn-sm btn-warning">
+                + Přidat vybavení
+            </a>
         }
     </div>
 </div>

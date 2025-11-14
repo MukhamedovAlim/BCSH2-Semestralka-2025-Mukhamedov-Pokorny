@@ -5,10 +5,16 @@
 }
 
 <div class="glass p-3">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <a class="btn btn-outline-light btn-sm"
+           href="@Url.Action("Index", "AdminTrainers")"
+           onclick="if(history.length > 1){ history.back(); return false; }">
+            ← Zpět
+        </a>
+
         <h3 class="text-white mb-0">Povýšit člena na trenéra</h3>
-        <a href="@Url.Action("Index", "AdminTrainers")" class="btn btn-outline-light btn-sm">← Zpět</a>
     </div>
+
 
     <hr class="border-secondary" />
 
@@ -48,14 +54,20 @@
                             else
                             {
                                 <span class="text-white-50">—</span>
-                                <div class="text-white-50 small">Člen nemá telefon — můžeš ho doplnit při povýšení.</div>
+                                <div class="text-white-50 small">
+                                    Člen nemá telefon — můžeš ho doplnit při povýšení.
+                                </div>
                             }
                         </td>
 
                         <td class="text-end">
-                            <form method="post" action="@Url.Action("PromoteMember", "AdminTrainers")" class="d-inline-flex gap-2 align-items-center">
+                            <form method="post"
+                                  action="@Url.Action("PromoteMember", "AdminTrainers")"
+                                  class="d-inline-flex gap-2 align-items-center">
+
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="email" value="@m.Email" />
+
                                 @if (!hasPhone)
                                 {
                                     <input type="tel"
@@ -65,7 +77,6 @@
                                            style="width:210px"
                                            pattern="(\+?420)?\s*\d{3}\s*\d{3}\s*\d{3}|\d{3}\s*\d{3}\s*\d{3}"
                                            title="Zadej 9 číslic (např. 777888999) nebo s předvolbou +420/420." />
-
                                 }
 
                                 <button type="submit" class="btn btn-sm btn-warning">

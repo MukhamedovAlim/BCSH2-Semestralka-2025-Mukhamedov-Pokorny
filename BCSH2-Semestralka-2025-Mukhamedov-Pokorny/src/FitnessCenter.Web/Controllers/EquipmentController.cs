@@ -40,16 +40,37 @@ namespace FitnessCenter.Web.Controllers
         [HttpGet("")]
         public async Task<IActionResult> Index(string? typ, int? fitko)
         {
-            ViewBag.Filter = string.IsNullOrWhiteSpace(typ) ? "Vše" : typ;
-            await FillFitnessViewBagAsync();
+            // K/P/V nebo null → textový label pro UI
+            string filterLabel = typ switch
+            {
+                "K" => "Kardio",
+                "P" => "Posilovací",
+                "V" => "Volná závaží",
+                _ => "Vše"
+            };
+
+            // pokud je tam nějaká blbost, radši filtr vypneme
+            if (filterLabel == "Vše")
+                typ = null;
+
+            ViewBag.Filter = filterLabel;   // jen text na zobrazení (když budeš chtít)
+            ViewBag.SelectedTyp = typ;      // K/P/V/null pro view
             ViewBag.FitkoId = fitko;
+
+            await FillFitnessViewBagAsync();
 
             var rows = await _repo.GetAsync(typ, fitko);
             var vm = rows.Select(r => new EquipmentViewModel
             {
                 Id = r.Id,
                 Nazev = r.Nazev,
-                Typ = r.Typ switch { "K" => "Kardio", "P" => "Posilovací", "V" => "Volná závaží", _ => r.Typ },
+                Typ = r.Typ switch
+                {
+                    "K" => "Kardio",
+                    "P" => "Posilovací",
+                    "V" => "Volná závaží",
+                    _ => r.Typ
+                },
                 Stav = r.Stav,
                 Fitko = r.Fitko,
                 FitkoId = r.FitkoId
