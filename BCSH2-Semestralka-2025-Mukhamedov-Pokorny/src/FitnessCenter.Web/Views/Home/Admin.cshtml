@@ -97,7 +97,6 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap">
         <h4 class="text-white mb-0">Rychlé akce</h4>
     </div>
-
     <div class="row g-3 mt-1">
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
@@ -106,13 +105,15 @@
                 <a href="@Url.Action("Index", "AdminLogs")" class="stretched-link"></a>
             </div>
         </div>
+
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
-                <h5 class="text-white mb-1">Správa uživatelů</h5>
-                <div class="text-white-50 small">Přidat/upravit/odebrat členy.</div>
-                <a href="@Url.Action("Index", "Members")" class="stretched-link"></a>
+                <h5 class="text-white mb-1">Prodej členství</h5>
+                <div class="text-white-50 small">Založit členství a platbu.</div>
+                <a href="@Url.Action("Sell", "AdminMemberships")" class="stretched-link"></a>
             </div>
         </div>
+
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Lekce & rozvrh</h5>

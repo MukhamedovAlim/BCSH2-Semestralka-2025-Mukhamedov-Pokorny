@@ -1,0 +1,124 @@
+﻿@model FitnessCenter.Web.Models.Admin.SellMembershipViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Prodej členství";
+    Layout = "_AppLayout";
+    ViewBag.Active = "Admin";
+    ViewBag.HideMainNav = true;
+
+    var typy = ViewBag.Typy as List<SelectListItem> ?? new();
+    var members = ViewBag.Members as List<SelectListItem> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Admin", "Home")">← Zpět</a>
+        <span class="h3 text-white mb-0">Prodej členství</span>
+    </div>
+</div>
+
+@if (TempData["Err"] is string err && !string.IsNullOrWhiteSpace(err))
+{
+    <div class="alert alert-danger">@err</div>
+}
+@if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
+{
+    <div class="alert alert-success">@ok</div>
+}
+
+<div class="glass p-3">
+    <form asp-action="Sell" asp-controller="AdminMemberships" method="post" class="row g-3"
+          onsubmit="return confirm('Opravdu prodat členství tomuto členovi?');">
+
+        @Html.AntiForgeryToken()
+
+        <div class="col-12">
+            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        </div>
+
+        <!-- Člen (e-mail) -->
+        <div class="col-12 col-md-6">
+            <label class="form-label text-white">Člen (e-mail)</label>
+            <select name="Email" id="Email" class="form-select bg-dark text-light" required>
+                <option value="">— vyber člena —</option>
+                @foreach (var m in members)
+                {
+                    <option value="@m.Value" @(Model?.Email == m.Value ? "selected" : "")>@m.Text</option>
+                }
+            </select>
+            <span asp-validation-for="Email" class="text-danger small"></span>
+        </div>
+
+        <!-- Typ členství -->
+        <div class="col-12 col-md-6">
+            <label class="form-label text-white">Typ členství</label>
+            <select name="TypNazev" id="typSelect" class="form-select bg-dark text-light" required>
+                <option value="">— vyber typ —</option>
+                @foreach (var t in typy)
+                {
+                    <option value="@t.Value" @(Model?.TypNazev == t.Value ? "selected" : "")>@t.Text</option>
+                }
+            </select>
+            <span asp-validation-for="TypNazev" class="text-danger small"></span>
+        </div>
+
+        <!-- Částka -->
+        <div class="col-12 col-md-4">
+            <label class="form-label text-white">Částka (Kč)</label>
+            <div class="form-text text-success small" id="priceHint" style="display:none;">
+                Cena nastavena podle vybraného typu.
+            </div>
+            <input name="Castka" id="castkaInput"
+                   value="@(Model?.Castka > 0 ? Model.Castka.ToString() : "")"
+                   type="number" step="1" min="1"
+                   class="form-control bg-dark text-light" required />
+            <span asp-validation-for="Castka" class="text-danger small"></span>
+        </div>
+
+        <div class="col-12 col-md-4 d-flex align-items-end justify-content-end">
+            <button class="btn btn-warning" type="submit" @(members.Count == 0 ? "disabled" : "")>
+                Prodat členství
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const PRICE_BY_TYPE = { "Jednorázové": 250, "Měsíční": 990, "Roční": 7990 };
+        const typSel = document.getElementById('typSelect');
+        const castka = document.getElementById('castkaInput');
+        const priceHint = document.getElementById('priceHint');
+
+        function normalize(val) {
+          if (val) return val.trim();
+          const opt = typSel?.options[typSel.selectedIndex];
+          const txt = (opt?.text || "").replace(/\s*\(.+\)\s*$/, "").trim();
+          return txt;
+        }
+
+        function flashHint() {
+          if (!priceHint) return;
+          priceHint.style.display = 'block';
+          clearTimeout(priceHint._t);
+          priceHint._t = setTimeout(() => priceHint.style.display = 'none', 1800);
+        }
+
+        function applyPrice() {
+          const key = normalize(typSel?.value);
+          if (PRICE_BY_TYPE[key] !== undefined) {
+            const newVal = PRICE_BY_TYPE[key];
+            if (String(castka.value) !== String(newVal)) {
+              castka.value = newVal;
+              flashHint();
+            }
+          }
+        }
+
+        window.addEventListener('DOMContentLoaded', applyPrice);
+        typSel?.addEventListener('change', applyPrice);
+    </script>
+}
+
