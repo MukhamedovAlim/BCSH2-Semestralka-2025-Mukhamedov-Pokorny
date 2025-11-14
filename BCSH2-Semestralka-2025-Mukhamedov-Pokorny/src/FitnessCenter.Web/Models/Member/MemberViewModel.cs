@@ -34,5 +34,13 @@ namespace FitnessCenter.Web.Models.Member
 
         public bool IsTrainer { get; set; } = false;
 
+
+        public DateTime? MembershipFrom { get; set; }
+        public DateTime? MembershipTo { get; set; }
+        public bool HasActiveMembership =>
+            MembershipFrom.HasValue && MembershipTo.HasValue &&
+            DateTime.Today >= MembershipFrom.Value.Date &&
+            DateTime.Today <= MembershipTo.Value.Date;
+
     }
 }

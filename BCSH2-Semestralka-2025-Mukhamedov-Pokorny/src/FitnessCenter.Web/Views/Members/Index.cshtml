@@ -99,6 +99,7 @@
                     <th>Telefon</th>
                     <th>Narozen</th>
                     <th>Fitko</th>
+                    <th>Členství</th>
                     <th class="text-end">Akce</th>
                 </tr>
             </thead>
@@ -127,6 +128,32 @@
                             <td>@(string.IsNullOrWhiteSpace(m.Phone) ? "—" : m.Phone)</td>
                             <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
                             <td>@(string.IsNullOrWhiteSpace(m.FitnessName) ? "—" : m.FitnessName)</td>
+
+                            <!-- NOVÝ sloupec: Členství -->
+                            <td>
+                                @if (m.MembershipFrom.HasValue && m.MembershipTo.HasValue)
+                                {
+                                    if (m.HasActiveMembership)
+                                    {
+                                        <span class="badge bg-success me-1">Aktivní</span>
+                                        <small class="text-white-50">
+                                            @m.MembershipFrom.Value.ToString("dd.MM.yyyy")
+                                            – @m.MembershipTo.Value.ToString("dd.MM.yyyy")
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary me-1">Neaktivní</span>
+                                        <small class="text-white-50">
+                                            platnost do @m.MembershipTo.Value.ToString("dd.MM.yyyy")
+                                        </small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
 
                             <td class="text-end">
                                 <!-- Emulace uživatele -->

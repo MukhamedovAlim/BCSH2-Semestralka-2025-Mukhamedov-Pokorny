@@ -1,6 +1,6 @@
 ﻿using FitnessCenter.Application.Interfaces;      // ILessonsService, IMembersService
 using FitnessCenter.Infrastructure.Persistence;  // DatabaseManager
-using FitnessCenter.Infrastructure.Repositories;   // PaymentsReadRepo, AdminStatsRepository
+using FitnessCenter.Infrastructure.Repositories; // PaymentsReadRepo, AdminStatsRepository
 using FitnessCenter.Web.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -121,8 +121,6 @@ namespace FitnessCenter.Web.Controllers
             return items;
         }
 
-
-        
         // ===== Admin dashboard – statistiky + 3 funkce =====
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null)
@@ -133,12 +131,11 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.FitnessCenters = await LoadFitnessCentersAsync();
             ViewBag.Fitka = ViewBag.FitnessCenters;
 
-            // --------- parametry pro funkce (lze kdykoli převést na filtry ve view) ----------
+            // parametry pro funkční boxy
             int fitkoId = fitko.GetValueOrDefault(1);
             var from = od ?? DateTime.Today.AddDays(-30);
             var to = @do ?? DateTime.Today;
 
-            // ---------- „tvé“ stávající rychlé statistiky ----------
             int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
             try
@@ -152,9 +149,24 @@ namespace FitnessCenter.Web.Controllers
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", oc))
                     trainers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                using (var cmd = new OracleCommand(
-                    "SELECT COUNT(*) FROM LEKCE WHERE TRUNC(DATUMLEKCE) = TRUNC(SYSDATE)", oc))
+                // ✅ OPRAVA: počítej lekce od dneška včetně (a volitelně podle fitka)
+                var sqlLessons = @"
+SELECT COUNT(*)
+FROM   LEKCE l
+WHERE  l.DATUMLEKCE >= TRUNC(SYSDATE)
+AND   (:p_fitko IS NULL OR EXISTS (
+         SELECT 1
+           FROM TRENERI t
+           JOIN CLENOVE c ON LOWER(c.EMAIL) = LOWER(t.EMAIL)
+          WHERE t.IDTRENER = l.TRENER_IDTRENER
+            AND c.FITNESSCENTRUM_IDFITNESS = :p_fitko
+       ))";
+                using (var cmd = new OracleCommand(sqlLessons, oc) { BindByName = true })
+                {
+                    cmd.Parameters.Add("p_fitko", OracleDbType.Int32).Value =
+                        fitko.HasValue ? (object)fitko.Value : DBNull.Value;
                     lessonsToday = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                }
 
                 using (var cmd = new OracleCommand(
                     "SELECT COUNT(*) FROM PLATBY WHERE STAVPLATBY_IDSTAVPLATBY = 1", oc))
@@ -179,16 +191,12 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.LogCount = logCount;
             ViewBag.EquipmentCount = equipmentCount;
 
-            // ---------- 3 FUNKCE ----------
+            // 3 FUNKCE
             try
             {
-                // f_pocet_aktivnich_clenu(p_idfitness) -> INT
                 ViewBag.ActiveMembersFunc = await _stats.GetActiveMembersAsync(fitkoId);
-
-                // f_prijem_obdobi(p_od, p_do) -> NUMBER (decimal)
                 ViewBag.IncomeFunc = await _stats.GetIncomeAsync(from, to);
 
-                // f_statistika_lekce(p_idlekce) -> VARCHAR2
                 var lessonId = await _stats.GetLatestUpcomingLessonIdAsync();
                 ViewBag.LessonFuncText = lessonId is int lid
                     ? await _stats.GetLessonStatAsync(lid)
@@ -199,14 +207,11 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
             }
 
-            // předáme i parametry, aby je view mohlo vypsat
             ViewBag.FitkoId = fitkoId;
             ViewBag.PeriodFrom = from;
             ViewBag.PeriodTo = to;
 
             return View();
-
-
         }
     }
 }

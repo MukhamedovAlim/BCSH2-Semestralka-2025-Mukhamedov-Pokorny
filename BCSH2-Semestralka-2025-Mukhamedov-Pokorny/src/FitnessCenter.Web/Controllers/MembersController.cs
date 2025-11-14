@@ -68,23 +68,40 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var conn = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-    SELECT
-      c.idclen,
-      c.jmeno,
-      c.prijmeni,
-      c.email,
-      c.telefon,
-      c.datumnarozeni,
-      c.adresa,
-      c.fitnesscentrum_idfitness,
-      f.nazev AS fitko,
-      CASE
-        WHEN EXISTS (SELECT 1 FROM TRENERI t WHERE LOWER(t.email) = LOWER(c.email))
-        THEN 1 ELSE 0
-      END AS is_trainer
-    FROM CLENOVE c
-    LEFT JOIN FITNESSCENTRA f ON f.idfitness = c.fitnesscentrum_idfitness
-    ORDER BY c.prijmeni, c.jmeno", (OracleConnection)conn);
+SELECT
+    c.idclen,
+    c.jmeno,
+    c.prijmeni,
+    c.email,
+    c.telefon,
+    c.datumnarozeni,
+    c.adresa,
+    c.fitnesscentrum_idfitness,
+    f.nazev AS fitko,
+
+    -- poslední členství (1 řádek na člena)
+    m.zahajeni,
+    m.ukonceni,
+
+    -- trenér?
+    CASE WHEN t.idtrener IS NOT NULL THEN 1 ELSE 0 END AS is_trainer
+FROM clenove c
+LEFT JOIN fitnesscentra f ON f.idfitness = c.fitnesscentrum_idfitness
+LEFT JOIN (
+    SELECT z.clen_idclen, z.zahajeni, z.ukonceni
+    FROM (
+        SELECT cl.*,
+               ROW_NUMBER() OVER(
+                   PARTITION BY cl.clen_idclen
+                   ORDER BY cl.zahajeni DESC NULLS LAST
+               ) rn
+        FROM clenstvi cl
+    ) z
+    WHERE z.rn = 1
+) m ON m.clen_idclen = c.idclen
+LEFT JOIN treneri t ON LOWER(t.email) = LOWER(c.email)
+ORDER BY c.prijmeni, c.jmeno
+", (OracleConnection)conn);
 
                 using var rd = await cmd.ExecuteReaderAsync(ct);
                 while (await rd.ReadAsync(ct))
@@ -98,10 +115,14 @@ namespace FitnessCenter.Web.Controllers
                         Phone = rd.IsDBNull(4) ? null : rd.GetString(4),
                         BirthDate = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
                         Address = rd.IsDBNull(6) ? null : rd.GetString(6),
+
                         FitnessId = rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
                         FitnessName = rd.IsDBNull(8) ? "" : rd.GetString(8),
-                        IsTrainer = !rd.IsDBNull(9) && rd.GetInt32(9) == 1,
-                        IsActive = true
+
+                        MembershipFrom = rd.IsDBNull(9) ? (DateTime?)null : rd.GetDateTime(9),
+                        MembershipTo = rd.IsDBNull(10) ? (DateTime?)null : rd.GetDateTime(10),
+
+                        IsTrainer = !rd.IsDBNull(11) && rd.GetInt32(11) == 1
                     });
                 }
             }

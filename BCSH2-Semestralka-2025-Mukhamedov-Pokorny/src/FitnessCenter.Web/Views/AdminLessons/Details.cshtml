@@ -3,11 +3,12 @@
     ViewData["Title"] = "Obsazenost lekce";
     Layout = "_AppLayout";
     var lessonId = (int)ViewBag.LessonId;
+    var lessonTitle = ViewBag.LessonTitle as string ?? $"lekce #{lessonId}";
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "AdminLessons")">← Zpět</a>
-        <span class="h3 text-white mb-0">Účastníci lekce #@lessonId</span>
+        <span class="h3 text-white mb-0">Účastníci – @lessonTitle</span>
     </div>
 </div>
 

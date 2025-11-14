@@ -1,58 +1,75 @@
-﻿@model IEnumerable<FitnessCenter.Domain.Entities.Lesson>
+﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Lesson>
 @{
-    ViewData["Title"] = "Admin – Lekce";
+    ViewData["Title"] = "Přehled lekcí";
     Layout = "_AppLayout";
+    ViewBag.Active = "AdminLessons";
+
+    var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
 }
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Admin", "Home")">← Zpět</a>
-        <span class="h3 text-white mb-0">Přehled lekcí</span>
+        <span class="h3 text-white align-middle mb-0">Přehled lekcí</span>
     </div>
 </div>
 
-@if (TempData["Ok"] is string ok)
+@if (Model == null || Model.Count == 0)
 {
-    <div class="alert alert-success">@ok</div>
+    <div class="text-white-50">Žádné lekce.</div>
 }
-@if (TempData["Err"] is string err)
+else
 {
-    <div class="alert alert-danger">@err</div>
-}
-
-<div class="table-responsive glass p-2">
-    <table class="table table-dark table-striped align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Datum/čas</th>
-                <th>Název</th>
-                <th class="text-end">Kapacita</th>
-                <th class="text-end">Akce</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var x in Model)
-            {
-                <tr>
-                    <td>@x.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
-                    <td>@x.Nazev</td>
-                    <td class="text-end">@x.Kapacita</td>
-                    <td class="text-end">
-                        <a class="btn btn-sm btn-outline-light me-2"
-                           href="@Url.Action("Details", "AdminLessons", new { id = x.Id })">Detail</a>
-
-                        <form action="@Url.Action("Cancel", "AdminLessons")" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@x.Id" />
-                            <button type="submit"
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="return confirm('Opravdu zrušit tuto lekci? Účastníci budou odhlášeni.')">
-                                Zrušit lekci
-                            </button>
-                        </form>
-
-                    </td>
+    <div class="table-responsive">
+        <table class="table table-dark table-sm align-middle">
+            <thead>
+                <tr class="text-white-50">
+                    <th>Datum/čas</th>
+                    <th>Název</th>
+                    <th>Místo</th>
+                    <th>Trenér</th>
+                    <th>Kapacita</th>
+                    <th class="text-end" style="width:1%; white-space:nowrap;">Akce</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-</div>
+            </thead>
+            <tbody>
+                @foreach (var l in Model)
+                {
+                    var raw = l.Nazev ?? "";
+                    string nazev = raw, misto = "";
+
+                    var atIdx = raw.LastIndexOf('@');
+                    if (atIdx >= 0) { nazev = raw[..atIdx].Trim(); misto = raw[(atIdx + 1)..].Trim(); }
+
+                    if (string.IsNullOrEmpty(misto))
+                    {
+                        var open = raw.LastIndexOf('(');
+                        var close = raw.LastIndexOf(')');
+                        if (open >= 0 && close > open)
+                        {
+                            misto = raw.Substring(open + 1, close - open - 1).Trim();
+                            nazev = raw.Remove(open).Trim();
+                        }
+                    }
+
+                    <tr>
+                        <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-white">@nazev</td>
+                        <td>@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
+                        <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td>
+                        <td>@l.Kapacita</td>
+                        <td class="text-end" style="white-space:nowrap;">
+                            <a class="btn btn-sm btn-secondary me-2"
+                               href="@Url.Action("Details", "AdminLessons", new { id = l.Id })">Detail</a>
+                            <form method="post" action="@Url.Action("Cancel", "AdminLessons", new { id = l.Id })" class="d-inline"
+                                  onsubmit="return confirm('Opravdu zrušit tuto lekci?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-danger">Zrušit lekci</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
