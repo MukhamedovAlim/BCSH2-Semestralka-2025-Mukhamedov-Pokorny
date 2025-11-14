@@ -54,10 +54,14 @@ namespace FitnessCenter.Web.Controllers
         // GET /Members/Index  (explicitně)
         [HttpGet("/Members")]
         [HttpGet("/Members/Index")]
-        public async Task<IActionResult> Index(CancellationToken ct)
+        public async Task<IActionResult> Index(string? search, string? sort, CancellationToken ct)
         {
             ViewBag.Active = "Members";
             ViewBag.HideMainNav = true;
+
+            // aby to šlo předvyplnit ve view
+            ViewBag.Search = search;
+            ViewBag.Sort = sort;
 
             var list = new List<MemberVM>();
 
@@ -65,16 +69,16 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var conn = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-                    SELECT
-                        idclen,
-                        jmeno,
-                        prijmeni,
-                        email,
-                        telefon,
-                        datumnarozeni,
-                        adresa
-                    FROM CLENOVE
-                    ORDER BY prijmeni, jmeno", (OracleConnection)conn);
+            SELECT
+                idclen,
+                jmeno,
+                prijmeni,
+                email,
+                telefon,
+                datumnarozeni,
+                adresa
+            FROM CLENOVE
+            ORDER BY prijmeni, jmeno", (OracleConnection)conn);
 
                 using var rd = await cmd.ExecuteReaderAsync(ct);
                 while (await rd.ReadAsync(ct))
@@ -97,6 +101,32 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Err"] = "Nepodařilo se načíst seznam členů: " + ex.Message;
                 list = new List<MemberViewModel>();
             }
+
+            // 🔎 Filtrování podle jména (Jméno + Příjmení)
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                list = list
+                    .Where(m => ($"{m.FirstName} {m.LastName}").ToLower().Contains(s))
+                    .ToList();
+            }
+
+            // 🔢 Řazení podle příjmení (A→Z / Z→A)
+            list = sort switch
+            {
+                "az" => list
+                    .OrderBy(m => m.LastName)
+                    .ThenBy(m => m.FirstName)
+                    .ToList(),
+                "za" => list
+                    .OrderByDescending(m => m.LastName)
+                    .ThenByDescending(m => m.FirstName)
+                    .ToList(),
+                _ => list
+                    .OrderBy(m => m.LastName)
+                    .ThenBy(m => m.FirstName)
+                    .ToList()
+            };
 
             return View(list);
         }

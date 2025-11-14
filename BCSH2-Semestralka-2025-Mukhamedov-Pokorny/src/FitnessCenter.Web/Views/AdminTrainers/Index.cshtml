@@ -1,15 +1,20 @@
 ﻿@model List<FitnessCenter.Web.Models.TrainerViewModel>
+
 @{
     ViewData["Title"] = "Trenéři";
     Layout = "_AppLayout";
     ViewBag.Active = "Admin";
+
+    var currentSearch = ViewBag.Search as string ?? "";
+    var currentSort = ViewBag.Sort as string ?? "";
+    var total = Model?.Count ?? 0;
 }
 
 <div class="glass p-3">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <!-- HLAVIČKA -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <div class="d-flex align-items-center gap-2">
 
-            <!-- OPRAVENÉ ZPĚT -->
             <a class="btn btn-sm btn-outline-light"
                href="@Url.Action("Admin", "Home")">
                 ← Zpět
@@ -18,9 +23,14 @@
             <h3 class="text-white mb-0">Trenéři</h3>
         </div>
 
-        <a href="@Url.Action("Promote", "AdminTrainers")" class="btn btn-sm btn-warning">
-            + Povýšit člena na trenéra
-        </a>
+        <div class="d-flex flex-column align-items-end gap-1">
+            <a href="@Url.Action("Promote", "AdminTrainers")" class="btn btn-sm btn-warning">
+                + Povýšit člena na trenéra
+            </a>
+            <small class="text-secondary">
+                Nalezeno: <span class="text-light fw-semibold">@total</span> trenérů
+            </small>
+        </div>
     </div>
 
     <hr class="border-secondary" />
@@ -34,8 +44,62 @@
         <div class="alert alert-danger">@err</div>
     }
 
+    <!-- FILTRACE / ŘAZENÍ – stejný styl jako u členů -->
+    <div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark">Filtr</span>
+                <small class="text-secondary">
+                    Vyhledej trenéra podle jména a seřaď seznam.
+                </small>
+            </div>
+        </div>
+
+        <form method="get">
+            <div class="row g-2 align-items-center">
+                <!-- Hledání -->
+                <div class="col-12 col-md-6 col-lg-5">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">
+                            🔍
+                        </span>
+                        <input type="text"
+                               name="search"
+                               value="@currentSearch"
+                               class="form-control border-0 bg-dark text-light"
+                               placeholder="Hledat podle jména (např. Jan Novák)..." />
+                    </div>
+                </div>
+
+                <!-- Řazení -->
+                <div class="col-6 col-md-3 col-lg-3">
+                    <select name="sort"
+                            class="form-select form-select-sm border-0 bg-dark text-light">
+                        <option value="">Řazení podle příjmení</option>
+                        <option value="az" @(currentSort == "az" ? "selected" : "")>A → Z</option>
+                        <option value="za" @(currentSort == "za" ? "selected" : "")>Z → A</option>
+                    </select>
+                </div>
+
+                <!-- Tlačítka -->
+                <div class="col-6 col-md-3 col-lg-4">
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            Filtrovat
+                        </button>
+                        <a href="@Url.Action("Index", "AdminTrainers")"
+                           class="btn btn-sm btn-outline-light">
+                            Reset
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- TABULKA -->
     <div class="table-responsive">
-        <table class="table table-dark table-striped align-middle">
+        <table class="table table-dark table-striped align-middle mb-0">
             <thead>
                 <tr>
                     <th>Jméno</th>
@@ -45,22 +109,33 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var t in Model)
+                @if (!Model?.Any() ?? true)
                 {
                     <tr>
-                        <td>@t.FullName</td>
-                        <td>@t.Email</td>
-                        <td>@t.Phone</td>
-                        <td class="text-end">
-                            <form action="@Url.Action("Delete", "AdminTrainers")"
-                                  method="post" class="d-inline"
-                                  onsubmit="return confirm('Opravdu zrušit roli trenéra?');">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@t.TrainerId" />
-                                <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
-                            </form>
+                        <td colspan="4" class="text-center text-secondary py-4">
+                            Žádní trenéři neodpovídají zadanému filtru.
                         </td>
                     </tr>
+                }
+                else
+                {
+                    foreach (var t in Model)
+                    {
+                        <tr>
+                            <td>@t.FullName</td>
+                            <td>@(string.IsNullOrWhiteSpace(t.Email) ? "—" : t.Email)</td>
+                            <td>@(string.IsNullOrWhiteSpace(t.Phone) ? "—" : t.Phone)</td>
+                            <td class="text-end">
+                                <form action="@Url.Action("Delete", "AdminTrainers")"
+                                      method="post" class="d-inline"
+                                      onsubmit="return confirm('Opravdu zrušit roli trenéra?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@t.TrainerId" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>

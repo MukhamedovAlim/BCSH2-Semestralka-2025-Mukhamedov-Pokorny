@@ -22,11 +22,13 @@ namespace FitnessCenter.Web.Controllers
 
         // GET /AdminTrainers
         [HttpGet("")]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? search, string? sort)
         {
-
             ViewBag.Active = "Admin";
             ViewBag.HideMainNav = true;
+
+            ViewBag.Search = search;
+            ViewBag.Sort = sort;
 
             var list = new List<TrainerViewModel>();
 
@@ -34,9 +36,9 @@ namespace FitnessCenter.Web.Controllers
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-                    SELECT idtrener, jmeno, prijmeni, email, telefon
-                      FROM TRENERI
-                     ORDER BY prijmeni, jmeno", (OracleConnection)con);
+            SELECT idtrener, jmeno, prijmeni, email, telefon
+              FROM TRENERI
+             ORDER BY prijmeni, jmeno", (OracleConnection)con);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
@@ -55,6 +57,32 @@ namespace FitnessCenter.Web.Controllers
             {
                 TempData["Err"] = "Nepodařilo se načíst trenéry: " + ex.Message;
             }
+
+            // 🔎 Filtrování podle jména (Jméno + Příjmení)
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                list = list
+                    .Where(t => ($"{t.FirstName} {t.LastName}".Trim()).ToLower().Contains(s))
+                    .ToList();
+            }
+
+            // 🔢 Řazení podle příjmení (A→Z / Z→A)
+            list = sort switch
+            {
+                "az" => list
+                    .OrderBy(t => t.LastName)
+                    .ThenBy(t => t.FirstName)
+                    .ToList(),
+                "za" => list
+                    .OrderByDescending(t => t.LastName)
+                    .ThenByDescending(t => t.FirstName)
+                    .ToList(),
+                _ => list
+                    .OrderBy(t => t.LastName)
+                    .ThenBy(t => t.FirstName)
+                    .ToList()
+            };
 
             return View(list); // /Views/AdminTrainers/Index.cshtml
         }
