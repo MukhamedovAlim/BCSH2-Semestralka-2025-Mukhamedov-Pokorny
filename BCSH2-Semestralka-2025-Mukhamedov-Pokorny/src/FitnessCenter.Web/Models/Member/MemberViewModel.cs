@@ -37,10 +37,14 @@ namespace FitnessCenter.Web.Models.Member
 
         public DateTime? MembershipFrom { get; set; }
         public DateTime? MembershipTo { get; set; }
+
         public bool HasActiveMembership =>
-            MembershipFrom.HasValue && MembershipTo.HasValue &&
+            MembershipFrom.HasValue &&
             DateTime.Today >= MembershipFrom.Value.Date &&
-            DateTime.Today <= MembershipTo.Value.Date;
+            (
+                !MembershipTo.HasValue               // otevřená permice (bez ukončení) = aktivní
+                || DateTime.Today <= MembershipTo.Value.Date
+            );
 
     }
 }

@@ -5,6 +5,14 @@
     ViewBag.Active = "AdminLessons";
 
     var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
+    var participants = ViewBag.Participants as IDictionary<int, int> ?? new Dictionary<int, int>();
+    var locations = ViewBag.Locations as IEnumerable<string> ?? Array.Empty<string>();
+
+    var currentWhen = ViewBag.When as string ?? "";
+    var currentSearch = ViewBag.Search as string ?? "";
+    var currentSort = ViewBag.Sort as string ?? "";
+    var currentLocation = ViewBag.Location as string ?? "";
+    var currentAttendeesRange = ViewBag.AttendeesRange as string ?? "";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -12,6 +20,77 @@
         <a class="btn btn-outline-light me-2" href="@Url.Action("Admin", "Home")">← Zpět</a>
         <span class="h3 text-white align-middle mb-0">Přehled lekcí</span>
     </div>
+</div>
+
+<!-- FILTRACE: hledání + čas + lokalita + účastníci + řazení -->
+<div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
+    <form method="get">
+        <div class="row g-2 align-items-center">
+
+            <!-- Hledání podle názvu lekce -->
+            <div class="col-12 col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">🔍</span>
+                    <input type="text"
+                           name="search"
+                           value="@currentSearch"
+                           class="form-control border-0 bg-dark text-light"
+                           placeholder="Hledat podle názvu lekce..." />
+                </div>
+            </div>
+
+            <!-- Minulé / Budoucí / Všechny -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select name="when" class="form-select form-select-sm border-0 bg-dark text-light">
+                    <option value="">Všechny lekce</option>
+                    <option value="future" @(currentWhen == "future" ? "selected" : null)>Jen budoucí</option>
+                    <option value="past" @(currentWhen == "past" ? "selected" : null)>Jen minulé</option>
+                </select>
+            </div>
+
+            <!-- Lokalita -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select name="location" class="form-select form-select-sm border-0 bg-dark text-light">
+                    <option value="">Všechny lokality</option>
+                    @foreach (var loc in locations)
+                    {
+                        var selected = string.Equals(loc, currentLocation, StringComparison.OrdinalIgnoreCase)
+                        ? "selected"
+                        : "";
+                        <option value="@loc" @selected>@loc</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Počet účastníků -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select name="attendeesRange" class="form-select form-select-sm border-0 bg-dark text-light">
+                    <option value="">Jakýkoliv počet</option>
+                    <option value="0" @(currentAttendeesRange == "0" ? "selected" : null)>0 účastníků</option>
+                    <option value="1-5" @(currentAttendeesRange == "1-5" ? "selected" : null)>1–5</option>
+                    <option value="6-10" @(currentAttendeesRange == "6-10" ? "selected" : null)>6–10</option>
+                    <option value="11plus" @(currentAttendeesRange == "11plus" ? "selected" : null)>11+</option>
+                </select>
+            </div>
+
+            <!-- Řazení -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select name="sort" class="form-select form-select-sm border-0 bg-dark text-light">
+                    <option value="">Řazení podle data</option>
+                    <option value="newest" @(currentSort == "newest" ? "selected" : null)>Nejnovější nahoře</option>
+                    <option value="oldest" @(currentSort == "oldest" ? "selected" : null)>Nejstarší nahoře</option>
+                </select>
+            </div>
+
+            <!-- Tlačítka -->
+            <div class="col-12 col-md-3 col-lg-2 d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-sm btn-warning w-100 w-md-auto">Filtrovat</button>
+                <a href="@Url.Action("Index", "AdminLessons")"
+                   class="btn btn-sm btn-outline-light w-100 w-md-auto">Reset</a>
+            </div>
+
+        </div>
+    </form>
 </div>
 
 @if (Model == null || Model.Count == 0)
@@ -29,17 +108,23 @@ else
                     <th>Místo</th>
                     <th>Trenér</th>
                     <th>Kapacita</th>
+                    <th>Obsazeno</th>
                     <th class="text-end" style="width:1%; white-space:nowrap;">Akce</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var l in Model)
                 {
+                    // Parsování názvu/místa
                     var raw = l.Nazev ?? "";
                     string nazev = raw, misto = "";
 
                     var atIdx = raw.LastIndexOf('@');
-                    if (atIdx >= 0) { nazev = raw[..atIdx].Trim(); misto = raw[(atIdx + 1)..].Trim(); }
+                    if (atIdx >= 0)
+                    {
+                        nazev = raw[..atIdx].Trim();
+                        misto = raw[(atIdx + 1)..].Trim();
+                    }
 
                     if (string.IsNullOrEmpty(misto))
                     {
@@ -52,16 +137,23 @@ else
                         }
                     }
 
+                    participants.TryGetValue(l.Id, out var count);
+
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                         <td class="text-white">@nazev</td>
                         <td>@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
                         <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td>
                         <td>@l.Kapacita</td>
+                        <td>@count</td>
+
                         <td class="text-end" style="white-space:nowrap;">
                             <a class="btn btn-sm btn-secondary me-2"
                                href="@Url.Action("Details", "AdminLessons", new { id = l.Id })">Detail</a>
-                            <form method="post" action="@Url.Action("Cancel", "AdminLessons", new { id = l.Id })" class="d-inline"
+
+                            <form method="post"
+                                  action="@Url.Action("Cancel", "AdminLessons", new { id = l.Id })"
+                                  class="d-inline"
                                   onsubmit="return confirm('Opravdu zrušit tuto lekci?');">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-danger">Zrušit lekci</button>

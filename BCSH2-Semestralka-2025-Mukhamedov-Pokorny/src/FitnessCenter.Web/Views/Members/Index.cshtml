@@ -1,4 +1,5 @@
 ﻿@using FitnessCenter.Web.Models.Member
+@using Microsoft.AspNetCore.Mvc.Rendering
 @model IEnumerable<MemberViewModel>
 
 @{
@@ -8,10 +9,16 @@
 
     var currentSearch = ViewBag.Search as string ?? "";
     var currentSort = ViewBag.Sort as string ?? "";
+    var currentMembership = ViewBag.Membership as string ?? "";
+    int currentFitnessId = ViewBag.FitnessId != null ? (int)ViewBag.FitnessId : 0;
+
+    var fitnessCenters = ViewBag.FitnessCenters as List<SelectListItem>;
+
     var total = Model?.Count() ?? 0;
 }
 
 <div class="glass p-3">
+
     <!-- HLAVIČKA -->
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <div class="d-flex align-items-center flex-wrap gap-2">
@@ -44,21 +51,14 @@
         <div class="alert alert-danger">@err</div>
     }
 
-    <!-- FILTRACE / ŘAZENÍ -->
+    <!-- FILTRACE -->
     <div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-warning text-dark">Filtr</span>
-                <small class="text-secondary">
-                    Vyhledej člena podle jména a seřaď podle příjmení.
-                </small>
-            </div>
-        </div>
 
         <form method="get">
             <div class="row g-2 align-items-center">
+
                 <!-- Hledání -->
-                <div class="col-12 col-md-6 col-lg-5">
+                <div class="col-12 col-md-4">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">🔍</span>
                         <input type="text"
@@ -70,7 +70,7 @@
                 </div>
 
                 <!-- Řazení -->
-                <div class="col-6 col-md-3 col-lg-3">
+                <div class="col-6 col-md-2">
                     <select name="sort" class="form-select form-select-sm border-0 bg-dark text-light">
                         <option value="">Řazení podle příjmení</option>
                         <option value="az" @(currentSort == "az" ? "selected" : null)>A → Z</option>
@@ -78,13 +78,38 @@
                     </select>
                 </div>
 
+                <!-- Filtr permice -->
+                <div class="col-6 col-md-2">
+                    <select name="membership" class="form-select form-select-sm border-0 bg-dark text-light">
+                        <option value="">Všechna členství</option>
+                        <option value="active" @(currentMembership == "active" ? "selected" : null)>Jen aktivní</option>
+                        <option value="inactive" @(currentMembership == "inactive" ? "selected" : null)>Jen neaktivní</option>
+                    </select>
+                </div>
+
+                <!-- Filtr fitka -->
+                <div class="col-6 col-md-2">
+                    <select name="fitnessId" class="form-select form-select-sm border-0 bg-dark text-light">
+                        <option value="0">Všechna fitka</option>
+                        @if (fitnessCenters != null)
+                        {
+                            foreach (var fc in fitnessCenters)
+                            {
+                                var selected = fc.Value == currentFitnessId.ToString() ? "selected" : "";
+                                <option value="@fc.Value" @selected>@fc.Text</option>
+                            }
+                        }
+                    </select>
+                </div>
+
                 <!-- Tlačítka -->
-                <div class="col-6 col-md-3 col-lg-4">
-                    <div class="d-flex justify-content-end gap-2 flex-wrap">
-                        <button type="submit" class="btn btn-sm btn-warning">Filtrovat</button>
-                        <a href="@Url.Action("Index", "Members")" class="btn btn-sm btn-outline-light">Reset</a>
+                <div class="col-12 col-md-2">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-warning w-100 w-md-auto">Filtrovat</button>
+                        <a href="@Url.Action("Index", "Members")" class="btn btn-sm btn-outline-light w-100 w-md-auto">Reset</a>
                     </div>
                 </div>
+
             </div>
         </form>
     </div>
@@ -107,7 +132,7 @@
                 @if (!Model?.Any() ?? true)
                 {
                     <tr>
-                        <td colspan="6" class="text-center text-secondary py-4">
+                        <td colspan="7" class="text-center text-secondary py-4">
                             Žádní členové neodpovídají zadanému filtru.
                         </td>
                     </tr>
@@ -124,30 +149,36 @@
                                     <span class="badge bg-info ms-2">Trenér</span>
                                 }
                             </td>
+
                             <td>@(string.IsNullOrWhiteSpace(m.Email) ? "—" : m.Email)</td>
                             <td>@(string.IsNullOrWhiteSpace(m.Phone) ? "—" : m.Phone)</td>
                             <td>@(m.BirthDate?.ToString("dd.MM.yyyy") ?? "—")</td>
                             <td>@(string.IsNullOrWhiteSpace(m.FitnessName) ? "—" : m.FitnessName)</td>
 
-                            <!-- NOVÝ sloupec: Členství -->
+                            <!-- Členství -->
                             <td>
-                                @if (m.MembershipFrom.HasValue && m.MembershipTo.HasValue)
+                                @if (m.MembershipFrom.HasValue)
                                 {
                                     if (m.HasActiveMembership)
                                     {
                                         <span class="badge bg-success me-1">Aktivní</span>
                                         <small class="text-white-50">
                                             @m.MembershipFrom.Value.ToString("dd.MM.yyyy")
-                                            – @m.MembershipTo.Value.ToString("dd.MM.yyyy")
-                                        </small>
-                                    }
+                                            –
+                                            @(m.MembershipTo.HasValue
+                                                                        ? m.MembershipTo.Value.ToString("dd.MM.yyyy")
+                                                                        : "do odvolání")
+                        </small>
+                                                }
                                     else
                                     {
                                         <span class="badge bg-secondary me-1">Neaktivní</span>
                                         <small class="text-white-50">
-                                            platnost do @m.MembershipTo.Value.ToString("dd.MM.yyyy")
-                                        </small>
-                                    }
+                                            @(m.MembershipTo.HasValue
+                                                                        ? "platnost do " + m.MembershipTo.Value.ToString("dd.MM.yyyy")
+                                                                        : "bez platného členství")
+                        </small>
+                                                }
                                 }
                                 else
                                 {
@@ -155,8 +186,10 @@
                                 }
                             </td>
 
+                            <!-- Akce -->
                             <td class="text-end">
-                                <!-- Emulace uživatele -->
+
+                                <!-- Emulace -->
                                 <form action="@Url.Action("Start", "AdminImpersonation")"
                                       method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
@@ -177,6 +210,7 @@
                                         Smazat
                                     </button>
                                 </form>
+
                             </td>
                         </tr>
                     }
