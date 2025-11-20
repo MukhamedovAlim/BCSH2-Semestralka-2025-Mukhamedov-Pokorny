@@ -13,21 +13,25 @@
     var currentSort = ViewBag.Sort as string ?? "";
     var currentLocation = ViewBag.Location as string ?? "";
     var currentAttendeesRange = ViewBag.AttendeesRange as string ?? "";
+
+    var totalCount = Model?.Count ?? 0;
+    var now = DateTime.Now;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Admin", "Home")">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Přehled lekcí</span>
+        <span class="h3 text-white align-middle mb-0">
+            Přehled lekcí (@totalCount)
+        </span>
     </div>
 </div>
 
-<!-- FILTRACE: hledání + čas + lokalita + účastníci + řazení -->
+<!-- FILTRACE -->
 <div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
     <form method="get">
         <div class="row g-2 align-items-center">
 
-            <!-- Hledání podle názvu lekce -->
             <div class="col-12 col-md-4">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">🔍</span>
@@ -39,7 +43,6 @@
                 </div>
             </div>
 
-            <!-- Minulé / Budoucí / Všechny -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select name="when" class="form-select form-select-sm border-0 bg-dark text-light">
                     <option value="">Všechny lekce</option>
@@ -48,7 +51,6 @@
                 </select>
             </div>
 
-            <!-- Lokalita -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select name="location" class="form-select form-select-sm border-0 bg-dark text-light">
                     <option value="">Všechny lokality</option>
@@ -62,7 +64,6 @@
                 </select>
             </div>
 
-            <!-- Počet účastníků -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select name="attendeesRange" class="form-select form-select-sm border-0 bg-dark text-light">
                     <option value="">Jakýkoliv počet</option>
@@ -73,7 +74,6 @@
                 </select>
             </div>
 
-            <!-- Řazení -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select name="sort" class="form-select form-select-sm border-0 bg-dark text-light">
                     <option value="">Řazení podle data</option>
@@ -82,7 +82,6 @@
                 </select>
             </div>
 
-            <!-- Tlačítka -->
             <div class="col-12 col-md-3 col-lg-2 d-flex justify-content-end gap-2">
                 <button type="submit" class="btn btn-sm btn-warning w-100 w-md-auto">Filtrovat</button>
                 <a href="@Url.Action("Index", "AdminLessons")"
@@ -139,15 +138,18 @@ else
 
                     participants.TryGetValue(l.Id, out var count);
 
-                    <tr>
-                        <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
-                        <td class="text-white">@nazev</td>
-                        <td>@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
-                        <td>@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td>
-                        <td>@l.Kapacita</td>
-                        <td>@count</td>
+                    // pokud je v minulosti, přidáme bootstrap třídy
+                    var rowClass = l.Zacatek < now ? "bg-danger bg-opacity-25" : "";
 
-                        <td class="text-end" style="white-space:nowrap;">
+                    <tr>
+                        <td class="@rowClass">@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-white @rowClass">@nazev</td>
+                        <td class="@rowClass">@(string.IsNullOrWhiteSpace(misto) ? "neuvedeno" : misto)</td>
+                        <td class="@rowClass">@(trainers.TryGetValue(l.Id, out var tn) ? tn : "-")</td>
+                        <td class="@rowClass">@l.Kapacita</td>
+                        <td class="@rowClass">@count</td>
+
+                        <td class="text-end @rowClass" style="white-space:nowrap;">
                             <a class="btn btn-sm btn-secondary me-2"
                                href="@Url.Action("Details", "AdminLessons", new { id = l.Id })">Detail</a>
 

@@ -29,6 +29,7 @@ namespace FitnessCenter.Web.Controllers
                 items.Add(new SelectListItem { Value = rd.GetInt32(0).ToString(), Text = rd.GetString(1) });
             return items;
         }
+
         private async Task FillFitnessViewBagAsync()
         {
             var list = await LoadFitnessCentersAsync();
@@ -192,8 +193,6 @@ namespace FitnessCenter.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
-
         // DELETE
         [Authorize(Roles = "Admin")]
         [HttpPost("Delete")]
@@ -215,6 +214,17 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Err"] = $"DB chyba {ox.Number}: {ox.Message}";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        // ============================
+        //  HIERARCHIE – JEN PRO ADMINA
+        // ============================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("Hierarchy")]
+        public async Task<IActionResult> Hierarchy()
+        {
+            var rows = await _repo.GetEquipmentHierarchyAsync();
+            return View(rows);
         }
     }
 }

@@ -60,11 +60,15 @@
             <button class="btn btn-sm btn-outline-light" type="submit">Filtrovat</button>
         </form>
 
-        <!-- Přidat vybavení – pouze Admin -->
+        <!-- Admin tlačítka – pouze Admin -->
         @if (User.IsInRole("Admin"))
         {
             <a href="@Url.Action("Create", "Equipment")" class="btn btn-sm btn-warning">
                 + Přidat vybavení
+            </a>
+
+            <a href="@Url.Action("Hierarchy", "Equipment")" class="btn btn-sm btn-outline-info">
+                Strom vybavení
             </a>
         }
     </div>

@@ -153,8 +153,6 @@ namespace FitnessCenter.Web.Controllers
         // ===== Admin dashboard – statistiky + 3 funkce =====
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null, int? memberId = null)
-
-
         {
             ViewBag.Active = "Admin";
             ViewBag.Today = DateTime.Today;
@@ -172,7 +170,7 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.MemberId = memberId; // zapamatujeme si, co bylo zvoleno
 
 
-            int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
+            int members = 0, trainers = 0, lessonsCount = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
             try
             {
@@ -188,19 +186,19 @@ namespace FitnessCenter.Web.Controllers
                 var sqlLessons = @"
 SELECT COUNT(*)
 FROM   LEKCE l
-WHERE  l.DATUMLEKCE >= TRUNC(SYSDATE)
-AND   (:p_fitko IS NULL OR EXISTS (
-         SELECT 1F
-           FROM TRENERI t
-           JOIN CLENOVE c ON LOWER(c.EMAIL) = LOWER(t.EMAIL)
-          WHERE t.IDTRENER = l.TRENER_IDTRENER
-            AND c.FITNESSCENTRUM_IDFITNESS = :p_fitko
+WHERE  (:p_fitko IS NULL OR EXISTS (
+           SELECT 1
+             FROM TRENERI t
+             JOIN CLENOVE c ON LOWER(c.EMAIL) = LOWER(t.EMAIL)
+            WHERE t.IDTRENER = l.TRENER_IDTRENER
+              AND c.FITNESSCENTRUM_IDFITNESS = :p_fitko
        ))";
+
                 using (var cmd = new OracleCommand(sqlLessons, oc) { BindByName = true })
                 {
                     cmd.Parameters.Add("p_fitko", OracleDbType.Int32).Value =
                         fitko.HasValue ? (object)fitko.Value : DBNull.Value;
-                    lessonsToday = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    lessonsCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                 }
 
                 using (var cmd = new OracleCommand(
@@ -220,7 +218,7 @@ AND   (:p_fitko IS NULL OR EXISTS (
 
             ViewBag.MembersCount = members;
             ViewBag.TrainersCount = trainers;
-            ViewBag.LessonsToday = lessonsToday;
+            ViewBag.LessonsToday = lessonsCount; // teď obsahuje VŠECHNY lekce
             ViewBag.PendingPayments = pendingPayments;
             ViewBag.AdminMessagesCnt = 0;
             ViewBag.LogCount = logCount;

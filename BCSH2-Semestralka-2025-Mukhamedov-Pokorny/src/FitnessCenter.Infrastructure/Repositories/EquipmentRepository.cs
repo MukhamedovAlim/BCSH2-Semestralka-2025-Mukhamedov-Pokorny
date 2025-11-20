@@ -31,6 +31,16 @@ namespace FitnessCenter.Infrastructure.Repositories
         public int FitkoId { get; set; }
     }
 
+    public sealed class EquipmentHierarchyRow
+    {
+        public int Depth { get; set; }
+        public string NodeType { get; set; } = default!;
+        public string Label { get; set; } = default!;
+        public int? FitnessId { get; set; }
+        public int? EquipmentId { get; set; }
+    }
+
+
     public sealed class EquipmentRepository
     {
         private static async Task<OracleConnection> OpenAsync()
@@ -278,6 +288,41 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                 tx.Rollback();
                 throw;
             }
+        }
+
+        public async Task<List<EquipmentHierarchyRow>> GetEquipmentHierarchyAsync()
+        {
+            const string sql = @"
+        SELECT LEVEL       AS depth,
+               node_type,
+               label,
+               idfitness,
+               idvybaveni
+        FROM V_FITKO_VYBAVENI_HIER
+        START WITH parent_id IS NULL
+        CONNECT BY PRIOR node_id = parent_id
+        ORDER SIBLINGS BY label";
+
+            var result = new List<EquipmentHierarchyRow>();
+
+            // stejné otevření jako v ostatních metodách
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new EquipmentHierarchyRow
+                {
+                    Depth = reader.GetInt32(0),
+                    NodeType = reader.GetString(1),
+                    Label = reader.GetString(2),
+                    FitnessId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                    EquipmentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4)
+                });
+            }
+
+            return result;
         }
     }
 }
