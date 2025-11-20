@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using FitnessCenter.Web.Models;
+﻿using System.Threading;
 using FitnessCenter.Infrastructure.Repositories;
 using FitnessCenter.Web.Infrastructure.Security;
+using FitnessCenter.Web.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -10,8 +11,13 @@ namespace FitnessCenter.Web.Controllers
     [Authorize(Roles = "Member")]
     public class PaymentsController : Controller
     {
-        private readonly PaymentsReadRepo _repo;
-        public PaymentsController(PaymentsReadRepo repo) => _repo = repo;
+        private readonly PaymentsReadRepo _read;
+        private readonly PaymentsWriteRepo _write;
+        public PaymentsController(PaymentsReadRepo read, PaymentsWriteRepo write)
+        {
+            _read = read;
+            _write = write;
+        }
 
         // Přehled plateb + stav členství
         public async Task<IActionResult> Index()
@@ -21,10 +27,10 @@ namespace FitnessCenter.Web.Controllers
             // ID aktuálního (nebo emulovaného) člena
             int memberId = User.GetRequiredCurrentMemberId();
 
-            var ms = await _repo.GetMembershipAsync(memberId);
+            var ms = await _read.GetMembershipAsync(memberId);
             ViewBag.ClenstviStav = ms.Active ? "Aktivní" : "Neaktivní";
 
-            var rows = await _repo.GetPaymentsAsync(memberId);
+            var rows = await _read.GetPaymentsAsync(memberId);
 
             var vm = rows.Select(p => new PaymentViewModel
             {
@@ -50,24 +56,41 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // Zpracování nákupu – ideálně podle memberId
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Buy(string typ, decimal cena)
         {
-            // zase ID aktuálního člena (ne e-mail)
             int memberId = User.GetRequiredCurrentMemberId();
+
+            if (string.IsNullOrWhiteSpace(typ) || cena <= 0)
+            {
+                TempData["Error"] = "Neplatná data pro nákup.";
+                return RedirectToAction(nameof(Buy));
+            }
 
             try
             {
-                TempData["Ok"] = $"Platba za {typ} proběhla úspěšně.";
+                var newPaymentId = await _write.CreatePaymentAsync(
+                    memberId: memberId,
+                    amount: cena,
+                    stavNazev: "Vyřizuje se",
+                    datum: DateTime.Now
+                );
+
+                TempData["Ok"] = $"Platba za {typ} byla založena (ID: {newPaymentId}) a čeká na schválení.";
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 TempData["Error"] = "Nákup selhal: " + ex.Message;
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Nákup selhal z neočekávaného důvodu.";
             }
 
             return RedirectToAction(nameof(Index));
         }
+
+
     }
 }

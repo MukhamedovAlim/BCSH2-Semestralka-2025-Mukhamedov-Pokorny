@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BCSH2-Semestralka-2025-Mukhamedov-Pokorny", "BCSH2-Semestralka-2025-Mukhamedov-Pokorny\BCSH2-Semestralka-2025-Mukhamedov-Pokorny.csproj", "{C0456248-6DE4-4E83-A668-5CB69B0CD6CD}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCenter.Web", "BCSH2-Semestralka-2025-Mukhamedov-Pokorny\src\FitnessCenter.Web\FitnessCenter.Web.csproj", "{10D36DA6-3161-4C09-2127-517A39ECC27D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCenter.Application", "BCSH2-Semestralka-2025-Mukhamedov-Pokorny\src\FitnessCenter.Application\FitnessCenter.Application.csproj", "{AAD68984-5F2A-95D8-5444-CD2873059D1C}"
@@ -19,10 +17,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C0456248-6DE4-4E83-A668-5CB69B0CD6CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C0456248-6DE4-4E83-A668-5CB69B0CD6CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C0456248-6DE4-4E83-A668-5CB69B0CD6CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C0456248-6DE4-4E83-A668-5CB69B0CD6CD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{10D36DA6-3161-4C09-2127-517A39ECC27D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{10D36DA6-3161-4C09-2127-517A39ECC27D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{10D36DA6-3161-4C09-2127-517A39ECC27D}.Release|Any CPU.ActiveCfg = Release|Any CPU

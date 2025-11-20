@@ -1,0 +1,99 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model List<FitnessCenter.Web.Models.AdminPaymentViewModel>
+@{
+    ViewData["Title"] = "Správa plateb";
+    Layout = "_AppLayout";
+    ViewBag.Active = "AdminPayments";
+}
+
+
+<div class="glass p-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <a class="btn btn-sm btn-outline-light"
+               href="@Url.Action("Admin", "Home")"
+               onclick="if (history.length > 1) { history.back(); return false; }">
+                ← Zpět
+            </a>
+            <h3 class="text-white mb-0">Platby ke schválení</h3>
+        </div>
+    </div>
+
+    <hr class="border-secondary" />
+
+    @if (TempData["Ok"] is string ok)
+    {
+        <div class="alert alert-success">@ok</div>
+    }
+    @if (TempData["Err"] is string err)
+    {
+        <div class="alert alert-danger">@err</div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="text-white-50">Není zde žádná platba ve stavu „Vyřizuje se“.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Člen</th>
+                        <th>E-mail</th>
+                        <th>Datum</th>
+                        <th>Částka</th>
+                        <th>Stav</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr>
+                            <td>@p.IdPlatba</td>
+                            <td>@p.MemberName (@p.MemberId)</td>
+                            <td>@p.Email</td>
+                            <td>@p.Datum.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@p.Castka.ToString("0.## Kč")</td>
+                            <td>@p.Stav</td>
+
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <!-- Schválit -->
+                                    <form asp-controller="AdminPayments"
+                                          asp-action="Approve"
+                                          asp-route-id="@p.IdPlatba"
+                                          method="post"
+                                          class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            Schválit
+                                        </button>
+                                    </form>
+
+                                    <!-- Zamítnout -->
+                                    <form asp-controller="AdminPayments"
+                                          asp-action="Reject"
+                                          asp-route-id="@p.IdPlatba"
+                                          method="post"
+                                          class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Opravdu zamítnout tuto platbu?');">
+                                            Zamítnout
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+

@@ -30,6 +30,7 @@ builder.Services.AddScoped<AdminStatsRepository>();
 builder.Services.AddScoped<OracleLessonsRepository>();
 builder.Services.AddScoped<EquipmentRepository>();
 builder.Services.AddScoped<PaymentsReadRepo>();
+builder.Services.AddScoped<PaymentsWriteRepo>();
 builder.Services.AddScoped<LessonsService>();
 builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 
@@ -106,10 +107,16 @@ app.MapControllerRoute(
     pattern: "Members/{action=Index}/{id?}",
     defaults: new { controller = "Members" });
 
-// (až potom) default
+// AdminPayments – explicitní route
 app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Account}/{action=Login}/{id?}");
+    name: "admin_payments",
+    pattern: "AdminPayments/{action=Index}/{id?}",
+    defaults: new { controller = "AdminPayments", action = "Index" });
+
+// Globální MVC route – povolí všechny kontrolery
+app.MapControllerRoute(
+    name: "mvc",
+    pattern: "{controller}/{action=Index}/{id?}");
 
 // Default – nejdřív login
 app.MapControllerRoute(

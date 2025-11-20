@@ -50,7 +50,7 @@ namespace FitnessCenter.Infrastructure.Repositories
             {
                 list.Add(new PaymentRow(
                     rd.GetDateTime(0),
-                    rd.GetString(1),
+                    rd.IsDBNull(1) ? "" : rd.GetString(1),
                     rd.GetDecimal(2),
                     rd.GetString(3)
                 ));
@@ -90,53 +90,33 @@ namespace FitnessCenter.Infrastructure.Repositories
             return new MembershipStatus(false, null, null, null, 0);
         }
 
-        // 4️⃣ Volání PL/SQL procedury pro nákup členství
-        public async Task<(int IdClenstvi, int IdPlatba)> PurchaseMembershipAsync(string email, string typNazev, decimal cena)
-        {
-            using var con = await OpenAsync();
-            using var tx = con.BeginTransaction();
-            using var cmd = new OracleCommand("prodej_clenstvi_existujicimu", con)
-            {
-                CommandType = CommandType.StoredProcedure,
-                BindByName = true,
-                Transaction = tx
-            };
-
-            cmd.Parameters.Add("p_email", email);
-            cmd.Parameters.Add("p_typ_nazev", typNazev);
-            cmd.Parameters.Add("p_castka", cena);
-            cmd.Parameters.Add("p_idclenstvi_out", OracleDbType.Int32, ParameterDirection.Output);
-            cmd.Parameters.Add("p_idplatba_out", OracleDbType.Int32, ParameterDirection.Output);
-
-            await cmd.ExecuteNonQueryAsync();
-            tx.Commit();
-
-            int idClenstvi = Convert.ToInt32(cmd.Parameters["p_idclenstvi_out"].Value.ToString());
-            int idPlatba = Convert.ToInt32(cmd.Parameters["p_idplatba_out"].Value.ToString());
-            return (idClenstvi, idPlatba);
-        }
-
-        // 5️⃣ 🆕 Detail konkrétní platby (pro stránku Success)
-        public sealed record PaymentDetailRow(int IdPlatby, DateTime Datum, string Popis, decimal Castka, string Stav, string? Reference);
+        // 4️⃣ Detail konkrétní platby (pro stránku Success)
+        public sealed record PaymentDetailRow(
+            int IdPlatby,
+            DateTime Datum,
+            string Popis,
+            decimal Castka,
+            string Stav,
+            string? Reference
+        );
 
         public async Task<PaymentDetailRow?> GetPaymentByIdAsync(int idPlatby, string email)
         {
             const string sql = @"
-                SELECT p.idplatby,
-                       p.datumplatby,
-                       p.popis,
-                       p.castka,
-                       s.stavplatby,
-                       NULL AS reference
-                  FROM platby p
-                  JOIN stavyplateb s ON s.idstavplatby = p.stavplatby_idstavplatby
-                 WHERE p.idplatby = :id
-                   AND EXISTS (
-                         SELECT 1
-                           FROM clenove c
-                          WHERE c.idclen = p.clen_idclena
-                            AND LOWER(c.email) = LOWER(:email)
-                     )";
+        SELECT p.idplatby,
+               p.datumplatby,
+               p.castka,
+               s.stavplatby,
+               NULL AS reference
+          FROM platby p
+          JOIN stavyplateb s ON s.idstavplatby = p.stavplatby_idstavplatby
+         WHERE p.idplatba = :id
+           AND EXISTS (
+                 SELECT 1
+                   FROM clenove c
+                  WHERE c.idclen = p.clen_idclen
+                    AND LOWER(c.email) = LOWER(:email)
+               )";
 
             using var con = await OpenAsync();
             using var cmd = new OracleCommand(sql, con) { BindByName = true };
@@ -147,15 +127,68 @@ namespace FitnessCenter.Infrastructure.Repositories
             if (await rd.ReadAsync())
             {
                 return new PaymentDetailRow(
-                    rd.GetInt32(0),
-                    rd.GetDateTime(1),
-                    rd.IsDBNull(2) ? "" : rd.GetString(2),
-                    rd.GetDecimal(3),
-                    rd.GetString(4),
-                    rd.IsDBNull(5) ? null : rd.GetString(5)
+                    IdPlatby: rd.GetInt32(0),
+                    Datum: rd.GetDateTime(1),
+                    Popis: "", // žádný popis z PLATBY, DB ho nemá
+                    Castka: rd.GetDecimal(2),
+                    Stav: rd.GetString(3),
+                    Reference: rd.IsDBNull(4) ? null : rd.GetString(4)
                 );
             }
             return null;
         }
+
+
+        // 5️⃣ Admin – platby ve stavu „Vyřizuje se“
+        public sealed record AdminPaymentRow(
+    int IdPlatba,
+    int MemberId,
+    string MemberName,
+    string Email,
+    DateTime Datum,
+    decimal Castka,
+    string Stav
+);
+
+
+        public async Task<List<AdminPaymentRow>> GetPendingPaymentsAsync()
+        {
+            const string sql = @"
+        SELECT
+            p.idplatba,
+            c.idclen,
+            c.jmeno || ' ' || c.prijmeni AS member_name,
+            c.email,
+            p.datumplatby,
+            p.castka,
+            s.stavplatby
+        FROM platby p
+        JOIN clenove c
+          ON c.idclen = p.clen_idclen
+        JOIN stavyplateb s
+          ON s.idstavplatby = p.stavplatby_idstavplatby
+        WHERE UPPER(s.stavplatby) = 'VYŘIZUJE SE'
+        ORDER BY p.datumplatby DESC";
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+
+            var list = new List<AdminPaymentRow>();
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                list.Add(new AdminPaymentRow(
+                    IdPlatba: rd.GetInt32(0),
+                    MemberId: rd.GetInt32(1),
+                    MemberName: rd.GetString(2),
+                    Email: rd.GetString(3),
+                    Datum: rd.GetDateTime(4),
+                    Castka: rd.GetDecimal(5),
+                    Stav: rd.GetString(6)
+                ));
+            }
+            return list;
+        }
+
     }
 }
