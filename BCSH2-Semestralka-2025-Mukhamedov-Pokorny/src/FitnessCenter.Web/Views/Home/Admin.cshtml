@@ -17,12 +17,17 @@
 
     int activeMembersFunc = ViewBag.ActiveMembersFunc is int amf ? amf : 0;
     decimal incomeFunc = ViewBag.IncomeFunc is decimal inc ? inc : 0m;
-    string lessonFuncText = ViewBag.LessonFuncText as string ?? "—";
+    string memberFuncText = ViewBag.MemberFuncText as string ?? "—";
 
-    // stejné jako jinde – vyber fitka přes SelectListItem
-    var fitness = ViewBag.FitnessCenters as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
-                  ?? ViewBag.Fitka as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
-                  ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+    var fitness = ViewBag.FitnessCenters as IEnumerable<SelectListItem>
+                  ?? ViewBag.Fitka as IEnumerable<SelectListItem>
+                  ?? Enumerable.Empty<SelectListItem>();
+
+    var members = ViewBag.MembersInFitness as IEnumerable<SelectListItem>
+                  ?? Enumerable.Empty<SelectListItem>();
+
+    int selectedMemberId = ViewBag.MemberId is int mid ? mid : 0;
+
 }
 
 <!-- Úvodní panel -->
@@ -137,7 +142,7 @@
 <!-- ===== Boxy napojené na DB FUNKCE ===== -->
 <div class="glass p-3 mt-4">
     <div class="d-flex align-items-center justify-content-between flex-wrap">
-        <h4 class="text-white mb-0">Funkční přehled (DB funkce)</h4>
+        <h4 class="text-white mb-0">Funkční přehled</h4>
     </div>
 
     <!-- Filtr (fitko + období) -->
@@ -153,18 +158,32 @@
                     }
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+
+            <div class="col-12 col-md-3">
+                <label class="form-label text-white">Člen (pro hodnocení)</label>
+                <select name="memberId" class="form-select">
+                    <option value="">— nevybrán —</option>
+                    @foreach (var m in members)
+                    {
+                        var sel = (selectedMemberId != 0 && selectedMemberId.ToString() == m.Value) ? "selected" : null;
+                        <option value="@m.Value" @sel>@m.Text</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
                 <label class="form-label text-white">Od</label>
                 <input type="date" name="od" class="form-control" value="@periodFrom.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label text-white">Do</label>
                 <input type="date" name="do" class="form-control" value="@periodTo.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <button class="btn btn-warning w-100" type="submit">Použít</button>
             </div>
         </form>
+
     </div>
 
     <!-- Výstupy funkcí -->
@@ -186,8 +205,8 @@
 
         <div class="col-12 col-md-4">
             <div class="glass p-3 h-100">
-                <div class="text-white-50 small">Statistika nejbližší lekce</div>
-                <div class="text-white">@lessonFuncText</div>
+                <div class="text-white-50 small">Hodnocení člena</div>
+                <div class="text-white">@memberFuncText</div>
             </div>
         </div>
     </div>

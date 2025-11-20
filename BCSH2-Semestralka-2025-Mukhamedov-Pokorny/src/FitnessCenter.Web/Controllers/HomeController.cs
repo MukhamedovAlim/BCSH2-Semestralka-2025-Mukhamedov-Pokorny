@@ -110,6 +110,35 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
+        private static async Task<List<SelectListItem>> LoadMembersInFitnessAsync(int fitkoId)
+        {
+            var items = new List<SelectListItem>();
+
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(
+                @"SELECT idclen, jmeno, prijmeni
+            FROM clenove
+           WHERE fitnesscentrum_idfitness = :fid
+        ORDER BY prijmeni, jmeno", con)
+            { BindByName = true };
+
+            cmd.Parameters.Add("fid", OracleDbType.Int32).Value = fitkoId;
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                var id = rd.GetInt32(0);
+                var fullName = $"{rd.GetString(2)} {rd.GetString(1)}"; // Přijmení Jméno
+                items.Add(new SelectListItem
+                {
+                    Value = id.ToString(),
+                    Text = fullName
+                });
+            }
+
+            return items;
+        }
+
         private static async Task<List<SelectListItem>> LoadFitnessCentersAsync()
         {
             var items = new List<SelectListItem>();
@@ -123,7 +152,9 @@ namespace FitnessCenter.Web.Controllers
 
         // ===== Admin dashboard – statistiky + 3 funkce =====
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null)
+        public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null, int? memberId = null)
+
+
         {
             ViewBag.Active = "Admin";
             ViewBag.Today = DateTime.Today;
@@ -135,6 +166,11 @@ namespace FitnessCenter.Web.Controllers
             int fitkoId = fitko.GetValueOrDefault(1);
             var from = od ?? DateTime.Today.AddDays(-30);
             var to = @do ?? DateTime.Today;
+
+            // seznam členů pro vybrané fitko (pro dropdown)
+            ViewBag.MembersInFitness = await LoadMembersInFitnessAsync(fitkoId);
+            ViewBag.MemberId = memberId; // zapamatujeme si, co bylo zvoleno
+
 
             int members = 0, trainers = 0, lessonsToday = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
@@ -149,13 +185,12 @@ namespace FitnessCenter.Web.Controllers
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM TRENERI", oc))
                     trainers = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-                // ✅ OPRAVA: počítej lekce od dneška včetně (a volitelně podle fitka)
                 var sqlLessons = @"
 SELECT COUNT(*)
 FROM   LEKCE l
 WHERE  l.DATUMLEKCE >= TRUNC(SYSDATE)
 AND   (:p_fitko IS NULL OR EXISTS (
-         SELECT 1
+         SELECT 1F
            FROM TRENERI t
            JOIN CLENOVE c ON LOWER(c.EMAIL) = LOWER(t.EMAIL)
           WHERE t.IDTRENER = l.TRENER_IDTRENER
@@ -194,18 +229,32 @@ AND   (:p_fitko IS NULL OR EXISTS (
             // 3 FUNKCE
             try
             {
+                // 1) aktivní členové ve fitku
                 ViewBag.ActiveMembersFunc = await _stats.GetActiveMembersAsync(fitkoId);
+
+                // 2) příjem za období
                 ViewBag.IncomeFunc = await _stats.GetIncomeAsync(from, to);
 
-                var lessonId = await _stats.GetLatestUpcomingLessonIdAsync();
-                ViewBag.LessonFuncText = lessonId is int lid
-                    ? await _stats.GetLessonStatAsync(lid)
-                    : "Žádná nadcházející lekce nenalezena.";
+                // 3) hodnocení člena
+                int? effectiveMemberId = memberId;
+
+                // fallback: když není vybrán konkrétní člen, můžeš nechat prázdno
+                if (effectiveMemberId.HasValue)
+                {
+                    ViewBag.MemberFuncText = await _stats.GetMemberRatingAsync(effectiveMemberId.Value);
+                }
+                else
+                {
+                    ViewBag.MemberFuncText = "Vyberte člena ve filtru výše.";
+                }
+
+                ViewBag.MemberId = effectiveMemberId; // aby se dropdown předvyplnil
             }
             catch (Exception ex)
             {
                 TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
             }
+
 
             ViewBag.FitkoId = fitkoId;
             ViewBag.PeriodFrom = from;
