@@ -3,18 +3,20 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Home";
 
-    // --- DEMO napojení dat permanentky (můžeš mazat, když to budeš číst z ViewModelu) ---
     DateTime? permFrom = ViewBag.PermFrom as DateTime?;
-    DateTime? permTo   = ViewBag.PermTo   as DateTime?;
-    string permType    = ViewBag.PermType as string ?? "—";
-    string permPrice   = ViewBag.PermPrice as string ?? "—";
+    DateTime? permTo = ViewBag.PermTo as DateTime?;
+    string permType = ViewBag.PermType as string ?? "—";
+    string permPrice = ViewBag.PermPrice as string ?? "—";
 
-    // --- Výpočty pro badge, progress a zbývající dny ---
-    bool   permActive = permTo.HasValue && permTo.Value.Date >= DateTime.Today;
-    double totalDays  = (permFrom.HasValue && permTo.HasValue) ? (permTo.Value - permFrom.Value).TotalDays : 0;
-    double usedDays   = (permFrom.HasValue) ? (DateTime.Today - permFrom.Value).TotalDays : 0;
-    int    usedPct    = (totalDays > 0) ? Math.Clamp((int)Math.Round(usedDays / totalDays * 100.0), 0, 100) : 0;
-    int    daysLeft   = permTo.HasValue ? Math.Max(0, (permTo.Value.Date - DateTime.Today).Days) : 0;
+    bool permActive = permTo.HasValue && permTo.Value.Date >= DateTime.Today;
+    double totalDays = (permFrom.HasValue && permTo.HasValue) ? (permTo.Value - permFrom.Value).TotalDays : 0;
+    double usedDays = (permFrom.HasValue) ? (DateTime.Today - permFrom.Value).TotalDays : 0;
+    int usedPct = (totalDays > 0) ? Math.Clamp((int)Math.Round(usedDays / totalDays * 100.0), 0, 100) : 0;
+    int daysLeft = permTo.HasValue ? Math.Max(0, (permTo.Value.Date - DateTime.Today).Days) : 0;
+
+    // 📞 Kontakt z ViewBag
+    string phone = ViewBag.MemberPhone as string ?? "—";
+    string email = ViewBag.MemberEmail as string ?? "—";
 }
 
 <!-- Úvodní panel přes celou šířku -->
@@ -33,16 +35,23 @@
         <div class="col-12 col-lg-6">
             <div class="tile glass h-100">
                 <h5 class="text-white mb-2">Kontakt</h5>
-                <div class="text-white-50 small">Telefon: –</div>
-                <div class="text-white-50 small">E-mail: –</div>
+                <div class="text-white-50 small">
+                    Telefon: <span class="text-white">@phone</span>
+                </div>
+                <div class="text-white-50 small">
+                    E-mail: <span class="text-white">@email</span>
+                </div>
             </div>
+
         </div>
 
+        <!-- Stav permanentky -->
         <!-- Stav permanentky -->
         <div class="col-12 col-lg-6">
             <div class="tile glass h-100">
                 <div class="d-flex justify-content-between align-items-start">
                     <h5 class="text-white mb-2">Stav permanentky</h5>
+
                     @if (permActive)
                     {
                         <span class="badge bg-success">AKTIVNÍ</span>
@@ -61,20 +70,27 @@
                 {
                     <div class="text-white-50 small mb-1">
                         Platí do: <span class="text-white">@permTo.Value.ToString("dd.MM.yyyy")</span>
-                        <span class="ms-2">(zbývá @daysLeft&nbsp;@((daysLeft == 1) ? "den" : (daysLeft < 5 ? "dny" : "dní")))</span>
+                        <span class="ms-2">(zbývá @daysLeft @((daysLeft == 1) ? "den" : (daysLeft < 5 ? "dny" : "dní")))</span>
                     </div>
+
                     <div class="progress" style="height:8px;">
                         <div class="progress-bar bg-warning" role="progressbar" style="width:@usedPct%"></div>
                     </div>
                 }
                 else
                 {
-                    <div class="text-white-50 small">
-                        Nemáš aktivní permanentku. Zvaž nákup nové.
+                    <div class="text-white-50 small mb-2">
+                        Nemáš aktivní permanentku.
                     </div>
+
+                    <a href="@Url.Action("Buy", "Payments")"
+                       class="btn btn-sm btn-warning">
+                        Koupit permanentku
+                    </a>
                 }
             </div>
         </div>
+
     </div>
 </div>
 

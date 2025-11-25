@@ -58,6 +58,10 @@
             }
             else
             {
+                // nejnovější platba má nejvyšší číslo
+                var list = Model.ToList();
+                var index = list.Count;
+
                 <div class="table-responsive mt-2">
                     <table class="table table-dark table-borderless align-middle">
                         <thead>
@@ -69,19 +73,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var p in Model)
+                            @foreach (var p in list)
                             {
                                 <tr>
                                     <td class="text-white-50">@p.Datum.ToString("dd.MM.yyyy")</td>
-                                    <td class="text-white text-truncate">@p.Popis</td>
+
+                                    <!-- Nahoře největší číslo, dole 1 -->
+                                    <td class="text-white text-truncate">Platba @index</td>
+
                                     <td class="text-end text-white">@p.Castka.ToString("N0") Kč</td>
                                     <td><span class="badge @BadgeClass(p.Stav)">@p.Stav</span></td>
                                 </tr>
+
+                                index--;
                             }
                         </tbody>
                     </table>
                 </div>
             }
-        </div>
     </div>
 </div>

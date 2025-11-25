@@ -1,6 +1,7 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Repositories;
+using System.Threading;
 
 namespace FitnessCenter.Application.Services
 {
@@ -26,8 +27,8 @@ namespace FitnessCenter.Application.Services
 
         public Task<Member?> GetByIdAsync(int id, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
+            // ct teď nevyužíváš – kdyby repo mělo overload s tokenem, můžeš ho sem předat
+            return repo.GetByIdAsync(id);
         }
     }
 }
-

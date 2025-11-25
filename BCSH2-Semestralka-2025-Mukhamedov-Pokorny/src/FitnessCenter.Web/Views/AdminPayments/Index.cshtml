@@ -1,11 +1,11 @@
 ﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @model List<FitnessCenter.Web.Models.AdminPaymentViewModel>
+
 @{
     ViewData["Title"] = "Správa plateb";
     Layout = "_AppLayout";
     ViewBag.Active = "AdminPayments";
 }
-
 
 <div class="glass p-3">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -40,7 +40,7 @@
             <table class="table table-dark table-striped align-middle">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>#</th>
                         <th>Člen</th>
                         <th>E-mail</th>
                         <th>Datum</th>
@@ -49,17 +49,23 @@
                         <th>Akce</th>
                     </tr>
                 </thead>
+
+                @{
+                    var index = 0;
+                }
+
                 <tbody>
                     @foreach (var p in Model)
                     {
+                        index++;
+
                         <tr>
-                            <td>@p.IdPlatba</td>
-                            <td>@p.MemberName (@p.MemberId)</td>
+                            <td>@index</td>   @* pořadí, ne ID platby *@
+                            <td>@p.MemberName</td>
                             <td>@p.Email</td>
                             <td>@p.Datum.ToString("dd.MM.yyyy HH:mm")</td>
                             <td>@p.Castka.ToString("0.## Kč")</td>
                             <td>@p.Stav</td>
-
                             <td>
                                 <div class="d-flex gap-1">
                                     <!-- Schválit -->
@@ -96,4 +102,3 @@
         </div>
     }
 </div>
-

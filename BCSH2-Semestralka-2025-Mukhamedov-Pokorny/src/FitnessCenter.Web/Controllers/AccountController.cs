@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;                    // OracleCommand/Types
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
+
 
 
 namespace FitnessCenter.Web.Controllers
@@ -205,6 +207,11 @@ namespace FitnessCenter.Web.Controllers
                 }
             }
 
+            // spočítáme hash hesla z formuláře
+            var hasher = new PasswordHasher<FitnessCenter.Domain.Entities.Member>();
+            var tempMember = new FitnessCenter.Domain.Entities.Member(); // instance kvůli typu
+            var passwordHash = hasher.HashPassword(tempMember, model.Password);
+
             var member = new FitnessCenter.Domain.Entities.Member
             {
                 FirstName = model.FirstName?.Trim() ?? "",
@@ -213,19 +220,22 @@ namespace FitnessCenter.Web.Controllers
                 Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim(),
                 Phone = string.IsNullOrWhiteSpace(model.Phone) ? null : model.Phone.Trim(),
                 BirthDate = model.BirthDate!.Value,
-                FitnessCenterId = model.FitnessCenterId
+                FitnessCenterId = model.FitnessCenterId,
+
+                // ✳️ NOVÉ
+                PasswordHash = passwordHash
             };
 
             try
             {
-                await _members.CreateViaProcedureAsync(member); // PR_CLEN_CREATE
+                await _members.CreateViaProcedureAsync(member); // PR_CLEN_CREATE musí nově brát i PASSWORD_HASH
                 TempData["JustRegistered"] = true;
                 TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
                 return RedirectToAction(nameof(Login));
             }
             catch (InvalidOperationException ex)
             {
-                ModelState.AddModelError(string.Empty, ex.Message); // duplicitní email/telefon apod.
+                ModelState.AddModelError(string.Empty, ex.Message);
                 ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
                 return View(model);
             }

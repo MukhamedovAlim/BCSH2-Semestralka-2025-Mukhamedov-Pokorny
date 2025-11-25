@@ -1,10 +1,12 @@
-﻿@model FitnessCenter.Web.Models.RegisterViewModel
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model FitnessCenter.Web.Models.RegisterViewModel
 @{
     ViewData["Title"] = "Registrace";
     Layout = "_AuthLayout";
     var fitness = ViewBag.FitnessCenters as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
                   ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
 }
+
 <h1 class="h4 text-center mb-2 text-white">Registrace</h1>
 
 <form action="/Account/Register" method="post" novalidate>
@@ -14,35 +16,53 @@
 
     <div class="row g-2">
         <div class="col-6 mb-2">
-            <input name="FirstName" class="form-control form-control-lg" placeholder="Jméno" />
+            <input asp-for="FirstName"
+                   class="form-control form-control-lg"
+                   placeholder="Jméno" />
             <span class="text-danger small" asp-validation-for="FirstName"></span>
         </div>
         <div class="col-6 mb-2">
-            <input name="LastName" class="form-control form-control-lg" placeholder="Příjmení" />
+            <input asp-for="LastName"
+                   class="form-control form-control-lg"
+                   placeholder="Příjmení" />
             <span class="text-danger small" asp-validation-for="LastName"></span>
         </div>
     </div>
 
     <div class="mb-2">
-        <input name="Email" type="email" class="form-control form-control-lg" placeholder="E-mail" />
+        <input asp-for="Email"
+               type="email"
+               class="form-control form-control-lg"
+               placeholder="jan.novak@example.com" />
         <span class="text-danger small" asp-validation-for="Email"></span>
     </div>
 
     <div class="mb-2">
-        <input name="Address" class="form-control form-control-lg" placeholder="Adresa (volitelné)" />
-    </div>
-    <div class="mb-2">
-        <input name="Phone" class="form-control form-control-lg" placeholder="Telefon (volitelné)" />
+        <input asp-for="Phone"
+               class="form-control form-control-lg"
+               placeholder="123456789 (volitelné)" />
+        <span class="text-danger small" asp-validation-for="Phone"></span>
     </div>
 
     <div class="mb-2">
-        <input name="BirthDate" type="date" class="form-control form-control-lg" placeholder="Datum narození" />
+        <input asp-for="Address"
+               class="form-control form-control-lg"
+               placeholder="Adresa (volitelné)" />
+        <span class="text-danger small" asp-validation-for="Address"></span>
+    </div>
+
+    <div class="mb-2">
+        <input asp-for="BirthDate"
+               type="date"
+               class="form-control form-control-lg"
+               placeholder="Datum narození" />
         <span class="text-danger small" asp-validation-for="BirthDate"></span>
     </div>
 
     <div class="mb-2">
-        <select name="FitnessCenterId" class="form-control form-control-lg">
-            <option value="">— Vyber fitness centrum —</option>
+        <select asp-for="FitnessCenterId"
+                class="form-control form-control-lg">
+            <option value="0">— Vyber fitness centrum —</option>
             @foreach (var it in fitness)
             {
                 <option value="@it.Value">@it.Text</option>
@@ -51,7 +71,25 @@
         <span class="text-danger small" asp-validation-for="FitnessCenterId"></span>
     </div>
 
-    <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Vytvořit účet</button>
+    <div class="mb-2">
+        <input asp-for="Password"
+               class="form-control form-control-lg"
+               placeholder="Heslo (min. 6 znaků)"
+               type="password" />
+        <span class="text-danger small" asp-validation-for="Password"></span>
+    </div>
+
+    <div class="mb-2">
+        <input asp-for="ConfirmPassword"
+               class="form-control form-control-lg"
+               placeholder="Potvrď heslo"
+               type="password" />
+        <span class="text-danger small" asp-validation-for="ConfirmPassword"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">
+        Vytvořit účet
+    </button>
 </form>
 
 <div class="text-center mt-3 auth-link">

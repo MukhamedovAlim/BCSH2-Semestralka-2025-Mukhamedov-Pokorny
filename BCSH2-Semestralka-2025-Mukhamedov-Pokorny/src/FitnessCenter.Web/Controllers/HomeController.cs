@@ -40,6 +40,18 @@ namespace FitnessCenter.Web.Controllers
 
             int clenId = User.GetRequiredCurrentMemberId();
 
+            // načíst člena kvůli kontaktu
+            var member = await _members.GetByIdAsync(clenId);
+
+            ViewBag.MemberPhone = string.IsNullOrWhiteSpace(member.Phone)
+                ? "—"
+                : member.Phone;
+
+            ViewBag.MemberEmail = string.IsNullOrWhiteSpace(member.Email)
+                ? "—"
+                : member.Email;
+
+            // data pro permanentku
             var ms = await _payments.GetMembershipAsync(clenId);
             ViewBag.permActive = ms.Active;
             ViewBag.permType = ms.TypeName ?? "-";
@@ -169,7 +181,6 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.MembersInFitness = await LoadMembersInFitnessAsync(fitkoId);
             ViewBag.MemberId = memberId; // zapamatujeme si, co bylo zvoleno
 
-
             int members = 0, trainers = 0, lessonsCount = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
             try
@@ -236,7 +247,6 @@ WHERE  (:p_fitko IS NULL OR EXISTS (
                 // 3) hodnocení člena
                 int? effectiveMemberId = memberId;
 
-                // fallback: když není vybrán konkrétní člen, můžeš nechat prázdno
                 if (effectiveMemberId.HasValue)
                 {
                     ViewBag.MemberFuncText = await _stats.GetMemberRatingAsync(effectiveMemberId.Value);
@@ -252,7 +262,6 @@ WHERE  (:p_fitko IS NULL OR EXISTS (
             {
                 TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
             }
-
 
             ViewBag.FitkoId = fitkoId;
             ViewBag.PeriodFrom = from;
