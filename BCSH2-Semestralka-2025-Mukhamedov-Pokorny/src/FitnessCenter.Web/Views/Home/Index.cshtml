@@ -14,10 +14,20 @@
     int usedPct = (totalDays > 0) ? Math.Clamp((int)Math.Round(usedDays / totalDays * 100.0), 0, 100) : 0;
     int daysLeft = permTo.HasValue ? Math.Max(0, (permTo.Value.Date - DateTime.Today).Days) : 0;
 
-    // 📞 Kontakt z ViewBag
+    // Kontakt z ViewBag
     string phone = ViewBag.MemberPhone as string ?? "—";
     string email = ViewBag.MemberEmail as string ?? "—";
 }
+
+@if (TempData["Ok"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Err"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
 
 <!-- Úvodní panel přes celou šířku -->
 <div class="glass p-3 mb-4">
@@ -45,7 +55,6 @@
 
         </div>
 
-        <!-- Stav permanentky -->
         <!-- Stav permanentky -->
         <div class="col-12 col-lg-6">
             <div class="tile glass h-100">
@@ -106,7 +115,7 @@
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Rezervace lekcí</h5>
                 <div class="text-white-50 small">Přihlášení/odhlášení na lekce.</div>
-                <a href="@Url.Action("Index","Reservations")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "Reservations")" class="stretched-link"></a>
             </div>
         </div>
 
@@ -114,7 +123,7 @@
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Přehled plateb</h5>
                 <div class="text-white-50 small">Členské poplatky & permanentky.</div>
-                <a href="@Url.Action("Index","Payments")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "Payments")" class="stretched-link"></a>
             </div>
         </div>
 
@@ -122,7 +131,7 @@
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Vybavení</h5>
                 <div class="text-white-50 small">Kardio, posilovací, volná závaží.</div>
-                <a href="@Url.Action("Index","Equipment")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "Equipment")" class="stretched-link"></a>
             </div>
         </div>
 
@@ -130,7 +139,15 @@
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Moje rezervace</h5>
                 <div class="text-white-50 small">Historie & nadcházející termíny.</div>
-                <a href="@Url.Action("Mine","Reservations")" class="stretched-link"></a>
+                <a href="@Url.Action("Mine", "Reservations")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Nahrát certifikát</h5>
+                <div class="text-white-50 small">Přidej doklad pro promotnutí na trenéra.</div>
+                <a href="@Url.Action("Upload", "MemberCertificates")" class="stretched-link"></a>
             </div>
         </div>
 

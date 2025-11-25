@@ -23,6 +23,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IMembersRepository, OracleMemberRepository>();
 builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
+builder.Services.AddScoped<IDocumentsRepository, DocumentsRepository>();
 builder.Services.AddScoped<AdminStatsRepository>();
 
 
