@@ -1,14 +1,15 @@
-﻿using FitnessCenter.Application.Interfaces;
+﻿using System.Security.Claims;
+using FitnessCenter.Application.Interfaces;
+using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;           // DatabaseManager
 using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;                    // OracleCommand/Types
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
 
 
 
@@ -17,6 +18,7 @@ namespace FitnessCenter.Web.Controllers
     public class AccountController : Controller
     {
         private readonly IMembersService _members;
+        private readonly PasswordHasher<Member> _hasher = new();
 
         public AccountController(IMembersService members)
         {
@@ -84,6 +86,21 @@ namespace FitnessCenter.Web.Controllers
             }
 
             var email = member.Email.Trim();
+
+            if (string.IsNullOrEmpty(member.PasswordHash))
+            {
+                ModelState.AddModelError(string.Empty, "Tomuto účtu chybí nastavené heslo. Kontaktuj správce.");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
+
+            var verifyResult = _hasher.VerifyHashedPassword(member, member.PasswordHash, model.Password);
+            if (verifyResult == PasswordVerificationResult.Failed)
+            {
+                ModelState.AddModelError(string.Empty, "Neplatné heslo.");
+                ViewData["ReturnUrl"] = returnUrl;
+                return View(model);
+            }
 
             // 2) Zjisti role: Admin přes tabulku ADMINI, Trainer přes službu
             bool isAdmin = false;
@@ -207,10 +224,12 @@ namespace FitnessCenter.Web.Controllers
                 }
             }
 
-            // spočítáme hash hesla z formuláře
-            var hasher = new PasswordHasher<FitnessCenter.Domain.Entities.Member>();
-            var tempMember = new FitnessCenter.Domain.Entities.Member(); // instance kvůli typu
-            var passwordHash = hasher.HashPassword(tempMember, model.Password);
+            var tempMember = new Member();
+            var passwordHash = _hasher.HashPassword(tempMember, model.Password);
+
+            System.Diagnostics.Debug.WriteLine("EMAIL: '" + model.Email + "'");
+            System.Diagnostics.Debug.WriteLine("HESLO: '" + model.Password + "'");
+
 
             var member = new FitnessCenter.Domain.Entities.Member
             {

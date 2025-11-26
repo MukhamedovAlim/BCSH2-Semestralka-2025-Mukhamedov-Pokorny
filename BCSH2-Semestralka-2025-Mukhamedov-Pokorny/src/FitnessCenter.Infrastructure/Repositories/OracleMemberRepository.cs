@@ -18,8 +18,8 @@ public sealed class OracleMemberRepository : IMembersRepository
     // ------------------------------------------------------------
     private static Member ReadMember(OracleDataReader rd)
     {
-        // Sloupce v SELECTech níže musí odpovídat pořadí zde:
-        // idclen, jmeno, prijmeni, email, adresa, telefon
+        // NOVÉ POŘADÍ:
+        // idclen, jmeno, prijmeni, email, adresa, telefon, heslo_hash
         return new Member
         {
             MemberId = rd.GetInt32(0),
@@ -28,7 +28,8 @@ public sealed class OracleMemberRepository : IMembersRepository
             Email = rd.GetString(3),
             Address = rd.IsDBNull(4) ? null : rd.GetString(4),
             Phone = rd.IsDBNull(5) ? null : rd.GetString(5),
-            // BirthDate a FitnessCenterId nečtu, protože nejsou ve SELECTu
+            PasswordHash = rd.IsDBNull(6) ? null : rd.GetString(6)
+            // BirthDate / FitnessCenterId zatím neřešíme
         };
     }
 
@@ -38,9 +39,15 @@ public sealed class OracleMemberRepository : IMembersRepository
     public async Task<IEnumerable<Member>> GetAllAsync()
     {
         const string sql = @"
-            SELECT idclen, jmeno, prijmeni, email, adresa, telefon
-              FROM clenove
-          ORDER BY prijmeni, jmeno";
+        SELECT idclen,
+               jmeno,
+               prijmeni,
+               email,
+               adresa,
+               telefon,
+               heslo_hash      -- NOVÉ
+          FROM clenove
+      ORDER BY prijmeni, jmeno";
 
         using var con = await OpenAsync();
         using var cmd = new OracleCommand(sql, con) { BindByName = true };
@@ -59,9 +66,15 @@ public sealed class OracleMemberRepository : IMembersRepository
     public async Task<Member?> GetByIdAsync(int id)
     {
         const string sql = @"
-            SELECT idclen, jmeno, prijmeni, email, adresa, telefon
-              FROM clenove
-             WHERE idclen = :id";
+        SELECT idclen,
+               jmeno,
+               prijmeni,
+               email,
+               adresa,
+               telefon,
+               heslo_hash      -- NOVÉ
+          FROM clenove
+         WHERE idclen = :id";
 
         using var con = await OpenAsync();
         using var cmd = new OracleCommand(sql, con) { BindByName = true };
@@ -187,7 +200,6 @@ public sealed class OracleMemberRepository : IMembersRepository
             BindByName = true
         };
 
-        // před Add parametrů
         if (m.BirthDate == default)
             throw new ArgumentNullException(nameof(m.BirthDate));
 
@@ -202,7 +214,9 @@ public sealed class OracleMemberRepository : IMembersRepository
         cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2).Value = OrNull(m.Phone);
         cmd.Parameters.Add("p_datumnarozeni", OracleDbType.Date).Value = m.BirthDate;
         cmd.Parameters.Add("p_adresa", OracleDbType.Varchar2).Value = OrNull(m.Address);
-        cmd.Parameters.Add("p_idfitness", OracleDbType.Int32).Value = (m.FitnessCenterId > 0) ? m.FitnessCenterId : throw new ArgumentNullException(nameof(m.FitnessCenterId));
+        cmd.Parameters.Add("p_idfitness", OracleDbType.Int32).Value = m.FitnessCenterId;
+        cmd.Parameters.Add("p_heslo_hash", OracleDbType.Varchar2).Value =
+            (object?)m.PasswordHash ?? DBNull.Value;
 
         var pOut = new OracleParameter("p_new_id", OracleDbType.Int32, ParameterDirection.Output);
         cmd.Parameters.Add(pOut);
@@ -212,11 +226,12 @@ public sealed class OracleMemberRepository : IMembersRepository
             await cmd.ExecuteNonQueryAsync();
             return Convert.ToInt32(pOut.Value.ToString());
         }
-        catch (OracleException ex) when (ex.Number == 1) // ORA-00001 (UNIQUE: email/telefon)
+        catch (OracleException ex) when (ex.Number == 1)
         {
             throw new InvalidOperationException("Duplicitní e-mail nebo telefon.", ex);
         }
     }
+
 
     // Update přes PR_CLEN_UPDATE
     public async Task UpdateViaProcedureAsync(Member m)

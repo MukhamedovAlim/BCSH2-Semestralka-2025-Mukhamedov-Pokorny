@@ -1,13 +1,13 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace FitnessCenter.Web.Models
 {
     public class LoginViewModel
     {
-        [Required, EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "E-mail je povinný.")]
+        public string Email { get; set; } = "";
 
-        [Required, DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Heslo je povinné.")]
+        public string Password { get; set; } = "";
     }
 }
