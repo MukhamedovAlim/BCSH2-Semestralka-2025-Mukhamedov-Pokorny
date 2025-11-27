@@ -70,4 +70,56 @@ public sealed class AdminMemberCertificatesController : Controller
 
         return File(doc.Bytes, doc.ContentType, doc.FileName);
     }
+
+    [HttpPost("Delete/{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
+        {
+            await _documents.DeleteDocumentAsync(id);   // volá dok_smazat
+            TempData["Ok"] = "Dokument byl smazán.";
+        }
+        catch (Exception)
+        {
+            TempData["Err"] = "Při mazání dokumentu došlo k chybě.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+
+    [HttpGet("Edit/{id:int}")]
+    public IActionResult Edit(int id)
+    {
+        ViewBag.DocId = id;
+        return View();
+    }
+
+    [HttpPost("Edit/{id:int}")]
+    public async Task<IActionResult> Edit(int id, IFormFile newFile)
+    {
+        if (newFile == null || newFile.Length == 0)
+        {
+            TempData["Err"] = "Nebyl vybrán žádný soubor.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var updatedBy = User.Identity?.Name ?? "Unknown";
+
+        try
+        {
+            await _documents.UpdateDocumentContentAsync(id, newFile, updatedBy);
+            TempData["Ok"] = "Dokument byl aktualizován.";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("==== CHYBA PRI UPRAVE DOKUMENTU ====");
+            Console.WriteLine(ex);
+            TempData["Err"] = "Při úpravě dokumentu došlo k chybě.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+
 }

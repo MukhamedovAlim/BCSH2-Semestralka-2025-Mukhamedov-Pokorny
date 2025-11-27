@@ -9,6 +9,9 @@ public interface IDocumentsRepository
     Task<int> InsertMemberDocumentAsync(IFormFile file, int memberId, string uploadedBy);
     Task<IReadOnlyList<MemberDocumentInfo>> GetAllMemberDocumentsAsync();
     Task<MemberDocumentContent?> GetDocumentContentAsync(int documentId);
+
+    Task DeleteDocumentAsync(int documentId);
+    Task UpdateDocumentContentAsync(int documentId, IFormFile file, string updatedBy);
 }
 
 // DTO pro seznam

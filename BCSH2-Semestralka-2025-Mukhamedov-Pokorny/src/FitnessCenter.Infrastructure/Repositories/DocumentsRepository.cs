@@ -145,4 +145,60 @@ public sealed class DocumentsRepository : IDocumentsRepository
         };
     }
 
+    //  Smazání dokumentu
+    public async Task DeleteDocumentAsync(int documentId)
+    {
+        try
+        {
+            await using var conn = await DatabaseManager.GetOpenConnectionAsync();
+            await using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = "dok_smazat";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.BindByName = true;
+
+            cmd.Parameters.Add("p_id", OracleDbType.Int32).Value = documentId;
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("==== CHYBA V DocumentsRepository.DeleteDocumentAsync ====");
+            Console.WriteLine(ex);
+            throw;
+        }
+    }
+
+    //  Úprava obsahu
+    public async Task UpdateDocumentContentAsync(int documentId, IFormFile file, string updatedBy)
+    {
+        if (file == null)
+            throw new ArgumentNullException(nameof(file));
+
+        try
+        {
+            await using var conn = await DatabaseManager.GetOpenConnectionAsync();
+            await using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = "dok_upravit";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.BindByName = true;
+
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            cmd.Parameters.Add("p_id", OracleDbType.Int32, documentId, ParameterDirection.Input);
+            cmd.Parameters.Add("p_obsah", OracleDbType.Blob, bytes, ParameterDirection.Input);
+            cmd.Parameters.Add("p_kdo", OracleDbType.Varchar2, updatedBy, ParameterDirection.Input);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("==== CHYBA V DocumentsRepository.UpdateDocumentContentAsync ====");
+            Console.WriteLine(ex);
+            throw;
+        }
+    }
 }

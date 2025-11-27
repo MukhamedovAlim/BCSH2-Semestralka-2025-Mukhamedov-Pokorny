@@ -1,0 +1,78 @@
+﻿@model List<MemberDocumentInfo>
+
+@{
+    ViewData["Title"] = "Moje certifikáty";
+    Layout = "_AppLayout";
+    ViewBag.Active = "Home";
+    var total = Model?.Count ?? 0;
+}
+
+<div class="glass p-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h3 class="text-white mb-0">Moje certifikáty</h3>
+
+        <a href="@Url.Action("Upload", "MemberCertificates")"
+           class="btn btn-sm btn-warning">
+            + Nahrát nový certifikát
+        </a>
+    </div>
+
+    <small class="text-secondary">
+        Nalezeno: <span class="text-light fw-semibold">@total</span> dokumentů
+    </small>
+
+    <hr class="border-secondary" />
+
+    @if (TempData["Ok"] is string ok)
+    {
+        <div class="alert alert-success">@ok</div>
+    }
+    @if (TempData["Err"] is string err)
+    {
+        <div class="alert alert-danger">@err</div>
+    }
+
+    <!-- Jednoduchá informace pro uživatele -->
+    <div class="alert alert-info py-2">
+        Pokud administrátor certifikát přenahradí, vždy se ti po kliknutí na
+        <strong>Stáhnout</strong> stáhne jeho aktuální verze.
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-white-50">
+            Zatím nemáš nahraný žádný certifikát.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Název souboru</th>
+                        <th>Typ</th>
+                        <th>Nahráno dne</th>
+                        <th class="text-end">Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model)
+                    {
+                        <tr>
+                            <td>@d.FileName</td>
+                            <td>@d.ContentType</td>
+                            <td>@d.UploadedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <a href="@Url.Action("Download", "MemberCertificates", new { id = d.Id })"
+                                   class="btn btn-sm btn-outline-warning">
+                                    Stáhnout
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

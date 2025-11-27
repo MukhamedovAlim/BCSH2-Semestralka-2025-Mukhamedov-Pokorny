@@ -6,7 +6,7 @@
     ViewBag.Active = "AdminCertificates";
 
     var currentSearch = ViewBag.Search as string ?? "";
-    var currentSort = ViewBag.Sort as string ?? "";
+    var currentSort = ViewBag.Sort as string ?? "newest";
     var total = Model?.Count ?? 0;
 }
 
@@ -54,7 +54,7 @@
         <form method="get">
             <div class="row g-2 align-items-center">
                 <!-- Hledání podle jména člena -->
-                <div class="col-12 col-md-6 col-lg-5">
+                <div class="col-12 col-md-5">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">
                             🔍
@@ -63,35 +63,32 @@
                                name="search"
                                value="@currentSearch"
                                class="form-control border-0 bg-dark text-light"
-                               placeholder="Hledat podle jména člena (např. Erik Šefčík)..." />
+                               placeholder="Hledat podle jména člena (např. Erik)..." />
                     </div>
                 </div>
 
-                <!-- Řazení podle data -->
-                <div class="col-6 col-md-3 col-lg-3">
+                <!-- Řazení -->
+                <div class="col-6 col-md-3 col-lg-2">
                     <select name="sort"
                             class="form-select form-select-sm border-0 bg-dark text-light">
-                        <option value="">Řazení podle data nahrání</option>
                         <option value="newest" @(currentSort == "newest" ? "selected" : "")>
-                            Nejnovější → nejstarší
+                            Nejnovější nahoře
                         </option>
                         <option value="oldest" @(currentSort == "oldest" ? "selected" : "")>
-                            Nejstarší → nejnovější
+                            Nejstarší nahoře
                         </option>
                     </select>
                 </div>
 
                 <!-- Tlačítka -->
-                <div class="col-6 col-md-3 col-lg-4">
-                    <div class="d-flex justify-content-end gap-2 flex-wrap">
-                        <button type="submit" class="btn btn-sm btn-warning">
-                            Filtrovat
-                        </button>
-                        <a href="@Url.Action("Index", "AdminMemberCertificates")"
-                           class="btn btn-sm btn-outline-light">
-                            Reset
-                        </a>
-                    </div>
+                <div class="col-6 col-md-4 col-lg-5 d-flex justify-content-end gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        Filtrovat
+                    </button>
+                    <a href="@Url.Action("Index", "AdminMemberCertificates")"
+                       class="btn btn-sm btn-outline-light">
+                        Reset
+                    </a>
                 </div>
             </div>
         </form>
@@ -101,7 +98,7 @@
     @if (Model == null || !Model.Any())
     {
         <div class="text-white-50">
-            Zatím nejsou nahrané žádné certifikáty.
+            Zatím nejsou nahrané žádné certifikáty, nebo žádný neodpovídá filtru.
         </div>
     }
     else
@@ -110,8 +107,8 @@
             <table class="table table-dark table-striped align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Člen</th>
                         <th>Název souboru</th>
+                        <th>Člen</th>
                         <th>Typ</th>
                         <th>Nahráno dne</th>
                         <th>Nahrál</th>
@@ -121,17 +118,63 @@
                 <tbody>
                     @foreach (var d in Model)
                     {
+                        var memberFullName = string.Join(" ",
+                        new[] { d.MemberName, d.MemberSurname }
+                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+                        var ext = string.IsNullOrWhiteSpace(d.Extension)
+                        ? "jiný"
+                        : d.Extension.ToUpperInvariant();
+
                         <tr>
-                            <td>@($"{d.MemberName} {d.MemberSurname}".Trim())</td>
                             <td>@d.FileName</td>
-                            <td>@d.ContentType</td>
+
+                            <td>@memberFullName</td>
+
+                            <td title="@d.ContentType">
+                                <span class="badge bg-secondary">
+                                    @ext
+                                </span>
+                            </td>
+
                             <td>@d.UploadedAt.ToString("dd.MM.yyyy HH:mm")</td>
+
                             <td>@d.UploadedBy</td>
+
                             <td class="text-end">
+                                <!-- Stáhnout -->
                                 <a href="@Url.Action("Download", "AdminMemberCertificates", new { id = d.Id })"
-                                   class="btn btn-sm btn-outline-warning">
+                                   class="btn btn-sm btn-outline-warning me-1">
                                     Stáhnout
                                 </a>
+
+                                <!-- Přenahrát -->
+                                <form action="@Url.Action("Edit", "AdminMemberCertificates", new { id = d.Id })"
+                                      method="post"
+                                      enctype="multipart/form-data"
+                                      class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <label class="btn btn-sm btn-outline-info mb-0">
+                                        Přenahrát
+                                        <input type="file"
+                                               name="newFile"
+                                               class="d-none"
+                                               onchange="this.form.submit();" />
+                                    </label>
+                                </form>
+
+                                <!-- Smazat -->
+                                <form asp-action="Delete"
+                                      asp-controller="AdminMemberCertificates"
+                                      asp-route-id="@d.Id"
+                                      method="post"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Opravdu smazat tento dokument?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        Smazat
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }
