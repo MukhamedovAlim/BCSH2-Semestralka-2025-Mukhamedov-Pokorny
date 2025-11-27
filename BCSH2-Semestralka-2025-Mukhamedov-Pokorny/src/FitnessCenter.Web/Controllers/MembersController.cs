@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
 using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
 
 namespace FitnessCenter.Web.Controllers
@@ -22,6 +23,13 @@ namespace FitnessCenter.Web.Controllers
         public MembersController(IMembersService members)
         {
             _members = members;
+        }
+        private readonly PasswordHasher<Member> _hasher = new();
+
+        private static string GeneratePassword()
+        {
+            // jednoduché 8-znakové heslo, klidně si to později uprav
+            return Guid.NewGuid().ToString("N")[..8];
         }
 
         // --- načtení seznamu fitcenter ---
@@ -219,10 +227,19 @@ ORDER BY c.prijmeni, c.jmeno
                 FitnessCenterId = vm.FitnessCenterId
             };
 
+            // 🔸 1) vygenerujeme heslo
+            var plainPassword = GeneratePassword();
+
+            // 🔸 2) zahashujeme a uložíme do entity
+            m.PasswordHash = _hasher.HashPassword(m, plainPassword);
+
             try
             {
                 await _members.CreateViaProcedureAsync(m);
-                TempData["Ok"] = "Člen byl vytvořen.";
+
+                // 🔸 3) předáme heslo adminovi přes TempData
+                TempData["Ok"] = $"Člen byl vytvořen. Heslo: {plainPassword}";
+
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
@@ -231,6 +248,7 @@ ORDER BY c.prijmeni, c.jmeno
                 return View(vm);
             }
         }
+
 
         // =============================
         //            DELETE

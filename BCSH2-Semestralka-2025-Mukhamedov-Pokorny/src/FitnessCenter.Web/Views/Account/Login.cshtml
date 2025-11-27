@@ -6,6 +6,13 @@
 
 <h1 class="h4 text-center mb-2 text-white">Přihlášení</h1>
 
+@if (!string.IsNullOrEmpty(Model?.ErrorMessage))
+{
+    <div class="alert alert-danger small py-2 px-3 mb-3" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
 <form id="loginForm" method="post" action="/Account/Login" novalidate>
     @Html.AntiForgeryToken()
 
@@ -15,7 +22,8 @@
                type="email"
                class="form-control form-control-lg"
                autocomplete="username"
-               placeholder="E-mail" />
+               placeholder="E-mail"
+               value="@Model.Email" />
     </div>
 
     <div class="mb-2">
@@ -32,7 +40,6 @@
     </button>
 </form>
 
-<!-- Akce pod formulářem: nejdřív „bez přihlášení“, pod tím registrace -->
 <div class="mt-3">
     <a href="@Url.Action("Index", "Public")" class="btn btn-outline-light w-100 mb-2">
         Pokračovat bez přihlášení
@@ -45,3 +52,7 @@
         </small>
     </div>
 </div>
+
+@section scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

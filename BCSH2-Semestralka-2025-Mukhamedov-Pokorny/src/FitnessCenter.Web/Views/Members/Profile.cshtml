@@ -5,7 +5,15 @@
 }
 
 <div class="glass p-3">
-    <h3 class="text-white mb-3">Můj profil</h3>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="text-white mb-0">Můj profil</h3>
+
+        <a asp-controller="Account"
+           asp-action="ChangePassword"
+           class="btn btn-sm btn-outline-light">
+            Změnit heslo
+        </a>
+    </div>
 
     <div class="mb-3">
         <div><strong>Jméno:</strong> @Model.FirstName @Model.LastName</div>

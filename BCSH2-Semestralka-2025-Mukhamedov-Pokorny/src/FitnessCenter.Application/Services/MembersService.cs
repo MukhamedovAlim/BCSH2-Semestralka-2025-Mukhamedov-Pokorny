@@ -30,5 +30,8 @@ namespace FitnessCenter.Application.Services
             // ct teď nevyužíváš – kdyby repo mělo overload s tokenem, můžeš ho sem předat
             return repo.GetByIdAsync(id);
         }
+        public Task ChangePasswordAsync(int memberId, string newHash)
+    => repo.ChangePasswordAsync(memberId, newHash);
+
     }
 }

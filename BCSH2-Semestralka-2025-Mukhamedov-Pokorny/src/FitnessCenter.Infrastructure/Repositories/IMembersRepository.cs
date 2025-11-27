@@ -8,6 +8,7 @@ namespace FitnessCenter.Infrastructure.Repositories
         Task<Member?> GetByIdAsync(int id);
         Task<int> CreateAsync(Member m);
         Task<bool> UpdateAsync(Member m);
+        Task ChangePasswordAsync(int memberId, string newHash);
         Task<bool> DeleteAsync(int id);
         Task<bool> IsTrainerEmailAsync(string email);
         Task<int?> GetTrainerIdByEmailAsync(string email);

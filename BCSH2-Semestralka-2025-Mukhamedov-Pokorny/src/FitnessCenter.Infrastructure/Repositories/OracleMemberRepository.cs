@@ -146,6 +146,23 @@ public sealed class OracleMemberRepository : IMembersRepository
         return rows > 0;
     }
 
+    public async Task ChangePasswordAsync(int memberId, string newHash)
+    {
+        const string sql = @"
+        UPDATE clenove
+           SET heslo_hash = :hash
+         WHERE idclen     = :id";
+
+        using var con = await OpenAsync();
+        using var cmd = new OracleCommand(sql, con) { BindByName = true };
+
+        cmd.Parameters.Add("hash", OracleDbType.Varchar2).Value = newHash;
+        cmd.Parameters.Add("id", OracleDbType.Int32).Value = memberId;
+
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+
     // ------------------------------------------------------------
     // DELETE
     // ------------------------------------------------------------
