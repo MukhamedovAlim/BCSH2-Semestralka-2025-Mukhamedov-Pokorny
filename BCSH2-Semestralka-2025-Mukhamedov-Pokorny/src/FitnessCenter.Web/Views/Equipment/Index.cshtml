@@ -4,6 +4,8 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Equipment";
 
+    ViewBag.HideMainNav = true;
+
     var filter = ViewBag.Filter as string ?? "Vše";
     var selectedTyp = ViewBag.SelectedTyp as string; // "K","P","V" nebo null
     var fitka = ViewBag.Fitka as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();

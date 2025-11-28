@@ -2,6 +2,9 @@
 @{
     ViewData["Title"] = "Povýšit člena na trenéra";
     Layout = "_AppLayout";
+
+    var search = ViewBag.Search as string ?? "";
+    var total = Model?.Count ?? 0;
 }
 
 <div class="glass p-3">
@@ -15,6 +18,9 @@
         <h3 class="text-white mb-0">Povýšit člena na trenéra</h3>
     </div>
 
+    <small class="text-secondary d-block mb-2">
+        K dispozici: <span class="text-light fw-semibold">@total</span> členů
+    </small>
 
     <hr class="border-secondary" />
 
@@ -26,6 +32,41 @@
     {
         <div class="alert alert-danger">@err</div>
     }
+
+    <!-- FILTR – HLEDÁNÍ PODLE JMÉNA ČLENA -->
+    <div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
+        <form method="get">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text border-0 bg-secondary bg-opacity-50 text-light">
+                            🔍
+                        </span>
+                        <input type="text"
+                               name="search"
+                               value="@search"
+                               class="form-control border-0 bg-dark text-light"
+                               placeholder="Hledat podle jména (např. Vojta)..." />
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        Hledat
+                    </button>
+                </div>
+
+                <div class="col-auto">
+                    <!-- resetne input a pošle prázdný search -->
+                    <button type="button"
+                            class="btn btn-sm btn-outline-light"
+                            onclick="this.form.search.value=''; this.form.submit();">
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
 
     <div class="table-responsive">
         <table class="table table-dark table-striped align-middle">

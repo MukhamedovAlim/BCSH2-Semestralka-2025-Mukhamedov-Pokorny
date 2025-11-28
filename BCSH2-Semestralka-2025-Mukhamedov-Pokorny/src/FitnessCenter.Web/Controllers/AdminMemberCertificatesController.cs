@@ -76,10 +76,10 @@ public sealed class AdminMemberCertificatesController : Controller
     {
         try
         {
-            await _documents.DeleteDocumentAsync(id);   // volá dok_smazat
+            await _documents.DeleteDocumentAsync(id); // volá dok_smazat
             TempData["Ok"] = "Dokument byl smazán.";
         }
-        catch (Exception)
+        catch
         {
             TempData["Err"] = "Při mazání dokumentu došlo k chybě.";
         }

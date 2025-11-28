@@ -5,6 +5,8 @@
     Layout = "_AppLayout";
     ViewBag.Active = "AdminCertificates";
 
+    ViewBag.HideMainNav = true;
+
     var currentSearch = ViewBag.Search as string ?? "";
     var currentSort = ViewBag.Sort as string ?? "newest";
     var total = Model?.Count ?? 0;
@@ -164,9 +166,7 @@
                                 </form>
 
                                 <!-- Smazat -->
-                                <form asp-action="Delete"
-                                      asp-controller="AdminMemberCertificates"
-                                      asp-route-id="@d.Id"
+                                <form action="@Url.Action("Delete", "AdminMemberCertificates", new { id = d.Id })"
                                       method="post"
                                       class="d-inline"
                                       onsubmit="return confirm('Opravdu smazat tento dokument?');">

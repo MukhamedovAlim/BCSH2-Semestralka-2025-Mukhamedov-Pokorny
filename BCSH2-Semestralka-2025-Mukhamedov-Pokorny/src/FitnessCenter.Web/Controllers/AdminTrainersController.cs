@@ -100,31 +100,24 @@ namespace FitnessCenter.Web.Controllers
 
         // GET /AdminTrainers/Promote
         [HttpGet("Promote")]
-        public async Task<IActionResult> Promote()
+        public async Task<IActionResult> Promote(string? search)
         {
-            ViewBag.Active = "Admin";
-            ViewBag.HideMainNav = true;
+            var members = await _members.GetAllAsync(); // nebo jen eligible
 
-            var members = await _members.GetAllAsync();
-
-            // už povýšení (jsou v TRENERI)
-            HashSet<string> trainerEmails = new(StringComparer.OrdinalIgnoreCase);
-            try
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                using var con = await DatabaseManager.GetOpenConnectionAsync();
-                using var cmd = new OracleCommand("SELECT email FROM TRENERI", (OracleConnection)con);
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                    if (!rd.IsDBNull(0)) trainerEmails.Add(rd.GetString(0));
+                var s = search.Trim();
+                members = members
+                    .Where(m =>
+                    {
+                        var full = $"{m.FirstName} {m.LastName}".Trim();
+                        return full.Contains(s, StringComparison.CurrentCultureIgnoreCase);
+                    })
+                    .ToList();
             }
-            catch { /* ignoruj – jen filtrace nebude dokonalá */ }
 
-            var onlyNotTrainers = members
-                .Where(m => !string.IsNullOrWhiteSpace(m.Email) && !trainerEmails.Contains(m.Email!))
-                .OrderBy(m => m.LastName).ThenBy(m => m.FirstName)
-                .ToList();
-
-            return View("~/Views/AdminTrainers/Promote.cshtml", onlyNotTrainers);
+            ViewBag.Search = search ?? "";
+            return View(members);
         }
 
         // POST /AdminTrainers/Promote

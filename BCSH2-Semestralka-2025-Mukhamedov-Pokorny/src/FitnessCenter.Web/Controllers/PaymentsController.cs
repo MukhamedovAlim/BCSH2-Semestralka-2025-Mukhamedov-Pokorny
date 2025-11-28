@@ -77,7 +77,7 @@ namespace FitnessCenter.Web.Controllers
                     datum: DateTime.Now
                 );
 
-                TempData["Ok"] = $"Platba za {typ} byla založena (ID: {newPaymentId}) a čeká na schválení.";
+                TempData["Ok"] = $"Platba za {typ} byla založena a čeká na schválení.";
             }
             catch (InvalidOperationException ex)
             {

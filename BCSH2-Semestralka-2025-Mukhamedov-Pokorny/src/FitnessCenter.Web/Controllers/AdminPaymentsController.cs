@@ -48,7 +48,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 await _write.ApproveMembershipPaymentAsync(id);
-                TempData["Ok"] = $"Platba {id} byla schválena.";
+                TempData["Ok"] = $"Platba byla schválena.";
             }
             catch (Exception ex)
             {
@@ -66,7 +66,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 await _write.RejectMembershipPaymentAsync(id);
-                TempData["Ok"] = $"Platba {id} byla zamítnuta.";
+                TempData["Ok"] = $"Platba byla zamítnuta.";
             }
             catch (Exception ex)
             {

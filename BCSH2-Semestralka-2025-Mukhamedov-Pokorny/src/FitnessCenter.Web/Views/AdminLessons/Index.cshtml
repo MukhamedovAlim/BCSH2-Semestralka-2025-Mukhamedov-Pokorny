@@ -4,6 +4,8 @@
     Layout = "_AppLayout";
     ViewBag.Active = "AdminLessons";
 
+    ViewBag.HideMainNav = true;
+
     var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
     var participants = ViewBag.Participants as IDictionary<int, int> ?? new Dictionary<int, int>();
     var locations = ViewBag.Locations as IEnumerable<string> ?? Array.Empty<string>();
