@@ -12,7 +12,7 @@ namespace FitnessCenter.Infrastructure.Repositories
         private static async Task<OracleConnection> OpenAsync()
             => (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
 
-        public async Task<IReadOnlyList<LogRow>> GetLogsAsync(int top = 200)
+        public async Task<IReadOnlyList<LogRow>> GetLogsAsync(int top = 3000)
         {
             const string sql = @"
               SELECT * FROM (
