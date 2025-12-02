@@ -132,8 +132,8 @@ namespace FitnessCenter.Web.Controllers
                 ViewBag.Members = await LoadMembersForSelectAsync();
             }
 
-            vm.Email = vm.Email?.Trim();
-            vm.TypNazev = vm.TypNazev?.Trim();
+            vm.Email = vm.Email?.Trim() ?? string.Empty;
+            vm.TypNazev = vm.TypNazev?.Trim() ?? string.Empty;
 
             // doplň částku podle typu, pokud není > 0
             if (vm.Castka <= 0 && !string.IsNullOrWhiteSpace(vm.TypNazev))
@@ -161,7 +161,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
-                using var cmd = new OracleCommand("prodej_clenstvi_existujicimu", con)
+                using var cmd = new OracleCommand("prodej_clenstvi_existujicemu", con)
                 {
                     CommandType = CommandType.StoredProcedure,
                     BindByName = true

@@ -42,7 +42,7 @@ namespace FitnessCenter.Web.Models.Member
             MembershipFrom.HasValue &&
             DateTime.Today >= MembershipFrom.Value.Date &&
             (
-                !MembershipTo.HasValue               // otevřená permice (bez ukončení) = aktivní
+                !MembershipTo.HasValue
                 || DateTime.Today <= MembershipTo.Value.Date
             );
 

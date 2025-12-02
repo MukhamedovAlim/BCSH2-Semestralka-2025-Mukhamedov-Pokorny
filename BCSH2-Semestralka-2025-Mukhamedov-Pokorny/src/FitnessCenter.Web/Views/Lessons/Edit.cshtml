@@ -1,0 +1,103 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model FitnessCenter.Domain.Entities.Lesson
+
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Upravit lekci";
+    Layout = "_AppLayout";
+
+    var fitness = ViewBag.FitnessCenters as IEnumerable<SelectListItem>
+                  ?? Enumerable.Empty<SelectListItem>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2"
+           href="@Url.Action("Index", "Lessons")">
+            ← Zpět
+        </a>
+        <span class="h3 text-white align-middle mb-0">Upravit lekci</span>
+    </div>
+</div>
+
+@if (TempData["Ok"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Err"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@e.ErrorMessage</div>
+        }
+    </div>
+}
+
+<form method="post"
+      asp-action="Edit"
+      asp-route-id="@Model.Id"
+      novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Nazev" class="form-label text-white"></label>
+            <input asp-for="Nazev"
+                   class="form-control"
+                   placeholder="Název lekce" />
+            <span asp-validation-for="Nazev" class="text-danger small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="Zacatek" class="form-label text-white"></label>
+            <input asp-for="Zacatek"
+                   type="datetime-local"
+                   class="form-control" />
+            <span asp-validation-for="Zacatek" class="text-danger small"></span>
+        </div>
+
+        <div class="col-md-3">
+            <label asp-for="Kapacita" class="form-label text-white"></label>
+            <input asp-for="Kapacita"
+                   type="number"
+                   class="form-control"
+                   min="1" />
+            <span asp-validation-for="Kapacita" class="text-danger small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label text-white">Kde (fitko)</label>
+            <select name="SelectedFitnessCenterId" class="form-select">
+                <option value="">— Vyber fitness centrum —</option>
+                @foreach (var it in fitness)
+                {
+                    if (it.Selected)
+                    {
+                        <option value="@it.Value" selected>@it.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@it.Value">@it.Text</option>
+                    }
+                }
+            </select>
+            <div class="form-text text-white-50">
+                Název fitka se automaticky přidá do názvu lekce jako „@@Název“.
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-warning mt-3" type="submit">Uložit změny</button>
+    <a class="btn btn-secondary mt-3 ms-2"
+       href="@Url.Action("Index", "Lessons")">
+        Zrušit
+    </a>
+</form>

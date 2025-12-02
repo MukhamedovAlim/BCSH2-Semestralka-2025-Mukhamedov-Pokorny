@@ -1,6 +1,6 @@
 ﻿@using FitnessCenter.Web.Models.Member
 @using Microsoft.AspNetCore.Mvc.Rendering
-@model IEnumerable<MemberViewModel>
+@model IEnumerable<MemberViewModel>?
 
 @{
     ViewData["Title"] = "Členové";
@@ -137,7 +137,7 @@
                         </td>
                     </tr>
                 }
-                else
+                else if (Model != null)
                 {
                     foreach (var m in Model)
                     {
@@ -159,30 +159,30 @@
                             <td>
                                 @if (m.MembershipFrom.HasValue)
                                 {
-                                    if (m.HasActiveMembership)
-                                    {
-                                        <span class="badge bg-success me-1">Aktivní</span>
+                                    <div class="d-flex flex-column">
+                                        <div>
+                                            @if (m.HasActiveMembership)
+                                            {
+                                                <span class="badge bg-success me-1">Aktivní</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary me-1">Neaktivní</span>
+                                            }
+                                        </div>
+
                                         <small class="text-white-50">
                                             @m.MembershipFrom.Value.ToString("dd.MM.yyyy")
-                                            –
-                                            @(m.MembershipTo.HasValue
-                                                                        ? m.MembershipTo.Value.ToString("dd.MM.yyyy")
-                                                                        : "do odvolání")
-                        </small>
-                                                }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary me-1">Neaktivní</span>
-                                        <small class="text-white-50">
-                                            @(m.MembershipTo.HasValue
-                                                                        ? "platnost do " + m.MembershipTo.Value.ToString("dd.MM.yyyy")
-                                                                        : "bez platného členství")
-                        </small>
-                                                }
+                                            @if (m.MembershipTo.HasValue)
+                                            {
+                                                @: – @m.MembershipTo.Value.ToString("dd.MM.yyyy")
+                                            }
+                                        </small>
+                                    </div>
                                 }
                                 else
                                 {
-                                    <span class="text-secondary">—</span>
+                                    <span class="badge bg-secondary">Bez členství</span>
                                 }
                             </td>
 
@@ -199,6 +199,12 @@
                                         Přihlásit se jako
                                     </button>
                                 </form>
+
+                                <!-- Upravit -->
+                                <a href="@Url.Action("Edit", "Members", new { id = m.MemberId })"
+                                   class="btn btn-sm btn-outline-info me-1">
+                                    Upravit
+                                </a>
 
                                 <!-- Smazat -->
                                 <form action="@Url.Action("Delete", "Members")"

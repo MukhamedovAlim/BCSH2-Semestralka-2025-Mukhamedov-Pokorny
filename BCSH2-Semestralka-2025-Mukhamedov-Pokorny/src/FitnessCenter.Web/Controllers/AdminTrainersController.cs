@@ -176,6 +176,118 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
+        // GET /AdminTrainers/Edit/5
+        [HttpGet("Edit/{id:int}")]
+        public async Task<IActionResult> Edit(int id)
+        {
+            ViewBag.HideMainNav = true;
+            ViewBag.Active = "Admin";
+
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(@"
+        SELECT idtrener, jmeno, prijmeni, email, telefon
+        FROM TRENERI
+        WHERE idtrener = :id
+    ", con)
+            { BindByName = true };
+
+            cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            if (!await rd.ReadAsync())
+            {
+                TempData["Err"] = "Trenér s daným ID neexistuje.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var vm = new TrainerEditViewModel
+            {
+                TrainerId = rd.GetInt32(0),
+                Jmeno = rd.IsDBNull(1) ? null : rd.GetString(1),
+                Prijmeni = rd.IsDBNull(2) ? null : rd.GetString(2),
+                Email = rd.IsDBNull(3) ? null : rd.GetString(3),
+                Telefon = rd.IsDBNull(4) ? null : rd.GetString(4)
+            };
+
+            return View(vm); // Views/AdminTrainers/Edit.cshtml
+        }
+
+        // POST /AdminTrainers/Edit/5
+        [HttpPost("Edit/{id:int}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, TrainerEditViewModel vm)
+        {
+            ViewBag.HideMainNav = true;
+            ViewBag.Active = "Admin";
+
+            // sladit ID z URL a z formuláře
+            if (vm.TrainerId <= 0) vm.TrainerId = id;
+            if (vm.TrainerId != id)
+                ModelState.AddModelError(nameof(vm.TrainerId), "Nesouhlasí ID v adrese a ve formuláři.");
+
+            // jednoduché validace (klidně si uprav)
+            if (string.IsNullOrWhiteSpace(vm.Jmeno))
+                ModelState.AddModelError(nameof(vm.Jmeno), "Zadej jméno.");
+            if (string.IsNullOrWhiteSpace(vm.Prijmeni))
+                ModelState.AddModelError(nameof(vm.Prijmeni), "Zadej příjmení.");
+            if (string.IsNullOrWhiteSpace(vm.Email))
+                ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
+
+            if (!ModelState.IsValid)
+                return View(vm);
+
+            try
+            {
+                using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+                using var cmd = new OracleCommand("PR_TRENER_UPDATE", con)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    BindByName = true
+                };
+
+                cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = vm.TrainerId;
+
+                cmd.Parameters.Add("p_jmeno", OracleDbType.Varchar2).Value =
+                    string.IsNullOrWhiteSpace(vm.Jmeno) ? (object)DBNull.Value : vm.Jmeno.Trim();
+
+                cmd.Parameters.Add("p_prijmeni", OracleDbType.Varchar2).Value =
+                    string.IsNullOrWhiteSpace(vm.Prijmeni) ? (object)DBNull.Value : vm.Prijmeni.Trim();
+
+                cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2).Value =
+                    string.IsNullOrWhiteSpace(vm.Telefon) ? (object)DBNull.Value : vm.Telefon.Trim();
+
+                cmd.Parameters.Add("p_email", OracleDbType.Varchar2).Value =
+                    string.IsNullOrWhiteSpace(vm.Email) ? (object)DBNull.Value : vm.Email.Trim();
+
+                await cmd.ExecuteNonQueryAsync();
+
+                TempData["Ok"] = "Trenér byl úspěšně upraven.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (OracleException ox) when (ox.Number == 20051)
+            {
+                // RAISE_APPLICATION_ERROR(-20051, 'Trenér s daným ID neexistuje.');
+                TempData["Err"] = "Trenér s daným ID neexistuje.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (OracleException ox) when (ox.Number == 20052)
+            {
+                // DUP_VAL_ON_INDEX → telefon nebo e-mail už existuje
+                ModelState.AddModelError(string.Empty, "Telefon nebo e-mail je již použit u jiného trenéra.");
+                return View(vm);
+            }
+            catch (OracleException ox)
+            {
+                ModelState.AddModelError(string.Empty, "Chyba DB: " + ox.Message);
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, "Neočekávaná chyba: " + ex.Message);
+                return View(vm);
+            }
+        }
+
         // POST /AdminTrainers/Delete
         [HttpPost("Delete")]
         [ValidateAntiForgeryToken]

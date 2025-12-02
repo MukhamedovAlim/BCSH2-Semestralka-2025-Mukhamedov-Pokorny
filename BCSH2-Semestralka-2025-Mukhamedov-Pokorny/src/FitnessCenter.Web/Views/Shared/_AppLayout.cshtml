@@ -71,14 +71,14 @@
 <body class="app-bg">
     @using System.Security.Claims
     @{
-        bool isImpersonating = User.HasClaim(c => c.Type == "IsImpersonating" && c.Value == "true");
+        bool isImpersonating = User != null && User.HasClaim(c => c.Type == "IsImpersonating" && c.Value == "true");
     }
     @if (isImpersonating)
     {
         <div class="alert alert-danger d-flex justify-content-between align-items-center mb-0 rounded-0">
             <div>
                 <strong>Režim emulace:</strong>
-                Jste přihlášen jako <em>@User.Identity?.Name</em>.
+                Jste přihlášen jako <em>@(User?.Identity?.Name ?? "neznámý uživatel")</em>.
             </div>
             <form action="@Url.Action("Stop", "AdminImpersonation")" method="post" class="ms-3">
                 @Html.AntiForgeryToken()

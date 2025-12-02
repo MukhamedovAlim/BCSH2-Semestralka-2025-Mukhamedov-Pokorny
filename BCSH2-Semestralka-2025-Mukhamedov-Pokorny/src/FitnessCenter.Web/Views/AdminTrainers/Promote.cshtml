@@ -1,4 +1,4 @@
-﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Member>
+﻿@model IReadOnlyList<FitnessCenter.Domain.Entities.Member>?
 @{
     ViewData["Title"] = "Povýšit člena na trenéra";
     Layout = "_AppLayout";
@@ -79,53 +79,56 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var m in Model)
+                @if (Model != null)
                 {
-                    var hasPhone = !string.IsNullOrWhiteSpace(m.Phone);
+                    foreach (var m in Model)
+                    {
+                        var hasPhone = !string.IsNullOrWhiteSpace(m.Phone);
 
-                    <tr>
-                        <td class="text-white">@($"{m.FirstName} {m.LastName}".Trim())</td>
-                        <td>@m.Email</td>
-                        <td>
-                            @if (hasPhone)
-                            {
-                                <span>@m.Phone</span>
-                                <div class="text-white-50 small">Použije se číslo člena.</div>
-                            }
-                            else
-                            {
-                                <span class="text-white-50">—</span>
-                                <div class="text-white-50 small">
-                                    Člen nemá telefon — můžeš ho doplnit při povýšení.
-                                </div>
-                            }
-                        </td>
-
-                        <td class="text-end">
-                            <form method="post"
-                                  action="@Url.Action("PromoteMember", "AdminTrainers")"
-                                  class="d-inline-flex gap-2 align-items-center">
-
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="email" value="@m.Email" />
-
-                                @if (!hasPhone)
+                        <tr>
+                            <td class="text-white">@($"{m.FirstName} {m.LastName}".Trim())</td>
+                            <td>@m.Email</td>
+                            <td>
+                                @if (hasPhone)
                                 {
-                                    <input type="tel"
-                                           name="phone"
-                                           class="form-control form-control-sm"
-                                           placeholder="Telefon pro trenéra"
-                                           style="width:210px"
-                                           pattern="(\+?420)?\s*\d{3}\s*\d{3}\s*\d{3}|\d{3}\s*\d{3}\s*\d{3}"
-                                           title="Zadej 9 číslic (např. 777888999) nebo s předvolbou +420/420." />
+                                    <span>@m.Phone</span>
+                                    <div class="text-white-50 small">Použije se číslo člena.</div>
                                 }
+                                else
+                                {
+                                    <span class="text-white-50">—</span>
+                                    <div class="text-white-50 small">
+                                        Člen nemá telefon — můžeš ho doplnit při povýšení.
+                                    </div>
+                                }
+                            </td>
 
-                                <button type="submit" class="btn btn-sm btn-warning">
-                                    Povýšit
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
+                            <td class="text-end">
+                                <form method="post"
+                                      action="@Url.Action("PromoteMember", "AdminTrainers")"
+                                      class="d-inline-flex gap-2 align-items-center">
+
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="email" value="@m.Email" />
+
+                                    @if (!hasPhone)
+                                    {
+                                        <input type="tel"
+                                               name="phone"
+                                               class="form-control form-control-sm"
+                                               placeholder="Telefon pro trenéra"
+                                               style="width:210px"
+                                               pattern="(\+?420)?\s*\d{3}\s*\d{3}\s*\d{3}|\d{3}\s*\d{3}\s*\d{3}"
+                                               title="Zadej 9 číslic (např. 777888999) nebo s předvolbou +420/420." />
+                                    }
+
+                                    <button type="submit" class="btn btn-sm btn-warning">
+                                        Povýšit
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>

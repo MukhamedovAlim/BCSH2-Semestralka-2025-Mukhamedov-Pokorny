@@ -1,0 +1,88 @@
+﻿@model FitnessCenter.Web.Models.Member.MemberEditViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Upravit člena";
+    Layout = "_AppLayout";
+    ViewBag.HideMainNav = true;
+
+    var fitness = (IEnumerable<SelectListItem>)(ViewBag.FitnessCenters
+                  ?? Enumerable.Empty<SelectListItem>());
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2"
+           href="@Url.Action("Index", "Members")"
+           onclick="if(history.length>1){history.back();return false;}">← Zpět</a>
+        <span class="h4 text-white align-middle">Upravit člena</span>
+    </div>
+</div>
+
+<div class="glass p-3">
+    <form asp-action="Edit"
+          asp-controller="Members"
+          asp-route-id="@Model.IdClen"
+          method="post"
+          novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="IdClen" value="@Model.IdClen" />
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Jmeno">Jméno</label>
+                <input class="form-control" id="Jmeno" name="Jmeno" value="@Model.Jmeno" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Prijmeni">Příjmení</label>
+                <input class="form-control" id="Prijmeni" name="Prijmeni" value="@Model.Prijmeni" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Email">E-mail</label>
+                <input class="form-control" id="Email" name="Email" value="@Model.Email" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Telefon">Telefon</label>
+                <input class="form-control" id="Telefon" name="Telefon" value="@Model.Telefon" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="DatumNarozeni">Datum narození</label>
+                <input class="form-control"
+                       type="date"
+                       id="DatumNarozeni"
+                       name="DatumNarozeni"
+                       value="@(Model.DatumNarozeni.HasValue? Model.DatumNarozeni.Value.ToString("yyyy-MM-dd") : "")" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Adresa">Adresa</label>
+                <input class="form-control" id="Adresa" name="Adresa" value="@Model.Adresa" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="FitnesscentrumId">Fitness centrum</label>
+                <select class="form-select" id="FitnesscentrumId" name="FitnesscentrumId">
+                    <option value="">(nezměnit)</option>
+                    @foreach (var it in fitness)
+                    {
+                        var sel = (Model.FitnesscentrumId.HasValue &&
+                        Model.FitnesscentrumId.Value.ToString() == it.Value)
+                        ? "selected" : null;
+                        <option value="@it.Value" @sel>@it.Text</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-warning px-4">Uložit změny</button>
+            <a class="btn btn-secondary" href="@Url.Action("Index", "Members")">Zrušit</a>
+        </div>
+    </form>
+
+    <div asp-validation-summary="All" class="text-danger small mt-3"></div>
+</div>

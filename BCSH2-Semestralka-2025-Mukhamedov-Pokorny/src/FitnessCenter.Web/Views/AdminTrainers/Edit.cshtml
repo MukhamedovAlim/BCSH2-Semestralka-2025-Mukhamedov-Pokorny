@@ -1,13 +1,60 @@
-﻿@model FitnessCenter.Web.Models.TrainerViewModel
+﻿@model FitnessCenter.Web.Models.TrainerEditViewModel
+
 @{
-    ViewData["Title"] = "Upravit trenéra"; Layout = "_AppLayout";
+    ViewData["Title"] = "Upravit trenéra";
+    Layout = "_AppLayout";
+    ViewBag.HideMainNav = true;
 }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2"
+           href="@Url.Action("Index", "AdminTrainers")"
+           onclick="if(history.length>1){history.back();return false;}">← Zpět</a>
+        <span class="h4 text-white align-middle">Upravit trenéra</span>
+    </div>
+</div>
+
 <div class="glass p-3">
-    <h3 class="text-white mb-2">Upravit trenéra</h3>
-    <form asp-action="Edit" method="post">
-        <partial name="_TrainerForm" model="Model" />
-        <hr class="border-secondary my-3" />
-        <button class="btn btn-warning" type="submit">Uložit změny</button>
-        <a asp-action="Index" class="btn btn-outline-light">Zpět</a>
+    <form asp-action="Edit"
+          asp-controller="AdminTrainers"
+          asp-route-id="@Model.TrainerId"
+          method="post"
+          novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="TrainerId" value="@Model.TrainerId" />
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Jmeno">Jméno</label>
+                <input class="form-control" id="Jmeno" name="Jmeno" value="@Model.Jmeno" />
+                <span class="text-danger" asp-validation-for="Jmeno"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Prijmeni">Příjmení</label>
+                <input class="form-control" id="Prijmeni" name="Prijmeni" value="@Model.Prijmeni" />
+                <span class="text-danger" asp-validation-for="Prijmeni"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Email">E-mail</label>
+                <input class="form-control" id="Email" name="Email" value="@Model.Email" />
+                <span class="text-danger" asp-validation-for="Email"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label text-white" for="Telefon">Telefon</label>
+                <input class="form-control" id="Telefon" name="Telefon" value="@Model.Telefon" />
+                <span class="text-danger" asp-validation-for="Telefon"></span>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-warning px-4">Uložit změny</button>
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminTrainers")">Zrušit</a>
+        </div>
     </form>
+
+    <div asp-validation-summary="All" class="text-danger small mt-3"></div>
 </div>

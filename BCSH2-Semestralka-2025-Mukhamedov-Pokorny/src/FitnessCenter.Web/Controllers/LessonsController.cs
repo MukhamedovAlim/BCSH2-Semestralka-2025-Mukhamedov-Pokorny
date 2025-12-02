@@ -1,6 +1,7 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
+using FitnessCenter.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -14,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize(Roles = "Trainer")]
+    [Authorize(Roles = "Trainer,Admin")]
     public class LessonsController : Controller
     {
         private readonly ILessonsService _lessons;
@@ -52,18 +53,20 @@ namespace FitnessCenter.Web.Controllers
             return items;
         }
 
-        // Správa lekcí (list)
-        [HttpGet]
-        public async Task<IActionResult> Index()
+        private async Task<int?> GetCurrentTrainerIdAsync()
         {
             var email = User.FindFirstValue(ClaimTypes.Email);
             if (string.IsNullOrWhiteSpace(email))
-            {
-                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
-                return View(Array.Empty<Lesson>());
-            }
+                return null;
 
-            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            return await _members.GetTrainerIdByEmailAsync(email);
+        }
+
+        // Správa lekcí (list) – pro trenéra
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var trainerId = await GetCurrentTrainerIdAsync();
             if (trainerId is null)
             {
                 TempData["Err"] = "Tvůj účet není svázaný s žádným trenérem v databázi.";
@@ -72,15 +75,6 @@ namespace FitnessCenter.Web.Controllers
 
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
             return View(list);
-        }
-
-        // Detail lekce
-        [HttpGet]
-        public async Task<IActionResult> Detail(int id)
-        {
-            var lesson = await _lessons.GetAsync(id);
-            if (lesson == null) return NotFound();
-            return View(lesson);
         }
 
         // Docházka ke konkrétní lekci
@@ -132,15 +126,9 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 2) Trenér z claims
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
-                return RedirectToAction(nameof(Create));
-            }
-
-            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            // 2) Trenér z claims (pro trenéra); pro admina to klidně uděláme stejně –
+            // admin prostě vytvoří lekci "pod sebou" jako trenér, pokud je také v tabulce TRENERI.
+            var trainerId = await GetCurrentTrainerIdAsync();
             if (trainerId is null)
             {
                 TempData["Err"] = "Tvůj účet není spojen s žádným trenérem v databázi.";
@@ -179,7 +167,6 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
             {
-                // 20006 = kapacita < 1, 20007 = snížení pod přihlášené (u insertu spíš 20006)
                 ModelState.AddModelError(string.Empty, ex.Message);
                 ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
                 ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
@@ -208,67 +195,66 @@ namespace FitnessCenter.Web.Controllers
             var lesson = await _lessons.GetAsync(id);
             if (lesson == null) return NotFound();
 
-            // pokud používáš combobox na fitka i v Editu:
-            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+            // pokud chceš preselect, můžeš sem dát id fitka, jinak nech null
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(/* např. lesson.FitkoId */);
+
             return View(lesson);
         }
 
-        // Úprava lekce – uložení
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Lesson model)
+        public async Task<IActionResult> Edit(int id, LessonEditViewModel vm)
         {
-            if (id != model.Id) return NotFound();
+            if (id != vm.Id)
+                return NotFound();
+
             if (!ModelState.IsValid)
-            {
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(model);
-            }
+                return View(vm);
+
+            var lesson = await _lessons.GetAsync(id);
+            if (lesson == null)
+                return NotFound();
+
+            lesson.Nazev = vm.Nazev.Trim();
+            lesson.Zacatek = vm.Zacatek;
+            lesson.Kapacita = vm.Kapacita;
+            lesson.Popis = vm.Popis;
 
             try
             {
-                var ok = await _lessons.UpdateAsync(model);
-                if (ok)
+                var ok = await _lessons.UpdateAsync(lesson);
+                if (!ok)
                 {
-                    TempData["Ok"] = "Lekce byla upravena.";
-                    return RedirectToAction(nameof(Detail), new { id = model.Id });
+                    ModelState.AddModelError(string.Empty, "Nepodařilo se uložit lekci.");
+                    return View(vm);
                 }
 
-                ModelState.AddModelError(string.Empty, "Nepodařilo se uložit lekci.");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(model);
+                TempData["Ok"] = "Lekce byla upravena.";
+                // ⬇⬇⬇ tady byl RedirectToAction(nameof(Detail)...)
+                return RedirectToAction(nameof(Index));
             }
             catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(model);
+                return View(vm);
             }
             catch (OracleException ex)
             {
                 ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(model);
+                return View(vm);
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-                return View(model);
+                return View(vm);
             }
         }
 
         [HttpGet]
         public async Task<IActionResult> Delete()
         {
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                TempData["Err"] = "Nelze zjistit e-mail přihlášeného uživatele.";
-                return View(Array.Empty<Lesson>());
-            }
-
-            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+            var trainerId = await GetCurrentTrainerIdAsync();
             if (trainerId is null)
             {
                 TempData["Err"] = "Tvůj účet není svázaný s žádným trenérem v databázi.";

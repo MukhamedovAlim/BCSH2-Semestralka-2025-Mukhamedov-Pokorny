@@ -23,7 +23,7 @@
                class="form-control form-control-lg"
                autocomplete="username"
                placeholder="E-mail"
-               value="@Model.Email" />
+               value="@(Model?.Email ?? string.Empty)" />
     </div>
 
     <div class="mb-2">

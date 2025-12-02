@@ -43,13 +43,21 @@ namespace FitnessCenter.Web.Controllers
             // načíst člena kvůli kontaktu
             var member = await _members.GetByIdAsync(clenId);
 
-            ViewBag.MemberPhone = string.IsNullOrWhiteSpace(member.Phone)
-                ? "—"
-                : member.Phone;
+            if (member == null)
+            {
+                ViewBag.MemberPhone = "—";
+                ViewBag.MemberEmail = "—";
+            }
+            else
+            {
+                ViewBag.MemberPhone = string.IsNullOrWhiteSpace(member.Phone)
+                    ? "—"
+                    : member.Phone;
 
-            ViewBag.MemberEmail = string.IsNullOrWhiteSpace(member.Email)
-                ? "—"
-                : member.Email;
+                ViewBag.MemberEmail = string.IsNullOrWhiteSpace(member.Email)
+                    ? "—"
+                    : member.Email;
+            }
 
             // data pro permanentku
             var ms = await _payments.GetMembershipAsync(clenId);

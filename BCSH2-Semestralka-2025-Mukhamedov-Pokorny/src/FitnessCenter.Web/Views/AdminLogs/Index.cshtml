@@ -4,6 +4,34 @@
     Layout = "_AppLayout";
 
     ViewBag.HideMainNav = true;
+
+    string FormatOperace(string op) => op switch
+    {
+        "INSERT" => "Vytvoření",
+        "UPDATE" => "Úprava",
+        "DELETE" => "Smazání",
+        _ => op
+    };
+
+    string OperaceBadgeClass(string op) => op switch
+    {
+        "INSERT" => "bg-success",
+        "UPDATE" => "bg-warning text-dark",
+        "DELETE" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    string CleanPopis(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "";
+
+        var idx = raw.IndexOf("ROWID", StringComparison.OrdinalIgnoreCase);
+        if (idx > 0)
+            return raw[..idx].Trim().TrimEnd('-', ';', ',');
+
+        return raw.Trim();
+    }
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -29,9 +57,13 @@
                 <tr>
                     <td>@x.Kdy.ToString("dd.MM.yyyy HH:mm:ss")</td>
                     <td>@x.Tabulka</td>
-                    <td>@x.Operace</td>
+                    <td>
+                        <span class="badge @OperaceBadgeClass(x.Operace)">
+                            @FormatOperace(x.Operace)
+                        </span>
+                    </td>
                     <td>@x.Kdo</td>
-                    <td>@x.Popis</td>
+                    <td>@CleanPopis(x.Popis)</td>
                 </tr>
             }
         </tbody>

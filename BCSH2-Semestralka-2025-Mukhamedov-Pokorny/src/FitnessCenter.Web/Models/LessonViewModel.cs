@@ -12,9 +12,6 @@ namespace FitnessCenter.Web.Models
         [Required]
         public DateTime Zacatek { get; set; }
 
-        [Required, MaxLength(40)]
-        public string Mistnost { get; set; } = string.Empty;
-
         [Range(1, 200)]
         public int Kapacita { get; set; } = 10;
 
