@@ -9,9 +9,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
-using System.Text;
 using Microsoft.AspNetCore.Identity;
 using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
+using FitnessCenter.Infrastructure; // IEmailSender
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -19,20 +19,25 @@ namespace FitnessCenter.Web.Controllers
     public class MembersController : Controller
     {
         private readonly IMembersService _members;
+        private readonly IEmailSender _emailSender;
+        private readonly PasswordHasher<Member> _hasher = new();
 
-        public MembersController(IMembersService members)
+        public MembersController(IMembersService members, IEmailSender emailSender)
         {
             _members = members;
+            _emailSender = emailSender;
         }
-        private readonly PasswordHasher<Member> _hasher = new();
+
+        // -------------------------
+        // Pomocné metody
+        // -------------------------
 
         private static string GeneratePassword()
         {
-            // jednoduché 8-znakové heslo, klidně si to později uprav
+            // jednoduché 8-znakové heslo
             return Guid.NewGuid().ToString("N")[..8];
         }
 
-        // --- načtení seznamu fitcenter ---
         private static async Task<List<SelectListItem>> LoadFitnessForSelectAsync()
         {
             var items = new List<SelectListItem>();
@@ -54,7 +59,6 @@ namespace FitnessCenter.Web.Controllers
             return items;
         }
 
-        // test
         [HttpGet("/Members/Ping")]
         public IActionResult Ping() => Content("OK");
 
@@ -232,7 +236,7 @@ ORDER BY c.prijmeni, c.jmeno
                 BirthDate = vm.BirthDate!.Value,
                 FitnessCenterId = vm.FitnessCenterId,
 
-                // 🔥 KLÍČOVÁ VĚC: účet vytvořený adminem MUSÍ změnit heslo
+                // účet vytvořený adminem MUSÍ změnit heslo
                 MustChangePassword = true
             };
 
@@ -246,9 +250,35 @@ ORDER BY c.prijmeni, c.jmeno
             {
                 await _members.CreateViaProcedureAsync(m);
 
-                // 3) předáme heslo adminovi přes TempData
-                TempData["Ok"] = $"Člen byl vytvořen. Heslo: {plainPassword}";
+                // 3) pošleme e-mail uživateli (pokud má mail)
+                if (!string.IsNullOrWhiteSpace(m.Email))
+                {
+                    try
+                    {
+                        var subject = "Váš účet ve Svalovna Gym";
+                        var body = $@"
+<p>Dobrý den, {m.FirstName} {m.LastName},</p>
+<p>byl pro vás vytvořen účet ve Svalovna Gym.</p>
+<p><b>Přihlašovací e-mail:</b> {m.Email}<br/>
+<b>Heslo:</b> {plainPassword}</p>
+<p>Po prvním přihlášení si prosím heslo změňte v sekci „Změna hesla“.</p>
+<p>Hezký den,<br/>Fitness Center</p>";
 
+                        await _emailSender.SendEmailAsync(
+                            m.Email,
+                            subject,
+                            body,
+                            isHtml: true
+                        );
+                    }
+                    catch
+                    {
+                        // mail selhal – ale nechceme kvůli tomu shodit vytvoření člena
+                    }
+                }
+
+                // 4) heslo zobrazíme adminovi
+                TempData["Ok"] = $"Člen byl vytvořen. Heslo: {plainPassword}";
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
@@ -309,7 +339,6 @@ ORDER BY c.prijmeni, c.jmeno
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, MemberEditViewModel vm)
         {
-            // pro jistotu sladíme id z routy a z formuláře
             if (vm.IdClen <= 0) vm.IdClen = id;
             if (vm.IdClen != id)
                 ModelState.AddModelError(nameof(vm.IdClen), "Nesouhlasí ID v adrese a ve formuláři.");
@@ -370,7 +399,6 @@ ORDER BY c.prijmeni, c.jmeno
             }
         }
 
-
         // =============================
         //            DELETE
         // =============================
@@ -400,9 +428,8 @@ ORDER BY c.prijmeni, c.jmeno
                     TempData["Ok"] = "Člen byl smazán.";
                 }
             }
-            catch (OracleException ex) when (ex.Number == 2292) // ORA-02292: child record found
+            catch (OracleException ex) when (ex.Number == 2292)
             {
-                // má navázané členství/platby/rezervace a FK mu to nedovolí smazat
                 TempData["Err"] = "Člena nelze smazat, protože má navázané záznamy (členství, rezervace nebo platby).";
             }
             catch (Exception ex)

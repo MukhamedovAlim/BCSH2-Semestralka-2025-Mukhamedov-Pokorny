@@ -10,6 +10,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCenter.Domain", "BCSH2-Semestralka-2025-Mukhamedov-Pokorny\src\FitnessCenter.Domain\FitnessCenter.Domain.csproj", "{C9E1A881-9B21-9A79-DC90-B41F41B0950D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCenter.Infrastructure", "BCSH2-Semestralka-2025-Mukhamedov-Pokorny\src\FitnessCenter.Infrastructure\FitnessCenter.Infrastructure.csproj", "{27372391-F90C-CF7E-D041-03D76A3FDB11}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C9E1A881-9B21-9A79-DC90-B41F41B0950D} = {C9E1A881-9B21-9A79-DC90-B41F41B0950D}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

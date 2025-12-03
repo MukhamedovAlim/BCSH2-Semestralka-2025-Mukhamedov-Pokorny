@@ -9,8 +9,11 @@
 	  <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
 	  <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.0" />
 	</ItemGroup>
-
 	<ItemGroup>
-		<ProjectReference Include="..\FitnessCenter.Domain\FitnessCenter.Domain.csproj" />
+	  <ProjectReference Include="..\FitnessCenter.Domain\FitnessCenter.Domain.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Services\" />
+	  <Folder Include="Settings\" />
 	</ItemGroup>
 </Project>

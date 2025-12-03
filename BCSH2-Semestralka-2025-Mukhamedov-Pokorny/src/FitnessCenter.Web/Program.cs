@@ -8,13 +8,21 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
 using Microsoft.AspNetCore.Routing;
 using FitnessCenter.Web.Infrastructure.Security;
-
+using FitnessCenter.Infrastructure;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // MVC
 builder.Services.AddControllersWithViews();
+
+// =======================
+//   E-mail (DI konfigurace)
+// =======================
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("Email"));
+
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 // IHttpContextAccessor – potřebné pro LessonsService
 builder.Services.AddHttpContextAccessor();

@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using System.Linq;
 using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;           // DatabaseManager
@@ -11,20 +10,22 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
+using FitnessCenter.Infrastructure;                      // IEmailSender
 
 namespace FitnessCenter.Web.Controllers
 {
     public class AccountController : Controller
     {
         private readonly IMembersService _members;
+        private readonly IEmailSender _emailSender;
         private readonly PasswordHasher<Member> _hasher = new();
 
-        // TODO: uprav si na reálný admin e-mail
         private const string AdminEmail = "pokdavi@seznam.cz";
 
-        public AccountController(IMembersService members)
+        public AccountController(IMembersService members, IEmailSender emailSender)
         {
             _members = members;
+            _emailSender = emailSender;
         }
 
         private static async Task<List<SelectListItem>> LoadFitnessForSelectAsync()
@@ -53,7 +54,6 @@ namespace FitnessCenter.Web.Controllers
         [AllowAnonymous]
         public IActionResult Login(string? returnUrl = null)
         {
-            // Pokud už je uživatel přihlášený, pošli ho rovnou na jeho dashboard
             if (User?.Identity?.IsAuthenticated == true)
             {
                 if (User.IsInRole("Admin")) return RedirectToAction("Admin", "Home");
@@ -63,6 +63,98 @@ namespace FitnessCenter.Web.Controllers
 
             ViewData["ReturnUrl"] = returnUrl;
             return View(new LoginViewModel());
+        }
+
+        // ========================
+        //        LOGIN (POST)
+        // ========================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [AllowAnonymous]
+        public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var email = model.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                ModelState.AddModelError(string.Empty, "Zadej e-mail a heslo.");
+                return View(model);
+            }
+
+            var all = await _members.GetAllAsync();
+            var member = all.FirstOrDefault(c =>
+                c.Email != null && c.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
+            if (member == null)
+            {
+                ModelState.AddModelError(string.Empty, "Neplatný e-mail nebo heslo.");
+                return View(model);
+            }
+
+            var result = _hasher.VerifyHashedPassword(member, member.PasswordHash, model.Password);
+            if (result != PasswordVerificationResult.Success)
+            {
+                ModelState.AddModelError(string.Empty, "Neplatný e-mail nebo heslo.");
+                return View(model);
+            }
+
+            bool isTrainer = await _members.IsTrainerEmailAsync(email);
+            int? trainerId = null;
+            if (isTrainer)
+                trainerId = await _members.GetTrainerIdByEmailAsync(email);
+
+            bool isAdmin = email.Equals(AdminEmail, StringComparison.OrdinalIgnoreCase);
+
+            var memberIdStr = member.MemberId.ToString();
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, memberIdStr),
+                new Claim("MemberId", memberIdStr),
+                new Claim("UserId",   memberIdStr),
+                new Claim("ClenId",   memberIdStr),
+
+                new Claim(ClaimTypes.Name,  $"{member.FirstName} {member.LastName}".Trim()),
+                new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.Role,  "Member")
+            };
+
+            if (isTrainer)
+                claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
+
+            if (trainerId.HasValue)
+                claims.Add(new Claim("TrainerId", trainerId.Value.ToString()));
+
+            if (isAdmin)
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+
+            if (member.MustChangePassword)
+                claims.Add(new Claim("MustChangePassword", "true"));
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                });
+
+            if (member.MustChangePassword)
+                return RedirectToAction(nameof(ChangePassword));
+
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+
+            if (isAdmin) return RedirectToAction("Admin", "Home");
+            if (isTrainer) return RedirectToAction("Trainer", "Home");
+
+            return RedirectToAction("Index", "Home");
         }
 
         // ============================
@@ -80,13 +172,10 @@ namespace FitnessCenter.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
-            // 1) základní modelová validace (Required, Compare, ...)
             if (!ModelState.IsValid)
             {
                 var errors = string.Join(" | ",
-                    ModelState.Values
-                              .SelectMany(v => v.Errors)
-                              .Select(e => e.ErrorMessage));
+                    ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
 
                 TempData["Err"] = string.IsNullOrWhiteSpace(errors)
                     ? "Formulář není validní."
@@ -95,25 +184,22 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 2) načteme ID uživatele z claims
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdStr, out var memberId))
             {
                 TempData["Err"] = "Nepodařilo se zjistit ID uživatele z přihlášení.";
                 await HttpContext.SignOutAsync();
-                return RedirectToAction("Login");
+                return RedirectToAction(nameof(Login));
             }
 
-            // 3) načteme člena z databáze
             var member = await _members.GetByIdAsync(memberId);
             if (member == null)
             {
                 TempData["Err"] = "Uživatel v databázi neexistuje.";
                 await HttpContext.SignOutAsync();
-                return RedirectToAction("Login");
+                return RedirectToAction(nameof(Login));
             }
 
-            // 4) ověření aktuálního hesla
             var verify = _hasher.VerifyHashedPassword(member, member.PasswordHash, model.CurrentPassword);
             if (verify != PasswordVerificationResult.Success)
             {
@@ -122,7 +208,6 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 5) kontrola nového hesla
             if (string.IsNullOrWhiteSpace(model.NewPassword) ||
                 string.IsNullOrWhiteSpace(model.ConfirmPassword))
             {
@@ -143,21 +228,24 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // 6) změna hesla v DB – procedura zároveň nastaví MUSI_ZMENIT_HESLO = 0
             var newHash = _hasher.HashPassword(member, model.NewPassword);
             await _members.ChangePasswordAsync(memberId, newHash);
 
-            // 7) znovu přihlásíme uživatele bez MustChangePassword claimu
+            // po úspěšné změně hesla už MustChangePassword nemá smysl
+            member.MustChangePassword = false;
+            await _members.UpdateAsync(member);
+
+            // přihlášení znovu bez MustChangePassword claimu
             var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
-        new Claim("MemberId",  member.MemberId.ToString()),
-        new Claim("UserId",    member.MemberId.ToString()),
-        new Claim("ClenId",    member.MemberId.ToString()),
-        new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
-        new Claim(ClaimTypes.Email, member.Email),
-        new Claim(ClaimTypes.Role, "Member")
-    };
+            {
+                new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
+                new Claim("MemberId",  member.MemberId.ToString()),
+                new Claim("UserId",    member.MemberId.ToString()),
+                new Claim("ClenId",    member.MemberId.ToString()),
+                new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
+                new Claim(ClaimTypes.Email, member.Email),
+                new Claim(ClaimTypes.Role, "Member")
+            };
 
             if (User.IsInRole("Trainer"))
                 claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
@@ -185,17 +273,20 @@ namespace FitnessCenter.Web.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-
-
-
-
         // ========================
-        //        LOGIN (POST)
+        //     ZAPOMENUTÉ HESLO
         // ========================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
+        public IActionResult ForgotPassword()
+        {
+            return View(new ForgotPasswordViewModel());
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
@@ -203,100 +294,48 @@ namespace FitnessCenter.Web.Controllers
             var email = model.Email?.Trim();
             if (string.IsNullOrWhiteSpace(email))
             {
-                ModelState.AddModelError("", "Zadej e-mail a heslo.");
+                ModelState.AddModelError(nameof(model.Email), "Zadej e-mail.");
                 return View(model);
             }
 
-            // hnus, ale používáš to tak – vybereš všechny a najdeš
             var all = await _members.GetAllAsync();
             var member = all.FirstOrDefault(c =>
                 c.Email != null && c.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
+            // Z bezpečnostních důvodů neříkáme, jestli účet existuje
             if (member == null)
             {
-                ModelState.AddModelError("", "Neplatný e-mail nebo heslo.");
-                return View(model);
+                TempData["Info"] = "Pokud u nás byl účet nalezen, poslali jsme ti nové heslo na e-mail.";
+                return RedirectToAction(nameof(Login));
             }
 
-            var result = _hasher.VerifyHashedPassword(member, member.PasswordHash, model.Password);
-            if (result != PasswordVerificationResult.Success)
+            // vygenerujeme nové heslo
+            var newPassword = Guid.NewGuid().ToString("N")[..8];
+            var newHash = _hasher.HashPassword(member, newPassword);
+
+            member.PasswordHash = newHash;
+            member.MustChangePassword = true;
+            await _members.UpdateAsync(member);
+
+            try
             {
-                ModelState.AddModelError("", "Neplatný e-mail nebo heslo.");
-                return View(model);
+                var subject = "Reset hesla – Svalovna Gym";
+                var body = $@"
+<p>Dobrý den, {member.FirstName} {member.LastName},</p>
+<p>zasíláme vám nové heslo pro přihlášení do Svalovna Gym.</p>
+<p><b>Přihlašovací e-mail:</b> {member.Email}<br/>
+<b>Nové heslo:</b> {newPassword}</p>
+<p>Po přihlášení budete požádán(a) o změnu hesla.</p>";
+
+                await _emailSender.SendEmailAsync(member.Email, subject, body, isHtml: true);
+            }
+            catch
+            {
+                // e-mail když selže, necháme tiše – uživatel stejně dostane obecnou hlášku
             }
 
-            // ZJISTIT ROLE (trainer / admin)
-            bool isTrainer = await _members.IsTrainerEmailAsync(email);
-            int? trainerId = null;
-            if (isTrainer)
-                trainerId = await _members.GetTrainerIdByEmailAsync(email);
-
-            // 🔥 Admin stejně jako dřív – podle e-mailu
-            bool isAdmin = email.Equals(AdminEmail, StringComparison.OrdinalIgnoreCase);
-
-            // 4) Claims
-            var memberIdStr = member.MemberId.ToString();
-
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, memberIdStr),
-
-                new Claim("MemberId", memberIdStr),
-                new Claim("UserId", memberIdStr),
-                new Claim("ClenId", memberIdStr),
-
-                new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
-                new Claim(ClaimTypes.Email, email),
-                new Claim(ClaimTypes.Role, "Member")
-            };
-
-            if (isTrainer)
-                claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
-
-            if (trainerId.HasValue)
-                claims.Add(new Claim("TrainerId", trainerId.Value.ToString()));
-
-            if (isAdmin)
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-
-            // 🔥 DŮLEŽITÉ – claim MustChangePassword
-            if (member.MustChangePassword)
-            {
-                claims.Add(new Claim("MustChangePassword", "true"));
-            }
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
-
-            // Pokud musí změnit heslo → přesměruj na ChangePassword
-            if (member.MustChangePassword)
-            {
-                return RedirectToAction("ChangePassword", "Account");
-            }
-
-            // jinak na Home / nebo původní returnUrl
-            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
-                return Redirect(returnUrl);
-
-            // Admin → admin dashboard
-            if (isAdmin)
-                return RedirectToAction("Admin", "Home");
-
-            // Trenér → trainer dashboard
-            if (isTrainer)
-                return RedirectToAction("Trainer", "Home");
-
-            // běžný člen → Home
-            return RedirectToAction("Index", "Home");
+            TempData["Info"] = "Pokud u nás byl účet nalezen, poslali jsme ti nové heslo na e-mail.";
+            return RedirectToAction(nameof(Login));
         }
 
         // ========================
@@ -306,7 +345,7 @@ namespace FitnessCenter.Web.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Register()
         {
-            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();   // naplníme dropdown
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
             return View(new RegisterViewModel());
         }
 
@@ -317,11 +356,10 @@ namespace FitnessCenter.Web.Controllers
         {
             if (!ModelState.IsValid)
             {
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(); // znovu při chybě
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
                 return View(model);
             }
 
-            // duplicitní e-mail – rychlá kontrola
             var all = await _members.GetAllAsync();
             if (all.Any(m => string.Equals(m.Email, model.Email, StringComparison.OrdinalIgnoreCase)))
             {
@@ -330,7 +368,6 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
 
-            // pojistka: zvolený FitnessCenter existuje
             using (var con = await DatabaseManager.GetOpenConnectionAsync())
             using (var chk = new OracleCommand("SELECT COUNT(*) FROM fitnesscentra WHERE idfitness=:id", (OracleConnection)con))
             {
@@ -348,9 +385,6 @@ namespace FitnessCenter.Web.Controllers
             var tempMember = new Member();
             var passwordHash = _hasher.HashPassword(tempMember, model.Password);
 
-            System.Diagnostics.Debug.WriteLine("EMAIL: '" + model.Email + "'");
-            System.Diagnostics.Debug.WriteLine("HESLO: '" + model.Password + "'");
-
             var member = new Member
             {
                 FirstName = model.FirstName?.Trim() ?? "",
@@ -365,7 +399,7 @@ namespace FitnessCenter.Web.Controllers
 
             try
             {
-                await _members.CreateViaProcedureAsync(member); // PR_CLEN_CREATE musí nově brát i PASSWORD_HASH
+                await _members.CreateViaProcedureAsync(member);
                 TempData["JustRegistered"] = true;
                 TempData["RegisterMsg"] = "Účet byl vytvořen. Přihlas se prosím.";
                 return RedirectToAction(nameof(Login));
@@ -401,7 +435,7 @@ namespace FitnessCenter.Web.Controllers
                 if (User.IsInRole("Trainer")) return RedirectToAction("Trainer", "Home");
                 return RedirectToAction("Index", "Home");
             }
-            return RedirectToAction("Login", "Account");
+            return RedirectToAction(nameof(Login));
         }
     }
 }

@@ -4,52 +4,70 @@
     Layout = "_AuthLayout";
 }
 
-<h1 class="h4 text-center mb-2 text-white">Přihlášení</h1>
+<h1 class="h4 text-center mb-3 text-white">Přihlášení</h1>
 
-@if (!string.IsNullOrEmpty(Model?.ErrorMessage))
+@if (TempData["Info"] is string infoMsg)
 {
-    <div class="alert alert-danger small py-2 px-3 mb-3" role="alert">
-        @Model.ErrorMessage
+    <div class="alert alert-success small py-2 px-3 mb-3 text-center">
+        @infoMsg
     </div>
 }
 
-<form id="loginForm" method="post" action="/Account/Login" novalidate>
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="ModelOnly"
+         class="alert alert-danger small py-2 px-3 mb-3 text-center">
+    </div>
+}
+
+<form method="post" action="/Account/Login" novalidate>
     @Html.AntiForgeryToken()
 
-    <div class="mb-2">
+    <div class="mb-3">
         <label class="visually-hidden" for="Email">E-mail</label>
-        <input id="Email" name="Email"
+        <input id="Email"
+               name="Email"
                type="email"
                class="form-control form-control-lg"
-               autocomplete="username"
                placeholder="E-mail"
-               value="@(Model?.Email ?? string.Empty)" />
+               autocomplete="username"
+               value="@Model?.Email" />
     </div>
 
-    <div class="mb-2">
+    <div class="mb-3">
         <label class="visually-hidden" for="Password">Heslo</label>
-        <input id="Password" name="Password"
+        <input id="Password"
+               name="Password"
                type="password"
                class="form-control form-control-lg"
-               autocomplete="current-password"
-               placeholder="Heslo" />
+               placeholder="Heslo"
+               autocomplete="current-password" />
     </div>
 
-    <button class="btn btn-primary btn-lg w-100 mt-2" type="submit">
+    <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">
         Přihlásit se
     </button>
 </form>
 
-<div class="mt-3">
-    <a href="@Url.Action("Index", "Public")" class="btn btn-outline-light w-100 mb-2">
+<div class="mt-4">
+    <a href="/Public/Index" class="btn btn-outline-light w-100 mb-3">
         Pokračovat bez přihlášení
     </a>
 
     <div class="text-center">
         <small class="text-white-50">
             Nemáš účet?
-            <a href="/Account/Register" class="link-warning text-decoration-none">Registruj se</a>
+            <a href="/Account/Register" class="link-warning text-decoration-none">
+                Registruj se
+            </a>
         </small>
+
+        <p class="mt-2">
+            <a href="/Account/ForgotPassword"
+               class="text-white-50 text-decoration-none">
+                Zapomněl(a) jsem heslo
+            </a>
+        </p>
     </div>
 </div>
 
