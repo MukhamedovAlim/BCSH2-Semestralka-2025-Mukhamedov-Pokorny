@@ -1,0 +1,141 @@
+﻿@model IEnumerable<FitnessCenter.Infrastructure.DBObjects.DbObjectRow>
+
+@{
+    ViewData["Title"] = "Systémový katalog DB objektů";
+    Layout = "_AppLayout";
+
+    ViewBag.HideMainNav = true;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Admin", "Home")">← Zpět</a>
+        <span class="h3 text-white mb-0">Systémový katalog</span>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="text-white-50 small">Filtr podle typu objektu:</div>
+    <div id="dbFilter" class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-warning active" data-filter="ALL">Vše</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="TABLE">Tabulky</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="VIEW">Pohledy</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="SEQUENCE">Sekvence</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="PROCEDURE">Procedury</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="FUNCTION">Funkce</button>
+        <button type="button" class="btn btn-outline-warning" data-filter="TRIGGER">Triggery</button>
+    </div>
+</div>
+
+
+<div class="table-responsive glass p-2">
+    <table class="table table-dark table-striped table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th style="width: 40px;"></th>
+                <th>Typ</th>
+                <th>Název</th>
+                <th>Vytvořeno</th>
+                <th>Naposledy změněno</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var obj in Model)
+            {
+                var key = $"{obj.ObjectType}_{obj.ObjectName}".Replace(" ", "_");
+
+                <tr class="dbo-row" data-type="@obj.ObjectType">
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-warning toggle-detail"
+                                data-type="@obj.ObjectType"
+                                data-name="@obj.ObjectName"
+                                data-target="#row-@key">
+                            ▼
+                        </button>
+                    </td>
+                    <td>@obj.ObjectType</td>
+                    <td>@obj.ObjectName</td>
+                    <td>@obj.Created</td>
+                    <td>@obj.LastDdlTime</td>
+                </tr>
+
+                <tr id="row-@key"
+                    class="dbo-detail d-none"
+                    data-type="@obj.ObjectType">
+                    <td colspan="5">
+                        <div class="detail-content small"></div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("click", async function (e) {
+            // ===== toggle detail (už máš) =====
+        const btnDetail = e.target.closest(".toggle-detail");
+        if (btnDetail) {
+            const targetSelector = btnDetail.getAttribute("data-target");
+            const row = document.querySelector(targetSelector);
+            const container = row.querySelector(".detail-content");
+
+            if (!row.dataset.loaded) {
+                const type = btnDetail.getAttribute("data-type");
+                const name = btnDetail.getAttribute("data-name");
+                const url = `/AdminDbObjects/DetailPartial?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`;
+
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    container.innerHTML = "<div class='text-danger'>Nepodařilo se načíst detail.</div>";
+                } else {
+                    container.innerHTML = await resp.text();
+                    row.dataset.loaded = "1";
+                }
+            }
+
+            // toggle řádku
+            const wasHidden = row.classList.contains("d-none");
+            row.classList.toggle("d-none");
+
+            // podle stavu přepni vzhled tlačítka
+            if (wasHidden) {
+                // nově OTEVŘENO → plný žlutý + šipka nahoru
+                btnDetail.classList.remove("btn-outline-warning");
+                btnDetail.classList.add("btn-warning");
+                btnDetail.textContent = "▲";
+            } else {
+                // nově ZAVŘENO → outline + šipka dolů
+                btnDetail.classList.remove("btn-warning");
+                btnDetail.classList.add("btn-outline-warning");
+                btnDetail.textContent = "▼";
+            }
+
+            return;
+        }
+
+            // ===== filtr podle typu =====
+            const btnFilter = e.target.closest("#dbFilter button");
+            if (!btnFilter) return;
+
+            const filter = btnFilter.getAttribute("data-filter");
+
+            // přepnout aktivní tlačítko
+            document.querySelectorAll("#dbFilter button").forEach(b => {
+                b.classList.toggle("active", b === btnFilter);
+            });
+
+            // schovat / ukázat řádky
+            document.querySelectorAll("tr.dbo-row, tr.dbo-detail").forEach(row => {
+                const type = row.getAttribute("data-type");
+                if (filter === "ALL" || type === filter) {
+                    row.classList.remove("filter-hidden");
+                } else {
+                    row.classList.add("filter-hidden");
+                }
+            });
+        });
+    </script>
+}

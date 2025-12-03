@@ -35,6 +35,7 @@ builder.Services.AddScoped<ILessonRepository, OracleLessonsRepository>();
 builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
 builder.Services.AddScoped<IDocumentsRepository, DocumentsRepository>();
 builder.Services.AddScoped<AdminStatsRepository>();
+builder.Services.AddScoped<DbCatalogRepository>();
 
 
 // Read-only/Doplňkové repozitáře

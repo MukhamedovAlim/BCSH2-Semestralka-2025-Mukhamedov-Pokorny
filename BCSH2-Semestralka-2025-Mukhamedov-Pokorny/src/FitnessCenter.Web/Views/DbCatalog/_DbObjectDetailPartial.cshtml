@@ -1,0 +1,53 @@
+﻿@model FitnessCenter.Infrastructure.DBObjects.DbObjectDetail
+
+<div class="border rounded p-2 bg-dark">
+    <div class="mb-2">
+        <strong>@Model.ObjectType</strong> – @Model.ObjectName
+    </div>
+
+    @if (Model.ObjectType == "TABLE" && Model.Columns != null)
+    {
+        <div class="mb-1 fw-bold">Struktura tabulky:</div>
+        <table class="table table-sm table-dark table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Sloupec</th>
+                    <th>Typ</th>
+                    <th>Délka</th>
+                    <th>NULL?</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Columns)
+                {
+                    <tr>
+                        <td>@c.ColumnId</td>
+                        <td>@c.ColumnName</td>
+                        <td>@c.DataType</td>
+                        <td>@c.DataLength</td>
+                        <td>@(c.IsNullable ? "ANO" : "NE")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (Model.ObjectType == "SEQUENCE" && Model.Sequence != null)
+    {
+        <div class="mb-1 fw-bold">Informace o sekvenci:</div>
+        <table class="table table-sm table-dark mb-0">
+            <tr><th>Název</th><td>@Model.Sequence.SequenceName</td></tr>
+            <tr><th>Min</th><td>@Model.Sequence.MinValue</td></tr>
+            <tr><th>Max</th><td>@Model.Sequence.MaxValue</td></tr>
+            <tr><th>Increment</th><td>@Model.Sequence.IncrementBy</td></tr>
+            <tr><th>Poslední číslo</th><td>@Model.Sequence.LastNumber</td></tr>
+        </table>
+    }
+    else
+    {
+        <div class="mb-1 fw-bold">Definice objektu:</div>
+        <pre class="mb-0 text-white small" style="white-space: pre-wrap;">
+    @(Model.DefinitionText ?? "Definice není dostupná.")
+    </pre>
+    }
+</div>
