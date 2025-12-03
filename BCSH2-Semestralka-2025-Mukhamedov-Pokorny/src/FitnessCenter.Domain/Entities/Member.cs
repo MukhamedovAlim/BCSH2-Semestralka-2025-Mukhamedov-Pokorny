@@ -11,5 +11,6 @@
         public string Email { get; set; } = "";         // EMAIL (UNIQUE, NOT NULL)
         public string? PasswordHash { get; set; }
         public int FitnessCenterId { get; set; }        // FITNESSCENTRUM_IDFITNESS
+        public bool MustChangePassword { get; set; }
     }
 }

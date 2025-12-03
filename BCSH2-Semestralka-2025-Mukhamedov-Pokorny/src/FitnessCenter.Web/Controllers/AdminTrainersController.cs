@@ -102,7 +102,8 @@ namespace FitnessCenter.Web.Controllers
         [HttpGet("Promote")]
         public async Task<IActionResult> Promote(string? search)
         {
-            var members = await _members.GetAllAsync(); // nebo jen eligible
+            // jen členové, kteří NEJSOU trenéři
+            var members = await _members.GetAllNonTrainersAsync();
 
             if (!string.IsNullOrWhiteSpace(search))
             {

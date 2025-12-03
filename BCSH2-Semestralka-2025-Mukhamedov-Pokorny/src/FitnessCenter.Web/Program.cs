@@ -6,7 +6,9 @@ using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Oracle.ManagedDataAccess.Client;
-using Microsoft.AspNetCore.Routing; // dej nahoru k usingům
+using Microsoft.AspNetCore.Routing;
+using FitnessCenter.Web.Infrastructure.Security;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +42,15 @@ builder.Services.AddScoped<ITrainersReadRepo, TrainersReadRepo>();
 // =======================
 builder.Services.AddScoped<IMembersService, MembersService>();
 builder.Services.AddScoped<ILessonsService, LessonsService>();
+
+// =======================
+//   Security
+// =======================
+builder.Services.AddScoped<MustChangePasswordFilter>();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<MustChangePasswordFilter>();
+});
 
 // =======================
 //   Session + Emulace uživatele

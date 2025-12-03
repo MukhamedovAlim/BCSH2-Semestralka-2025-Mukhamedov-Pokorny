@@ -12,7 +12,8 @@ namespace FitnessCenter.Application.Services
 
         public async Task<IReadOnlyList<Member>> GetAllAsync()
             => (await repo.GetAllAsync()).ToList();
-
+        public Task<IEnumerable<Member>> GetAllNonTrainersAsync()
+        => repo.GetAllNonTrainersAsync();
         public Task<Member?> GetAsync(int id) => repo.GetByIdAsync(id);
         public Task<int> CreateAsync(Member m) => repo.CreateAsync(m);
         public Task<bool> UpdateAsync(Member m) => repo.UpdateAsync(m);

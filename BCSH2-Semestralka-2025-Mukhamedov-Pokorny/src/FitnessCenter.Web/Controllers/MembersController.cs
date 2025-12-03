@@ -230,7 +230,10 @@ ORDER BY c.prijmeni, c.jmeno
                 Phone = string.IsNullOrWhiteSpace(vm.Phone) ? null : vm.Phone.Trim(),
                 Address = string.IsNullOrWhiteSpace(vm.Address) ? null : vm.Address.Trim(),
                 BirthDate = vm.BirthDate!.Value,
-                FitnessCenterId = vm.FitnessCenterId
+                FitnessCenterId = vm.FitnessCenterId,
+
+                // 🔥 KLÍČOVÁ VĚC: účet vytvořený adminem MUSÍ změnit heslo
+                MustChangePassword = true
             };
 
             // 1) vygenerujeme heslo
@@ -254,6 +257,7 @@ ORDER BY c.prijmeni, c.jmeno
                 return View(vm);
             }
         }
+
         // GET /Members/Edit/63
         [HttpGet("/Members/Edit/{id:int}")]
         public async Task<IActionResult> Edit(int id)

@@ -12,6 +12,7 @@ namespace FitnessCenter.Infrastructure.Repositories
         Task<bool> DeleteAsync(int id);
         Task<bool> IsTrainerEmailAsync(string email);
         Task<int?> GetTrainerIdByEmailAsync(string email);
+        Task<IEnumerable<Member>> GetAllNonTrainersAsync();
         //admin
         Task<int> CreateViaProcedureAsync(Member m);
         Task UpdateViaProcedureAsync(Member m);

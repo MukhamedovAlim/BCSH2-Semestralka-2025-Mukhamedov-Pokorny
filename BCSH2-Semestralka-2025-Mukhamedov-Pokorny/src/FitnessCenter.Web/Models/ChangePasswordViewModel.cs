@@ -5,16 +5,14 @@ namespace FitnessCenter.Web.Models
     public class ChangePasswordViewModel
     {
         [Required(ErrorMessage = "Zadej aktuální heslo.")]
-        [DataType(DataType.Password)]
         public string CurrentPassword { get; set; } = "";
 
         [Required(ErrorMessage = "Zadej nové heslo.")]
-        [DataType(DataType.Password)]
+        [MinLength(6, ErrorMessage = "Heslo musí mít alespoň 6 znaků.")]
         public string NewPassword { get; set; } = "";
 
-        [Required(ErrorMessage = "Zopakuj nové heslo.")]
-        [DataType(DataType.Password)]
-        [Compare("NewPassword", ErrorMessage = "Hesla se neshodují.")]
+        [Required(ErrorMessage = "Potvrď nové heslo.")]
+        [Compare("NewPassword", ErrorMessage = "Nová hesla se neshodují.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }
