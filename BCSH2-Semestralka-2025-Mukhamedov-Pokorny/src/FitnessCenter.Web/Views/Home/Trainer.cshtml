@@ -95,7 +95,7 @@
     </div>
 </div>
 
-<!-- Rychlé akce – 4 boxy (Vybavení je poslední) -->
+<!-- Rychlé akce -->
 <div class="glass p-3">
     <h4 class="text-white mb-2">Rychlé akce</h4>
     <div class="row g-3 mt-0">
@@ -122,6 +122,14 @@
                 <h5 class="text-white mb-1">Vytvořit lekci</h5>
                 <div class="text-white-50 small">Přidej novou lekci.</div>
                 <a href="@Url.Action("Create","Lessons")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Kalendář lekcí</h5>
+                <div class="text-white-50 small">Přehled tvých lekcí a oznámení posilovny.</div>
+                <a href="@Url.Action("Calendar", "TrainerLessons")" class="stretched-link"></a>
             </div>
         </div>
 

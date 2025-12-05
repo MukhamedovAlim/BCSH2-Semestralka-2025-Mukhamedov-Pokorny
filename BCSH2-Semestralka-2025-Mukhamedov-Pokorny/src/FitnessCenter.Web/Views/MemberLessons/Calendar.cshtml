@@ -1,0 +1,188 @@
+﻿@model FitnessCenter.Web.Models.Lessons.LessonsCalendarViewModel
+@{
+    ViewData["Title"] = "Kalendář lekcí";
+    Layout = "_AppLayout";
+
+    var firstOfMonth = new DateTime(Model.Year, Model.Month, 1);
+    int daysInMonth = DateTime.DaysInMonth(Model.Year, Model.Month);
+
+    int offset = ((int)firstOfMonth.DayOfWeek + 6) % 7; // Po=0, Ne=6
+    int totalCells = offset + daysInMonth;
+    int weeks = (int)Math.Ceiling(totalCells / 7.0);
+
+    var prev = firstOfMonth.AddMonths(-1);
+    var next = firstOfMonth.AddMonths(1);
+
+    var today = DateTime.Today;
+    string[] dayNames = new[] { "Po", "Út", "St", "Čt", "Pá", "So", "Ne" };
+}
+
+<style>
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .cal-day-header {
+        text-align: center;
+        font-weight: 600;
+        color: #ffffffaa;
+        font-size: 0.9rem;
+        padding-bottom: 4px;
+    }
+
+    .cal-cell {
+        min-height: 130px;
+        border-radius: 10px;
+        padding: 4px 6px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.8rem;
+    }
+
+    .cal-cell-today {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.3);
+    }
+
+    .cal-date-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2px;
+    }
+
+    .cal-date {
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .cal-count-badge {
+        font-size: 0.7rem;
+        border-radius: 999px;
+        padding: 1px 7px;
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .cal-event {
+        margin-top: 2px;
+        border-radius: 8px;
+        padding: 2px 4px;
+        background: rgba(255, 193, 7, 0.12);
+        color: #fff;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: clip;
+        line-height: 1.1;
+        font-size: 0.75rem;
+    }
+
+    .cal-event-time {
+        color: #ffffffaa;
+        margin-right: 4px;
+    }
+
+    .cal-event-info {
+        background: rgba(0, 123, 255, 0.18);
+    }
+</style>
+
+<div class="glass p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+            <a class="btn btn-outline-light me-2"
+               href="@Url.Action("Index", "Home")">
+                ← Zpět
+            </a>
+            <span class="h3 text-white mb-0">Kalendář lekcí</span>
+        </div>
+        <div class="mt-2 mt-md-0">
+            <div class="btn-group">
+                <a class="btn btn-sm btn-outline-light"
+                   href="@Url.Action("Calendar", "MemberLessons", new { year = prev.Year, month = prev.Month })">
+                    ← @prev.ToString("MM.yyyy")
+                </a>
+
+                <span class="btn btn-sm btn-warning disabled text-dark">
+                    @firstOfMonth.ToString("MMMM yyyy")
+                </span>
+
+                <a class="btn btn-sm btn-outline-light"
+                   href="@Url.Action("Calendar", "MemberLessons", new { year = next.Year, month = next.Month })">
+                    @next.ToString("MM.yyyy") →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="text-white-50 small mt-2">
+        Přepínej měsíc pomocí šipek. Žlutý badge ukazuje počet lekcí v daný den.
+        Modrý proužek je oznámení od posilovny (změna otevírací doby, servis strojů, atd.).
+    </div>
+</div>
+
+<div class="glass p-3">
+    <div class="cal-grid mb-1">
+        @foreach (var name in dayNames)
+        {
+            <div class="cal-day-header">@name</div>
+        }
+    </div>
+
+    <div class="cal-grid">
+        @for (int cellIndex = 0; cellIndex < weeks * 7; cellIndex++)
+        {
+            int dayNumber = cellIndex - offset + 1;
+
+            if (dayNumber < 1 || dayNumber > daysInMonth)
+            {
+                <div class="cal-cell"></div>
+            }
+            else
+            {
+                Model.LessonsByDay.TryGetValue(dayNumber, out var lessonsForDay);
+                Model.EventsByDay.TryGetValue(dayNumber, out var eventsForDay);
+
+                bool isToday =
+                today.Year == Model.Year &&
+                today.Month == Model.Month &&
+                today.Day == dayNumber;
+
+                <div class="cal-cell @(isToday ? "cal-cell-today" : "")">
+                    <div class="cal-date-row">
+                        <span class="cal-date">@dayNumber</span>
+                        @if (lessonsForDay != null && lessonsForDay.Count > 0)
+                        {
+                            <span class="cal-count-badge">@lessonsForDay.Count x</span>
+                        }
+                    </div>
+
+                    @* LEKCE *@
+                    @if (lessonsForDay != null)
+                    {
+                        @foreach (var l in lessonsForDay.OrderBy(x => x.Zacatek))
+                        {
+                            <div class="cal-event" title="@($"{l.Zacatek:HH:mm} {l.Nazev}")">
+                                <span class="cal-event-time">@l.Zacatek.ToString("HH:mm")</span>
+                                @l.Nazev
+                            </div>
+                        }
+                    }
+
+                    @* ADMIN OZNÁMENÍ – jen pro čtení *@
+                    @if (eventsForDay != null && eventsForDay.Count > 0)
+                    {
+                        foreach (var ev in eventsForDay)
+                        {
+                            <div class="cal-event cal-event-info" title="@ev.Text">
+                                <span class="cal-event-time">@ev.Type:</span>
+                                @ev.Text
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
