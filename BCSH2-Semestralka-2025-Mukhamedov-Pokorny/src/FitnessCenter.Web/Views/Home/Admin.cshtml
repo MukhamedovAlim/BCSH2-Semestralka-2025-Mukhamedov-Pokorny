@@ -1,4 +1,5 @@
-﻿@{
+﻿
+@{
     ViewData["Title"] = "Admin – Přehled";
     Layout = "_AppLayout";
     ViewBag.Active = ViewBag.Active ?? "Admin";
@@ -27,6 +28,23 @@
                   ?? Enumerable.Empty<SelectListItem>();
 
     int selectedMemberId = ViewBag.MemberId is int mid ? mid : 0;
+
+    // ---- pro graf tržeb ----
+    var revenueLabels = ViewBag.RevenueLabels as IEnumerable<string>
+                        ?? Enumerable.Empty<string>();
+    var revenueValues = ViewBag.RevenueValues as IEnumerable<decimal>
+                        ?? Enumerable.Empty<decimal>();
+    
+    // ---- pro členské statistiky ----
+    var memberTypes = ViewBag.MemberTypes as IEnumerable<string>
+ ?? Enumerable.Empty<string>();
+    var memberCounts = ViewBag.MemberCounts as IEnumerable<int>
+                       ?? Enumerable.Empty<int>();
+
+    // ---- pro top trenéry ----
+    var topTrainerNames = ViewBag.TopTrainerNames as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var topTrainerCounts = ViewBag.TopTrainerCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
+
 
 }
 
@@ -151,7 +169,7 @@
 
         <div class="col-12 col-md-6 col-xl-3">
             <div class="tile glass quick-tile position-relative h-100">
-                <h5 class="text-white mb-1">Kalendář lekcí</h5>
+                <h5 class="text-white mb-1">Kalendář</h5>
                 <div class="text-white-50 small">
                     Měsíční přehled všech lekcí.
                 </div>
@@ -234,4 +252,213 @@
             </div>
         </div>
     </div>
+
+    <!-- ===== Graf: tržby ===== -->
+    <div class="glass p-3 mt-4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
+            <h4 class="text-white mb-0">Denní tržby</h4>
+            <span class="text-white-50 small">
+                Zobrazuje součet schválených plateb po dnech v zadaném období.
+            </span>
+        </div>
+
+        <div class="glass p-3">
+            <div style="height: 260px;">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Podíl typů členství + Nejvytíženější trenéři ===== -->
+    <div class="glass p-3 mt-4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
+            <h4 class="text-white mb-0">Členství a trenéři</h4>
+            <span class="text-white-50 small">
+                Rozložení typů členství a top trenéři podle počtu rezervací.
+            </span>
+        </div>
+
+        <div class="row g-3 align-items-stretch">
+            <!-- Levá část – koláč typů členství -->
+            <div class="col-12 col-lg-4">
+                <div class="h-100 d-flex flex-column">
+                    <h5 class="text-white mb-2">Podíl typů členství</h5>
+
+                    <div class="flex-grow-1 d-flex justify-content-center align-items-center">
+                        <div style="width:260px; height:260px;">
+                            <canvas id="membershipPie"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pravá část – bar chart trenérů -->
+            <div class="col-12 col-lg-8">
+                <div class="h-100 d-flex flex-column">
+                    <h5 class="text-white mb-2">Nejvytíženější trenéři</h5>
+                    <div class="flex-grow-1" style="min-height:260px;">
+                        <canvas id="topTrainersBar"></canvas>
+                    </div>
+                    <div class="text-white-50 small mt-1">
+                        Top trenéři podle počtu rezervací na lekce.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // ===== Line chart – denní tržby =====
+        const revenueLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(revenueLabels));
+        const revenueData   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(revenueValues));
+
+        const ctx = document.getElementById('revenueChart');
+
+        if (ctx && revenueLabels.length > 0) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: revenueLabels,
+                    datasets: [{
+                        label: 'Tržby (Kč)',
+                        data: revenueData,
+                        borderWidth: 3,
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255,193,7,0.15)',
+                        pointBackgroundColor: '#ffc107',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        fill: false,
+                        tension: 0.25
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: '#ffffff' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const v = ctx.parsed.y ?? 0;
+                                    return v.toLocaleString('cs-CZ') + ' Kč';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#bfbfbf' },
+                            grid: { color: 'rgba(255,255,255,0.06)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#bfbfbf',
+                                callback: function (value) {
+                                    return value.toLocaleString('cs-CZ');
+                                }
+                            },
+                            grid: { color: 'rgba(255,255,255,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== Pie chart – podíl typů členství =====
+        const memberTypes  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(memberTypes));
+        const memberCounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(memberCounts));
+
+        const pieCtx = document.getElementById('membershipPie');
+
+        if (pieCtx && memberTypes.length > 0) {
+            new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: memberTypes,
+                    datasets: [{
+                        data: memberCounts,
+                        backgroundColor: [
+                            '#ffc107',
+                            '#17a2b8',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#28a745'
+                        ],
+                        borderColor: '#222',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== Bar chart – nejvytíženější trenéři =====
+        const topTrainerNames  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(topTrainerNames));
+        const topTrainerCounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(topTrainerCounts));
+
+        const barCtx = document.getElementById('topTrainersBar');
+
+        if (barCtx && topTrainerNames.length > 0) {
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: topTrainerNames,
+                    datasets: [{
+                        label: 'Počet rezervací',
+                        data: topTrainerCounts,
+                        backgroundColor: '#ffc107',
+                        borderColor: '#ffd65a',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const v = ctx.parsed.y ?? 0;
+                                    return v.toLocaleString('cs-CZ') + ' rezervací';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#bfbfbf' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#bfbfbf',
+                                precision: 0
+                            },
+                            grid: { color: 'rgba(255,255,255,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+}
+

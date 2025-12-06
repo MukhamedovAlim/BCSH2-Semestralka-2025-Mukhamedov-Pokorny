@@ -19,17 +19,20 @@ namespace FitnessCenter.Web.Controllers
         private readonly ILessonsService _lessons;
         private readonly IMembersService _members;
         private readonly AdminStatsRepository _stats;
+        private readonly DashboardRepository _dashboard;
 
         public HomeController(
             PaymentsReadRepo payments,
             ILessonsService lessons,
             IMembersService members,
-            AdminStatsRepository stats)
+            AdminStatsRepository stats,
+            DashboardRepository dashboard)
         {
             _payments = payments;
             _lessons = lessons;
             _members = members;
             _stats = stats;
+            _dashboard = dashboard;
         }
 
         // ===== Member dashboard =====
@@ -269,6 +272,42 @@ WHERE  (:p_fitko IS NULL OR EXISTS (
             catch (Exception ex)
             {
                 TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
+            }
+
+            //DATA PRO GRAF TRŽEB
+            try
+            {
+                var (days, revenue) = await _dashboard.GetDailyRevenueAsync(from, to);
+                ViewBag.RevenueLabels = days;
+                ViewBag.RevenueValues = revenue;
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Chyba při načítání dat pro graf tržeb: " + ex.Message;
+            }
+
+            // >>> DATA PRO PIE CHART – PODÍL TYPŮ ČLENSTVÍ <<<
+            try
+            {
+                var (types, counts) = await _dashboard.GetMembershipDistributionAsync();
+                ViewBag.MemberTypes = types;
+                ViewBag.MemberCounts = counts;
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Chyba při načítání podílu typů členství: " + ex.Message;
+            }
+
+            // >>> DATA PRO BAR CHART – TOP TRENÉŘI PODLE POČTU REZERVACÍ <<<
+            try
+            {
+                var (topTrainers, topCounts) = await _dashboard.GetTopTrainersAsync();
+                ViewBag.TopTrainerNames = topTrainers;
+                ViewBag.TopTrainerCounts = topCounts;
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Chyba při načítání nejvytíženějších trenérů: " + ex.Message;
             }
 
             ViewBag.FitkoId = fitkoId;

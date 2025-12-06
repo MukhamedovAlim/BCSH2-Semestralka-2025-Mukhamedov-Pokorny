@@ -36,6 +36,7 @@ builder.Services.AddScoped<IAdminLogsRepository, AdminLogsRepository>();
 builder.Services.AddScoped<IDocumentsRepository, DocumentsRepository>();
 builder.Services.AddScoped<AdminStatsRepository>();
 builder.Services.AddScoped<DbCatalogRepository>();
+builder.Services.AddScoped<DashboardRepository>();
 
 
 // Read-only/Doplňkové repozitáře

@@ -3,6 +3,8 @@
     ViewData["Title"] = "Povýšit člena na trenéra";
     Layout = "_AppLayout";
 
+    ViewBag.HideMainNav = true;
+
     var search = ViewBag.Search as string ?? "";
     var total = Model?.Count ?? 0;
 }
