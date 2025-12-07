@@ -192,23 +192,17 @@
                                     @ev.Text
                                 </a>
 
-                                <form asp-controller="AdminCalendarEvents"
-                                      asp-action="DeleteQuick"
-                                      asp-route-id="@ev.Id"
-                                      asp-route-year="@Model.Year"
-                                      asp-route-month="@Model.Month"
-                                      method="get"
-                                      class="m-0 p-0">
-                                    <button type="submit"
-                                            class="btn btn-sm btn-link p-0 text-danger"
-                                            title="Smazat akci">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
-                                </form>
+                                <a href="@Url.Action(
+                                           "DeleteQuick",
+                                           "AdminCalendarEvents",
+                                           new { id = ev.Id, year = Model.Year, month = Model.Month })"
+                                                class="btn btn-sm btn-link p-0 text-danger"
+                                                title="Smazat akci">
+                                                <i class="bi bi-trash3"></i>
+                                </a>
                             </div>
                         }
                     }
-
 
                     <a class="text-white-50 small d-block mt-1"
                        href="@Url.Action("Create", "AdminCalendarEvents", new { date = routeDate })">

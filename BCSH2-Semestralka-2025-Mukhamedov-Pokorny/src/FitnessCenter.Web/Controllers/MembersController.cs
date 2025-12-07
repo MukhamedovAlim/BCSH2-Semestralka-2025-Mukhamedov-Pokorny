@@ -1,17 +1,18 @@
 ﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Domain.Entities;
+using FitnessCenter.Infrastructure; // IEmailSender
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Web.Infrastructure.Security;
 using FitnessCenter.Web.Models;
 using FitnessCenter.Web.Models.Member;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 using System.Data;
-using Microsoft.AspNetCore.Identity;
 using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
-using FitnessCenter.Infrastructure; // IEmailSender
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -36,6 +37,21 @@ namespace FitnessCenter.Web.Controllers
         {
             // jednoduché 8-znakové heslo
             return Guid.NewGuid().ToString("N")[..8];
+        }
+
+        private static int ReadOutInt(OracleParameter p)
+        {
+            var v = p?.Value;
+            if (v is null) return 0;
+
+            if (v is OracleDecimal od && !od.IsNull)
+                return (int)od.Value;
+
+            if (v is decimal dec) return (int)dec;
+            if (v is int i) return i;
+            if (v is long l) return (int)l;
+
+            return int.TryParse(v.ToString(), out var parsed) ? parsed : 0;
         }
 
         private static async Task<List<SelectListItem>> LoadFitnessForSelectAsync()
@@ -398,43 +414,72 @@ ORDER BY c.prijmeni, c.jmeno
                 return View(vm);
             }
         }
-
         // =============================
-        //            DELETE
+        //            DELETE (force)
         // =============================
         [HttpPost("/Members/Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete([FromForm] int id)
         {
+            if (id <= 0)
+            {
+                TempData["Err"] = "Neplatné ID člena.";
+                return RedirectToAction(nameof(Index));
+            }
+
             try
             {
                 using var conn = await DatabaseManager.GetOpenConnectionAsync();
-                using var cmd = new OracleCommand(
-                    "DELETE FROM CLENOVE WHERE IDCLEN = :id",
-                    (OracleConnection)conn);
-
-                cmd.BindByName = true;
-                cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
-
-                var affected = await cmd.ExecuteNonQueryAsync();
-
-                if (affected == 0)
+                using var cmd = new OracleCommand("PROC_DELETE_MEMBER", (OracleConnection)conn)
                 {
-                    TempData["Err"] = "Člen s daným ID neexistuje.";
+                    CommandType = CommandType.StoredProcedure,
+                    BindByName = true
+                };
+
+                cmd.Parameters.Add("p_idclen", OracleDbType.Int32).Value = id;
+
+                var pRelek = new OracleParameter("p_del_relekci", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                var pRez = new OracleParameter("p_del_rezervace", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                var pClen = new OracleParameter("p_del_clenstvi", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                var pPlat = new OracleParameter("p_del_platby", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                var pDok = new OracleParameter("p_del_dokumenty", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+                var pClenRow = new OracleParameter("p_del_clen", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
+
+                cmd.Parameters.Add(pRelek);
+                cmd.Parameters.Add(pRez);
+                cmd.Parameters.Add(pClen);
+                cmd.Parameters.Add(pPlat);
+                cmd.Parameters.Add(pDok);
+                cmd.Parameters.Add(pClenRow);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                int zRelek = ReadOutInt(pRelek);
+                int zRez = ReadOutInt(pRez);
+                int zClenstvi = ReadOutInt(pClen);
+                int zPlatby = ReadOutInt(pPlat);
+                int zDok = ReadOutInt(pDok);
+                int zClen = ReadOutInt(pClenRow);
+
+                if (zClen > 0)
+                {
+                    TempData["Ok"] =
+                        $"Člen byl smazán. " +
+                        $"rezervace: {zRez}, členství: {zClenstvi}, platby: {zPlatby}, dokumenty: {zDok}.";
                 }
                 else
                 {
-                    TempData["Ok"] = "Člen byl smazán.";
+                    TempData["Err"] = "Člen s daným ID neexistuje nebo už byl smazán.";
                 }
             }
-            catch (OracleException ex) when (ex.Number == 2292)
+            catch (OracleException ox)
             {
-                TempData["Err"] = "Člena nelze smazat, protože má navázané záznamy (členství, rezervace nebo platby).";
+                TempData["Err"] = "Chyba DB při mazání člena: " + ox.Message;
             }
             catch (Exception ex)
             {
-                TempData["Err"] = "Chyba při mazání člena: " + ex.Message;
+                TempData["Err"] = "Neočekávaná chyba při mazání člena: " + ex.Message;
             }
 
             return RedirectToAction(nameof(Index));

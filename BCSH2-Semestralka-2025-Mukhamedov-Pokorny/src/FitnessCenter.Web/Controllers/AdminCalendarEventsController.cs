@@ -36,21 +36,9 @@ namespace FitnessCenter.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CalendarEventCreateViewModel model)
         {
-            Console.WriteLine("DEBUG >>> POST AdminCalendarEvents/Create");
-            Console.WriteLine($"DEBUG >>> model.Date = {model.Date:yyyy-MM-dd}");
-            Console.WriteLine($"DEBUG >>> model.Type = '{model.Type}'");
-            Console.WriteLine($"DEBUG >>> model.Text = '{model.Text}'");
 
             if (!ModelState.IsValid)
             {
-                Console.WriteLine("DEBUG >>> ModelState není validní");
-                foreach (var kv in ModelState)
-                {
-                    foreach (var err in kv.Value.Errors)
-                    {
-                        Console.WriteLine($"MODELSTATE ERR {kv.Key}: {err.ErrorMessage}");
-                    }
-                }
                 return View(model);
             }
 

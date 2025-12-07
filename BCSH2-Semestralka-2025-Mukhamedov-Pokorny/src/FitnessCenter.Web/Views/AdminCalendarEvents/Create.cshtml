@@ -26,15 +26,26 @@
 </div>
 
 <div class="glass p-3">
+
+    @* TADY JEDNODUCHÁ HLÁŠKA KDYŽ JE FORMULÁŘ NEPLATNÝ *@
+    @if (!ViewData.ModelState.IsValid &&
+        string.Equals(Context.Request.Method, "POST", System.StringComparison.OrdinalIgnoreCase))
+    {
+        <div class="alert alert-danger mb-3">
+            Vyplň prosím <strong>název / typ akce</strong> a <strong>popis akce</strong>.
+        </div>
+    }
+
     <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" class="row g-3">
         @Html.AntiForgeryToken()
 
+        @* zobrazení všech detailních chyb, kdybys je chtěl *@
         <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
         @* ID pro edit *@
         @if (isEdit)
         {
-            <input type="hidden" name="Id" value="@Model.Id" />
+            <input type="hidden" asp-for="Id" />
         }
 
         <!-- DATUM -->
@@ -45,32 +56,28 @@
                    value="@Model.Date.ToString("dd.MM.yyyy")"
                    readonly />
 
-            <input type="hidden"
-                   name="Date"
-                   value="@Model.Date.ToString("yyyy-MM-dd")" />
+            @* Skutečný hodnota pro model *@
+            <input type="hidden" asp-for="Date" />
 
             <span asp-validation-for="Date" class="text-danger small"></span>
         </div>
 
         <!-- NÁZEV / TYP -->
         <div class="col-12 col-md-4">
-            <label class="form-label text-white">Název / typ akce</label>
-            <input name="Type"
+            <label asp-for="Type" class="form-label text-white"></label>
+            <input asp-for="Type"
                    class="form-control"
-                   value="@Model.Type"
                    placeholder="např. Změna otevírací doby, Servis, Info..." />
             <span asp-validation-for="Type" class="text-danger small"></span>
         </div>
 
         <!-- TEXT -->
         <div class="col-12">
-            <label class="form-label text-white">
-                Text, který se zobrazí v kalendáři
-            </label>
-            <textarea name="Text"
+            <label asp-for="Text" class="form-label text-white"></label>
+            <textarea asp-for="Text"
                       class="form-control"
                       rows="3"
-                      placeholder="Např.: Otevřeno 9:00–20:00 (místo 8:00–22:00).">@Model.Text</textarea>
+                      placeholder="Např.: Otevřeno 9:00–20:00 (místo 8:00–22:00)."></textarea>
             <span asp-validation-for="Text" class="text-danger small"></span>
         </div>
 
