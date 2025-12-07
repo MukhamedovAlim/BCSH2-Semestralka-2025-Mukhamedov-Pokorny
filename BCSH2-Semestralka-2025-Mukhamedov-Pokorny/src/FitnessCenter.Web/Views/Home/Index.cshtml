@@ -102,7 +102,6 @@
 
     </div>
 </div>
-
 <!-- Rychlé akce -->
 <div class="glass p-3">
     <h4 class="text-white mb-3">Rychlé akce</h4>
@@ -152,10 +151,24 @@
 
         <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
+                <h5 class="text-white mb-1">Trenéři & vytížení</h5>
+                <div class="text-white-50 small">
+                    Seznam trenérů a obsazenost jejich lekcí.
+                </div>
+                <a href="@Url.Action("Index", "MemberTrainers")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Moje certifikáty</h5>
-                <div class="text-white-50 small">Zobraz a nahraj doklad pro promotnutí na trenéra.</div>
+                <div class="text-white-50 small">
+                    Zobraz a nahraj doklad pro promotnutí na trenéra.
+                </div>
                 <a href="@Url.Action("Index", "MemberCertificates")" class="stretched-link"></a>
             </div>
         </div>
+
     </div>
 </div>
+

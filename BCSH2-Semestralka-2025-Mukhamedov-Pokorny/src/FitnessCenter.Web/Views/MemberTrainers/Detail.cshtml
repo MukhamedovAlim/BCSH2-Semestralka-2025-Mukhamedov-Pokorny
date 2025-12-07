@@ -1,0 +1,140 @@
+﻿@model FitnessCenter.Web.Models.Member.MemberTrainerDetailViewModel
+@using System.Linq
+
+@{
+    ViewData["Title"] = "Detail trenéra";
+    Layout = "_AppLayout";
+
+    var ordered = Model.Lekce.OrderBy(l => l.Datum).ToList();
+    var nejblizsi = ordered.FirstOrDefault();
+    var celkovaObsazenost = ordered.Sum(l => l.Obsazenost);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "MemberTrainers")">← Zpět</a>
+        <span class="h3 text-white mb-0">
+            @Model.Jmeno @Model.Prijmeni
+        </span>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Profil trenéra -->
+    <div class="col-12 col-lg-4">
+        <div class="glass p-3 h-100 d-flex flex-column">
+            <h5 class="text-white mb-1">
+                Profil trenéra
+                <span class="badge-accent ms-2">Trenér</span>
+            </h5>
+            <div class="accent-line mb-3"></div>
+
+            <div class="mb-2">
+                <div class="text-white-50 small">Jméno</div>
+                <div class="text-white fw-semibold">@Model.Jmeno @Model.Prijmeni</div>
+            </div>
+
+            <div class="mb-2">
+                <div class="text-white-50 small">E-mail</div>
+                <div class="text-white">@Model.Email</div>
+            </div>
+
+            <div class="mb-2">
+                <div class="text-white-50 small">Telefon</div>
+                <div class="text-white">
+                    @(string.IsNullOrWhiteSpace(Model.Telefon) ? "—" : Model.Telefon)
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <div class="text-white-50 small">Počet lekcí</div>
+                <div class="d-flex align-items-baseline">
+                    <span class="display-6 text-white me-2">@Model.PocetLekci</span>
+                    <span class="text-white-50">celkem</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vytížení trenéra -->
+    <div class="col-12 col-lg-8">
+        <div class="glass p-3 h-100 d-flex flex-column">
+            <h5 class="text-white mb-1">Vytížení trenéra</h5>
+            <div class="accent-line mb-3"></div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <div class="border rounded-3 border-secondary p-3 h-100">
+                        <div class="text-white-50 small mb-1">Nadcházející lekce</div>
+                        <div class="h3 text-white mb-0">
+                            <span class="badge-accent">@Model.Lekce.Count</span>
+                        </div>
+                        <div class="text-white-50 small">v kalendáři</div>
+                    </div>
+                </div>
+
+
+                <div class="col-12 col-md-4">
+                    <div class="border rounded-3 border-secondary p-3 h-100">
+                        <div class="text-white-50 small mb-1">Nejbližší lekce</div>
+                        @if (nejblizsi is null)
+                        {
+                            <div class="text-white">Žádná naplánovaná lekce</div>
+                        }
+                        else
+                        {
+                            <div class="text-white fw-semibold mb-1">
+                                @nejblizsi.Datum.ToString("dd.MM.yyyy")
+                            </div>
+                            <div class="text-white-50 small">
+                                @nejblizsi.Nazev
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-white-50 small mt-3">
+                Přehled vytížení trenéra podle naplánovaných lekcí.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Nadcházející lekce -->
+@if (Model.Lekce.Any())
+{
+    <div class="glass p-3 mt-3">
+        <h5 class="text-white mb-3">Nadcházející lekce</h5>
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Název</th>
+                        <th class="text-end">Obsazenost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.Lekce)
+                    {
+                        <tr>
+                            <td>@l.Datum.ToString("dd.MM.yyyy")</td>
+                            <td>@l.Nazev</td>
+                            <td class="text-end">@l.Obsazenost</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="text-white-50 small mt-2">
+            Tento trenér má naplánované lekce – podrobnosti najdeš v kalendáři lekcí.
+        </div>
+    </div>
+}
+else
+{
+    <div class="glass p-3 mt-3 text-white-50">
+        Tento trenér aktuálně nemá naplánované žádné nadcházející lekce.
+    </div>
+}
