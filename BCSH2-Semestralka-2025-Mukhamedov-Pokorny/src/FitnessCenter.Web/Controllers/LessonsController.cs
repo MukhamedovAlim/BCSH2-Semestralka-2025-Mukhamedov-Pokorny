@@ -84,12 +84,12 @@ namespace FitnessCenter.Web.Controllers
             var lesson = await _lessons.GetAsync(id);
             if (lesson == null) return NotFound();
 
-            var emails = await _lessons.GetAttendeeEmailsAsync(id, ct);
-            ViewBag.Attendees = emails;
-            ViewBag.AttendeesCount = emails.Count;
+            var attendees = await _lessons.GetAttendeesAsync(id, ct);
 
-            return View(lesson);
+            ViewBag.LessonId = id;
+            return View(attendees);
         }
+
 
         // Vytvoření lekce – formulář
         [HttpGet]
@@ -264,5 +264,32 @@ namespace FitnessCenter.Web.Controllers
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
             return View(list);
         }
+
+        [Authorize(Roles = "Trainer")]
+        public async Task<IActionResult> RemoveMember(int lessonId, int memberId)
+        {
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var trainerId = await _members.GetTrainerIdByEmailAsync(email);
+
+            if (trainerId is null)
+            {
+                TempData["Err"] = "K účtu není přiřazen žádný trenér.";
+                return RedirectToAction(nameof(Attendance), new { id = lessonId });
+            }
+
+            try
+            {
+                await _lessons.RemoveMemberFromLessonAsync(lessonId, memberId, trainerId.Value);
+                TempData["Ok"] = "Člen byl z lekce úspěšně odepsán.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = "Nepodařilo se odepsat člena: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(Attendance), new { id = lessonId });
+        }
+
+
     }
 }

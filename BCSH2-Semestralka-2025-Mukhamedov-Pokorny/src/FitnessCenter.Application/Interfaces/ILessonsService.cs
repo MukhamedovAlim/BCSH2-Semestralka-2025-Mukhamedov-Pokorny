@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FitnessCenter.Domain.Entities;
+using FitnessCenter.Infrastructure.Repositories; // kvůli LessonAttendee
 
 namespace FitnessCenter.Application.Interfaces
 {
@@ -18,7 +19,11 @@ namespace FitnessCenter.Application.Interfaces
 
         Task<IReadOnlyList<Lesson>> GetForTrainerAsync(int trainerId);
 
-        // NOVÉ: e-maily přihlášených na lekci
-        Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default);
+        Task<IReadOnlyList<LessonAttendee>> GetAttendeesAsync(int lessonId, CancellationToken ct = default);
+
+        Task RemoveMemberFromLessonAsync(int lessonId, int memberId, int trainerId);
+
+        Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId);
+        Task<int> GetTodayCountAsync(CancellationToken ct = default);
     }
 }

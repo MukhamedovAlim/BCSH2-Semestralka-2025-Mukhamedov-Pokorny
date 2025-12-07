@@ -14,12 +14,15 @@ namespace FitnessCenter.Infrastructure.Repositories
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<Lesson>> GetForTrainerAsync(int trainerId, CancellationToken ct = default);
 
-        // NOVÉ – seznam e-mailů přihlášených na lekci
         Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default);
 
         Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId);
 
         Task<int> GetTodayCountAsync(CancellationToken ct = default);
 
+
+        Task<IReadOnlyList<LessonAttendee>> GetAttendeesAsync(int lessonId, CancellationToken ct = default);
+
+        Task RemoveMemberFromLessonAsync(int lessonId, int memberId, int trainerId, CancellationToken ct = default);
     }
 }

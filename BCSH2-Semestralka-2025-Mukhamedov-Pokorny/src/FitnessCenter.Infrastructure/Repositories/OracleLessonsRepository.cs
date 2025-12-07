@@ -10,10 +10,13 @@ using Oracle.ManagedDataAccess.Types;
 
 namespace FitnessCenter.Infrastructure.Repositories
 {
+    public sealed record LessonAttendee(int MemberId, string FullName, string Email);
+
     public sealed class OracleLessonsRepository : ILessonRepository
     {
         private static async Task<OracleConnection> OpenAsync()
             => (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+
 
         // ---------------------------------------------------------------------
         // 1) LEKCE – nadcházející přes proceduru SP_LESSONS_UPCOMING
@@ -395,6 +398,73 @@ namespace FitnessCenter.Infrastructure.Repositories
             using var cmd = new OracleCommand(sql, con);
             var obj = await cmd.ExecuteScalarAsync(ct);
             return obj == null || obj == DBNull.Value ? 0 : Convert.ToInt32(obj.ToString());
+        }
+
+        public async Task<IReadOnlyList<LessonAttendee>> GetAttendeesAsync(int lessonId, CancellationToken ct = default)
+        {
+            const string sql = @"
+        SELECT DISTINCT 
+               c.idclen,
+               c.prijmeni || ' ' || c.jmeno AS full_name,
+               LOWER(c.email) AS email
+        FROM   relekci r
+        JOIN   clenove c
+               ON c.idclen = r.rezervacelekci_clen_idclen
+        WHERE  r.lekce_idlekce = :id
+        ORDER  BY full_name";
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            cmd.Parameters.Add("id", OracleDbType.Int32).Value = lessonId;
+
+            var list = new List<LessonAttendee>();
+            using var rd = await cmd.ExecuteReaderAsync(ct);
+            while (await rd.ReadAsync(ct))
+            {
+                list.Add(new LessonAttendee(
+                    rd.GetInt32(0),      // idclen
+                    rd.GetString(1),     // prijmeni + jmeno
+                    rd.GetString(2)      // email
+                ));
+            }
+
+            return list;
+        }
+
+
+        //odepsani clena trenerem
+        public async Task RemoveMemberFromLessonAsync(int lessonId, int memberId, int trainerId, CancellationToken ct = default)
+        {
+            const string checkSql = @"
+        SELECT COUNT(*)
+        FROM   lekce
+        WHERE  idlekce = :id
+        AND    trener_idtrener = :tr";
+
+            using var con = await OpenAsync();
+
+            using (var checkCmd = new OracleCommand(checkSql, con) { BindByName = true })
+            {
+                checkCmd.Parameters.Add("id", OracleDbType.Int32).Value = lessonId;
+                checkCmd.Parameters.Add("tr", OracleDbType.Int32).Value = trainerId;
+                var cntObj = await checkCmd.ExecuteScalarAsync(ct);
+                var cnt = cntObj == null || cntObj == DBNull.Value ? 0 : Convert.ToInt32(cntObj);
+                if (cnt == 0)
+                    throw new InvalidOperationException("Tato lekce nepatří přihlášenému trenérovi.");
+            }
+
+            const string deleteSql = @"
+        DELETE FROM relekci r
+        WHERE  r.lekce_idlekce = :id
+        AND    r.rezervacelekci_clen_idclen = :cid";
+
+            using (var del = new OracleCommand(deleteSql, con) { BindByName = true })
+            {
+                del.Parameters.Add("id", OracleDbType.Int32).Value = lessonId;
+                del.Parameters.Add("cid", OracleDbType.Int32).Value = memberId;
+                await del.ExecuteNonQueryAsync(ct);
+            }
+
         }
     }
 }

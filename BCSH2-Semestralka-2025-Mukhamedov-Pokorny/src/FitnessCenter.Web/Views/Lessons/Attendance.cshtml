@@ -1,26 +1,33 @@
-﻿@model FitnessCenter.Domain.Entities.Lesson
+﻿@using FitnessCenter.Infrastructure.Repositories
+@model IReadOnlyList<LessonAttendee>
+
 @{
     ViewData["Title"] = "Docházka";
     Layout = "_AppLayout";
-    var attendees = ViewBag.Attendees as IReadOnlyList<string> ?? Array.Empty<string>();
-    var count = ViewBag.AttendeesCount as int? ?? attendees.Count;
+    var lessonId = (int)ViewBag.LessonId;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Lessons")">← Zpět</a>
-        <span class="h3 text-white align-middle mb-0">Docházka – @Model.Nazev</span>
+        <span class="h3 text-white align-middle mb-0">Docházka</span>
     </div>
 </div>
 
 <div class="glass p-3">
-    <div class="text-white-50 mb-3">
-        Termín: <span class="text-white">@Model.Zacatek.ToString("dd.MM.yyyy HH:mm")</span>
-        &nbsp;|&nbsp; Kapacita: <span class="text-white">@Model.Kapacita</span>
-        &nbsp;|&nbsp; Přihlášeno: <span class="text-white">@count</span>
+
+    <div class="mb-2">
+        @if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
+        {
+            <div class="alert alert-success small py-2 px-3">@ok</div>
+        }
+        @if (TempData["Err"] is string err && !string.IsNullOrWhiteSpace(err))
+        {
+            <div class="alert alert-danger small py-2 px-3">@err</div>
+        }
     </div>
 
-    @if (!attendees.Any())
+    @if (!Model.Any())
     {
         <div class="text-white-50">Nikdo zatím není přihlášen.</div>
     }
@@ -31,15 +38,26 @@
                 <thead>
                     <tr>
                         <th style="width:60px;">#</th>
+                        <th>Jméno</th>
                         <th>E-mail</th>
+                        <th style="width:130px;"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    @for (int i = 0; i < attendees.Count; i++)
+                    @for (int i = 0; i < Model.Count; i++)
                     {
+                        var a = Model[i];
                         <tr>
                             <td>@(i + 1)</td>
-                            <td>@attendees[i]</td>
+                            <td>@a.FullName</td>
+                            <td>@a.Email</td>
+                            <td>
+                                <a href="/Lessons/RemoveMember?lessonId=@lessonId&memberId=@a.MemberId"
+                                   class="btn btn-sm btn-outline-danger"
+                                   onclick="return confirm('Odepsat člena @a.FullName z lekce?');">
+                                    Odepsat
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>

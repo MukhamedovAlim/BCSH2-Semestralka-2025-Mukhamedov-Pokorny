@@ -1,4 +1,5 @@
 ﻿using FitnessCenter.Application.Services;
+using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Web.Models;
 using FitnessCenter.Web.Models.Lessons;
@@ -189,13 +190,13 @@ public sealed class AdminLessonsController : Controller
     }
 
     // /AdminLessons/Details/123
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, CancellationToken ct)
     {
-        // e-maily účastníků
-        var emails = await lessons.GetAttendeeEmailsAsync(id);
+        // Účastníci (id + jméno + e-mail)
+        var attendees = await lessons.GetAttendeesAsync(id, ct);
 
-        // načti lekci z existujícího GetAllAsync()
-        var l = (await lessons.GetAllAsync()).FirstOrDefault(x => x.Id == id);
+        // načti lekci
+        var l = await lessons.GetAsync(id);
         if (l is null) return NotFound();
 
         // stejné parsování názvu/místa jako ve výpisu
@@ -203,7 +204,11 @@ public sealed class AdminLessonsController : Controller
         string name = raw, place = "";
 
         var atIdx = raw.LastIndexOf('@');
-        if (atIdx >= 0) { name = raw[..atIdx].Trim(); place = raw[(atIdx + 1)..].Trim(); }
+        if (atIdx >= 0)
+        {
+            name = raw[..atIdx].Trim();
+            place = raw[(atIdx + 1)..].Trim();
+        }
 
         if (string.IsNullOrEmpty(place))
         {
@@ -220,8 +225,9 @@ public sealed class AdminLessonsController : Controller
         ViewBag.LessonId = id;
         ViewBag.LessonTitle = $"{niceTitle} ({l.Zacatek:dd.MM.yyyy HH:mm})";
 
-        return View(emails);
+        return View(attendees);
     }
+
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id)

@@ -27,7 +27,8 @@ namespace FitnessCenter.Application.Services
             return data.OrderBy(x => x.Zacatek).ToList();
         }
 
-        public Task<Lesson?> GetAsync(int id) => _repo.GetByIdAsync(id, CancellationToken.None);
+        public Task<Lesson?> GetAsync(int id)
+            => _repo.GetByIdAsync(id, CancellationToken.None);
 
         public async Task<int> CreateAsync(Lesson lesson)
         {
@@ -52,15 +53,16 @@ namespace FitnessCenter.Application.Services
             return list.OrderBy(x => x.Zacatek).ToList();
         }
 
-        // NOVÉ – e-maily účastníků lekce
-        public Task<IReadOnlyList<string>> GetAttendeeEmailsAsync(int lessonId, CancellationToken ct = default)
-            => _repo.GetAttendeeEmailsAsync(lessonId, ct);
+        public Task<IReadOnlyList<LessonAttendee>> GetAttendeesAsync(int lessonId, CancellationToken ct = default)
+            => _repo.GetAttendeesAsync(lessonId, ct);
 
-        //admin
+        public Task RemoveMemberFromLessonAsync(int lessonId, int memberId, int trainerId)
+            => _repo.RemoveMemberFromLessonAsync(lessonId, memberId, trainerId);
+
         public Task<(int delRelekci, int delRez, int delLekce)> CancelLessonByAdminAsync(int lessonId)
             => _repo.CancelLessonByAdminAsync(lessonId);
 
         public Task<int> GetTodayCountAsync(CancellationToken ct = default)
-    => _repo.GetTodayCountAsync(ct);
+            => _repo.GetTodayCountAsync(ct);
     }
 }

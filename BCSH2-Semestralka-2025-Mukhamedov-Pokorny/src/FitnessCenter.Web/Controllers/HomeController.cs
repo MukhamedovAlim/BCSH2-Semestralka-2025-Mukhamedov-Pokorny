@@ -133,6 +133,7 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
+
         private static async Task<List<SelectListItem>> LoadMembersInFitnessAsync(int fitkoId)
         {
             var items = new List<SelectListItem>();
