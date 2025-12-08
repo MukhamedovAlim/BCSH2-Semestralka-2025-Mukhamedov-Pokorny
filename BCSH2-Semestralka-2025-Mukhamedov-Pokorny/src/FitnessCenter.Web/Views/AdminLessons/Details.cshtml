@@ -1,29 +1,53 @@
-﻿@model IEnumerable<string>
+﻿@model IEnumerable<FitnessCenter.Infrastructure.Repositories.LessonAttendee>
+
 @{
     ViewData["Title"] = "Obsazenost lekce";
     Layout = "_AppLayout";
+
+    ViewBag.HideMainNav = true;
+
     var lessonId = (int)ViewBag.LessonId;
     var lessonTitle = ViewBag.LessonTitle as string ?? $"lekce #{lessonId}";
+
+    var total = Model?.Count() ?? 0;
 }
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "AdminLessons")">← Zpět</a>
-        <span class="h3 text-white mb-0">Účastníci – @lessonTitle</span>
+        <span class="h3 text-white mb-0">
+            Účastníci – @lessonTitle
+        </span>
+    </div>
+
+    <div class="badge bg-light text-dark fs-6">
+        Celkem přihlášeno: @total
     </div>
 </div>
 
-<div class="glass p-3">
-    @if (!Model.Any())
+<div class="glass p-3 rounded-3">
+    @if (total == 0)
     {
-        <div class="text-white-50">Nikdo není přihlášen.</div>
+        <div class="text-white-50">
+            Nikdo není přihlášen.
+        </div>
     }
     else
     {
-        <ul class="list-group list-group-flush">
-            @foreach (var email in Model)
+        <div class="d-flex flex-column gap-2">
+            @foreach (var attendee in Model)
             {
-                <li class="list-group-item bg-transparent text-white border-secondary">@email</li>
+                <div class="d-flex justify-content-between align-items-center bg-transparent border border-secondary rounded-3 px-3 py-2">
+                    <div class="d-flex flex-column">
+                        <span class="fw-semibold text-white">
+                            @attendee.FullName
+                        </span>
+                        <span class="text-white-50">
+                            @attendee.Email
+                        </span>
+                    </div>
+                </div>
             }
-        </ul>
+        </div>
     }
 </div>
