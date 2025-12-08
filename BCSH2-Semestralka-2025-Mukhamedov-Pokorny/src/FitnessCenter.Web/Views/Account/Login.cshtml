@@ -1,22 +1,33 @@
 ﻿@model FitnessCenter.Web.Models.LoginViewModel
+
 @{
     ViewData["Title"] = "Přihlášení";
     Layout = "_AuthLayout";
 }
 
-<h1 class="h4 text-center mb-3 text-white">Přihlášení</h1>
+<h1 class="h4 text-center mb-2 text-white">Přihlášení</h1>
 
-@if (TempData["Info"] is string infoMsg)
+@* INFO z TempData (např. po resetu hesla) *@
+@if (TempData["Info"] is string info && !string.IsNullOrWhiteSpace(info))
 {
-    <div class="alert alert-success small py-2 px-3 mb-3 text-center">
-        @infoMsg
+    <div class="alert alert-success small py-2 px-3 mb-3 text-center" role="alert">
+        @info
     </div>
 }
 
-@if (!ViewData.ModelState.IsValid)
+@* CHYBY – vlastní render (česky) *@
+@{
+    var errors = ViewData.ModelState.Values
+        .SelectMany(v => v.Errors)
+        .Select(e => e.ErrorMessage)
+        .Where(m => !string.IsNullOrWhiteSpace(m))
+        .ToList();
+}
+
+@if (errors.Count > 0)
 {
-    <div asp-validation-summary="ModelOnly"
-         class="alert alert-danger small py-2 px-3 mb-3 text-center">
+    <div class="alert alert-danger small py-2 px-3 mb-3 text-center" role="alert">
+        @string.Join(" | ", errors)
     </div>
 }
 
@@ -24,33 +35,31 @@
     @Html.AntiForgeryToken()
 
     <div class="mb-3">
-        <label class="visually-hidden" for="Email">E-mail</label>
         <input id="Email"
                name="Email"
                type="email"
                class="form-control form-control-lg"
-               placeholder="E-mail"
                autocomplete="username"
-               value="@Model?.Email" />
+               placeholder="E-mail"
+               value="@(Model?.Email ?? string.Empty)" />
     </div>
 
     <div class="mb-3">
-        <label class="visually-hidden" for="Password">Heslo</label>
         <input id="Password"
                name="Password"
                type="password"
                class="form-control form-control-lg"
-               placeholder="Heslo"
-               autocomplete="current-password" />
+               autocomplete="current-password"
+               placeholder="Heslo" />
     </div>
 
-    <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">
+    <button class="btn btn-primary btn-lg w-100 mt-2" type="submit">
         Přihlásit se
     </button>
 </form>
 
 <div class="mt-4">
-    <a href="/Public/Index" class="btn btn-outline-light w-100 mb-3">
+    <a href="@Url.Action("Index", "Public")" class="btn btn-outline-light w-100 mb-3">
         Pokračovat bez přihlášení
     </a>
 

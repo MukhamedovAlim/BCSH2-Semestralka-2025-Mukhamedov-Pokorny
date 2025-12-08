@@ -172,18 +172,38 @@ namespace FitnessCenter.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
+            // VYPNEME automatickou DataAnnotations validaci (ta ti teď dělá bordel)
+            ModelState.Clear();
+
+            // ---- RUČNÍ VALIDACE ----
+            if (string.IsNullOrWhiteSpace(model.NewPassword))
+            {
+                ModelState.AddModelError(nameof(model.NewPassword), "Zadej nové heslo.");
+            }
+            else if (model.NewPassword.Length < 6)
+            {
+                ModelState.AddModelError(nameof(model.NewPassword), "Heslo musí mít alespoň 6 znaků.");
+            }
+
+            if (string.IsNullOrWhiteSpace(model.ConfirmPassword))
+            {
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "Potvrď nové heslo.");
+            }
+            else if (model.NewPassword != model.ConfirmPassword)
+            {
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "Nová hesla se neshodují.");
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = string.Join(" | ",
                     ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
 
-                TempData["Err"] = string.IsNullOrWhiteSpace(errors)
-                    ? "Formulář není validní."
-                    : "Formulář není validní: " + errors;
-
+                TempData["Err"] = "Formulář není validní: " + errors;
                 return View(model);
             }
 
+            // ---- NAČTENÍ UŽIVATELE Z CLAIMŮ ----
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdStr, out var memberId))
             {
@@ -200,52 +220,21 @@ namespace FitnessCenter.Web.Controllers
                 return RedirectToAction(nameof(Login));
             }
 
-            var verify = _hasher.VerifyHashedPassword(member, member.PasswordHash, model.CurrentPassword);
-            if (verify != PasswordVerificationResult.Success)
-            {
-                ModelState.AddModelError(nameof(model.CurrentPassword), "Aktuální heslo není správně.");
-                TempData["Err"] = "Aktuální heslo není správně.";
-                return View(model);
-            }
-
-            if (string.IsNullOrWhiteSpace(model.NewPassword) ||
-                string.IsNullOrWhiteSpace(model.ConfirmPassword))
-            {
-                TempData["Err"] = "Nové heslo a potvrzení nesmí být prázdné.";
-                return View(model);
-            }
-
-            if (model.NewPassword != model.ConfirmPassword)
-            {
-                ModelState.AddModelError(nameof(model.ConfirmPassword), "Nová hesla se neshodují.");
-                TempData["Err"] = "Nová hesla se neshodují.";
-                return View(model);
-            }
-
-            if (model.NewPassword == model.CurrentPassword)
-            {
-                TempData["Err"] = "Nové heslo nesmí být stejné jako staré.";
-                return View(model);
-            }
-
-            var newHash = _hasher.HashPassword(member, model.NewPassword);
+            // ---- ZMĚNA HESLA V DB (procedura PR_CLEN_CHANGE_PASSWORD nastaví MUSI_ZMENIT_HESLO = 0) ----
+            var newHash = _hasher.HashPassword(member, model.NewPassword!);
             await _members.ChangePasswordAsync(memberId, newHash);
 
-            // po úspěšné změně hesla už MustChangePassword nemá smysl
-            member.MustChangePassword = false;
-            await _members.UpdateAsync(member);
-
-            // přihlášení znovu bez MustChangePassword claimu
+            // ---- CLAIMY BEZ MustChangePassword ----
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
-                new Claim("MemberId",  member.MemberId.ToString()),
-                new Claim("UserId",    member.MemberId.ToString()),
-                new Claim("ClenId",    member.MemberId.ToString()),
-                new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
-                new Claim(ClaimTypes.Email, member.Email),
-                new Claim(ClaimTypes.Role, "Member")
-            };
+    {
+        new Claim(ClaimTypes.NameIdentifier, member.MemberId.ToString()),
+        new Claim("MemberId",  member.MemberId.ToString()),
+        new Claim("UserId",    member.MemberId.ToString()),
+        new Claim("ClenId",    member.MemberId.ToString()),
+        new Claim(ClaimTypes.Name, $"{member.FirstName} {member.LastName}".Trim()),
+        new Claim(ClaimTypes.Email, member.Email),
+        new Claim(ClaimTypes.Role, "Member")
+    };
 
             if (User.IsInRole("Trainer"))
                 claims.Add(new Claim(ClaimTypes.Role, "Trainer"));
@@ -272,6 +261,9 @@ namespace FitnessCenter.Web.Controllers
             TempData["Ok"] = "Heslo bylo úspěšně změněno.";
             return RedirectToAction("Index", "Home");
         }
+
+
+
 
         // ========================
         //     ZAPOMENUTÉ HESLO
@@ -302,7 +294,7 @@ namespace FitnessCenter.Web.Controllers
             var member = all.FirstOrDefault(c =>
                 c.Email != null && c.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
-            // Z bezpečnostních důvodů neříkáme, jestli účet existuje
+            // Bezpečnostní důvod – neříkáme, jestli účet existuje
             if (member == null)
             {
                 TempData["Info"] = "Pokud u nás byl účet nalezen, poslali jsme ti nové heslo na e-mail.";
@@ -313,10 +305,22 @@ namespace FitnessCenter.Web.Controllers
             var newPassword = Guid.NewGuid().ToString("N")[..8];
             var newHash = _hasher.HashPassword(member, newPassword);
 
-            member.PasswordHash = newHash;
-            member.MustChangePassword = true;
-            await _members.UpdateAsync(member);
+            // 🔥 přímý UPDATE do DB: nové heslo + MUSI_ZMENIT_HESLO = 1
+            using (var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync())
+            using (var cmd = new OracleCommand(@"
+        UPDATE CLENOVE
+           SET HESLO_HASH        = :hash,
+               MUSI_ZMENIT_HESLO = 1
+         WHERE IDCLEN = :id", con))
+            {
+                cmd.BindByName = true;
+                cmd.Parameters.Add("hash", OracleDbType.Varchar2).Value = newHash;
+                cmd.Parameters.Add("id", OracleDbType.Int32).Value = member.MemberId;
 
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            // e-mail s novým heslem
             try
             {
                 var subject = "Reset hesla – Svalovna Gym";
@@ -331,12 +335,14 @@ namespace FitnessCenter.Web.Controllers
             }
             catch
             {
-                // e-mail když selže, necháme tiše – uživatel stejně dostane obecnou hlášku
+                // necháme potichu, nechceme prozrazovat stav účtu
             }
 
             TempData["Info"] = "Pokud u nás byl účet nalezen, poslali jsme ti nové heslo na e-mail.";
             return RedirectToAction(nameof(Login));
         }
+
+
 
         // ========================
         //        REGISTER
