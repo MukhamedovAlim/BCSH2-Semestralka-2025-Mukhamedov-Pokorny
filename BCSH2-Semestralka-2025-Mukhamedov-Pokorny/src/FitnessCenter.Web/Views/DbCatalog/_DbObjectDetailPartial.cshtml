@@ -7,6 +7,11 @@
 
     @if (Model.ObjectType == "TABLE" && Model.Columns != null)
     {
+        <div class="mb-1 fw-bold">CREATE TABLE:</div>
+    <pre class="mb-2 text-white small" style="white-space: pre-wrap;">
+            @(Model.DefinitionText ?? "DDL není dostupné.")
+        </pre>
+
         <div class="mb-1 fw-bold">Struktura tabulky:</div>
         <table class="table table-sm table-dark table-striped mb-0">
             <thead>

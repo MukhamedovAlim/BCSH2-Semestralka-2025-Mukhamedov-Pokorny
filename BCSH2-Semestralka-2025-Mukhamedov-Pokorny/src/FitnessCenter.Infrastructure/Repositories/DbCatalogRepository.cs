@@ -66,7 +66,10 @@ namespace FitnessCenter.Infrastructure.Repositories
             switch (objectType)
             {
                 case "TABLE":
+                    // struktura sloupců
                     detail.Columns = await LoadTableColumnsAsync(conn, objectName);
+                    // DDL – CREATE TABLE ...
+                    detail.DefinitionText = await LoadTableDdlAsync(conn, objectName);
                     break;
 
                 case "SEQUENCE":
@@ -119,6 +122,43 @@ namespace FitnessCenter.Infrastructure.Repositories
             }
 
             return list;
+        }
+
+        private static async Task<string?> LoadTableDdlAsync(OracleConnection conn, string tableName)
+        {
+            // 1) nastavení transform parametrů pro aktuální session
+            const string transformSql = @"
+BEGIN
+  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', FALSE);
+  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'STORAGE',           FALSE);
+  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'TABLESPACE',        FALSE);
+  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'REF_CONSTRAINTS',   TRUE);
+END;";
+
+            using (var transformCmd = new OracleCommand(transformSql, conn))
+            {
+                await transformCmd.ExecuteNonQueryAsync();
+            }
+
+            // 2) samotné DDL – už „osekané“ od STORAGE/TABLESPACE
+            const string ddlSql = @"SELECT DBMS_METADATA.GET_DDL('TABLE', :name) FROM dual";
+
+            using var cmd = new OracleCommand(ddlSql, conn) { BindByName = true };
+            cmd.Parameters.Add("name", OracleDbType.Varchar2).Value = tableName.ToUpperInvariant();
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync() || reader.IsDBNull(0))
+                return null;
+
+            var value = reader.GetValue(0);
+
+            if (value is string s)
+                return s;
+
+            if (value is OracleClob clob)
+                return clob.IsNull ? null : clob.Value;
+
+            return value?.ToString();
         }
 
         private static async Task<SequenceInfo?> LoadSequenceInfoAsync(
