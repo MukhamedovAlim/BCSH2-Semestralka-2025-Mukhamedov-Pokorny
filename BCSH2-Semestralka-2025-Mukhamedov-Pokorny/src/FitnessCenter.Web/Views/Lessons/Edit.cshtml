@@ -1,5 +1,5 @@
 ﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@model FitnessCenter.Domain.Entities.Lesson
+@model FitnessCenter.Web.Models.LessonEditViewModel
 
 @using Microsoft.AspNetCore.Mvc.Rendering
 
@@ -32,7 +32,7 @@
 
 @if (!ViewData.ModelState.IsValid)
 {
-    <div class="alert alert-danger">
+    <div class="alert alert-danger mb-2">
         @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
         {
             <div>@e.ErrorMessage</div>
@@ -53,7 +53,6 @@
             <input asp-for="Nazev"
                    class="form-control"
                    placeholder="Název lekce" />
-            <span asp-validation-for="Nazev" class="text-danger small"></span>
         </div>
 
         <div class="col-md-6">
@@ -61,7 +60,6 @@
             <input asp-for="Zacatek"
                    type="datetime-local"
                    class="form-control" />
-            <span asp-validation-for="Zacatek" class="text-danger small"></span>
         </div>
 
         <div class="col-md-3">
@@ -70,25 +68,16 @@
                    type="number"
                    class="form-control"
                    min="1" />
-            <span asp-validation-for="Kapacita" class="text-danger small"></span>
         </div>
 
         <div class="col-md-6">
-            <label class="form-label text-white">Kde (fitko)</label>
-            <select name="SelectedFitnessCenterId" class="form-select">
+            <label asp-for="SelectedFitnessCenterId" class="form-label text-white">Kde (fitko)</label>
+            <select asp-for="SelectedFitnessCenterId"
+                    asp-items="fitness"
+                    class="form-select">
                 <option value="">— Vyber fitness centrum —</option>
-                @foreach (var it in fitness)
-                {
-                    if (it.Selected)
-                    {
-                        <option value="@it.Value" selected>@it.Text</option>
-                    }
-                    else
-                    {
-                        <option value="@it.Value">@it.Text</option>
-                    }
-                }
             </select>
+
             <div class="form-text text-white-50">
                 Název fitka se automaticky přidá do názvu lekce jako „@@Název“.
             </div>
@@ -101,3 +90,7 @@
         Zrušit
     </a>
 </form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

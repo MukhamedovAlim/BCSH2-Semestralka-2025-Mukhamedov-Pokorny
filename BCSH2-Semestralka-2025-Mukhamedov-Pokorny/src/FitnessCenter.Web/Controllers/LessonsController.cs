@@ -111,23 +111,23 @@ namespace FitnessCenter.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Lesson model, [FromForm] int? SelectedFitnessCenterId)
         {
-            // 1) Validace
-            if (string.IsNullOrWhiteSpace(model.Nazev))
-                ModelState.AddModelError(nameof(model.Nazev), "Název je povinný.");
-            if (model.Kapacita <= 0)
-                ModelState.AddModelError(nameof(model.Kapacita), "Kapacita musí být > 0.");
-            if (model.Zacatek == default)
-                ModelState.AddModelError(nameof(model.Zacatek), "Zadej platný datum a čas.");
+            // VALIDACE – pole z entity Lesson necháme na DataAnnotations,
+            // tady jen dohlídneme na výběr fitka
+            if (SelectedFitnessCenterId is null || SelectedFitnessCenterId <= 0)
+            {
+                ModelState.AddModelError("SelectedFitnessCenterId", "Vyber fitness centrum.");
+            }
 
             if (!ModelState.IsValid)
             {
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
+                // znovu naplníme seznam fitek + předvybereme to, co uživatel zadal
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(
+                    SelectedFitnessCenterId > 0 ? SelectedFitnessCenterId : null);
                 ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
                 return View(model);
             }
 
-            // 2) Trenér z claims (pro trenéra); pro admina to klidně uděláme stejně –
-            // admin prostě vytvoří lekci "pod sebou" jako trenér, pokud je také v tabulce TRENERI.
+            // 2) trenér z claims
             var trainerId = await GetCurrentTrainerIdAsync();
             if (trainerId is null)
             {
@@ -135,14 +135,14 @@ namespace FitnessCenter.Web.Controllers
                 return RedirectToAction(nameof(Create));
             }
 
-            // 3) doplnění @NázevFitka do názvu (volitelné)
+            // 3) doplnění @NázevFitka do názvu
             if (SelectedFitnessCenterId is > 0)
             {
                 string? fcName = null;
                 using (var con = await DatabaseManager.GetOpenConnectionAsync())
                 using (var cmd = new OracleCommand(
-                    "SELECT nazev FROM fitnesscentra WHERE idfitness=:id",
-                    (OracleConnection)con)
+                           "SELECT nazev FROM fitnesscentra WHERE idfitness=:id",
+                           (OracleConnection)con)
                 { BindByName = true })
                 {
                     cmd.Parameters.Add("id", SelectedFitnessCenterId);
@@ -158,7 +158,7 @@ namespace FitnessCenter.Web.Controllers
                 }
             }
 
-            // 4) Uložení s ošetřením chyb z triggeru
+            // 4) uložit
             try
             {
                 var id = await _lessons.CreateAsync(model, trainerId.Value);
@@ -168,37 +168,45 @@ namespace FitnessCenter.Web.Controllers
             catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
-                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
-                return View(model);
             }
             catch (OracleException ex)
             {
                 ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
-                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
-                return View(model);
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(SelectedFitnessCenterId);
-                ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
-                return View(model);
             }
+
+            // při chybě z DB znovu naplnit fitka + vrátit view
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(
+                SelectedFitnessCenterId > 0 ? SelectedFitnessCenterId : null);
+            ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
+            return View(model);
         }
 
-        // Edit formulář (GET)
+
+        // GET /Lessons/Edit/5
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
             var lesson = await _lessons.GetAsync(id);
             if (lesson == null) return NotFound();
 
-            // pokud chceš preselect, můžeš sem dát id fitka, jinak nech null
-            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(/* např. lesson.FitkoId */);
+            var vm = new LessonEditViewModel
+            {
+                Id = lesson.Id,
+                Nazev = lesson.Nazev,
+                Zacatek = lesson.Zacatek,
+                Kapacita = lesson.Kapacita,
+                Popis = lesson.Popis,
 
-            return View(lesson);
+                SelectedFitnessCenterId = null
+            };
+
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
+
+            return View(vm);
         }
 
 
@@ -210,7 +218,10 @@ namespace FitnessCenter.Web.Controllers
                 return NotFound();
 
             if (!ModelState.IsValid)
+            {
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
                 return View(vm);
+            }
 
             var lesson = await _lessons.GetAsync(id);
             if (lesson == null)
@@ -221,32 +232,59 @@ namespace FitnessCenter.Web.Controllers
             lesson.Kapacita = vm.Kapacita;
             lesson.Popis = vm.Popis;
 
+            // stejná logika jako v Create – přidání @Fitko do názvu
+            if (vm.SelectedFitnessCenterId is > 0)
+            {
+                string? fcName = null;
+                using (var con = await DatabaseManager.GetOpenConnectionAsync())
+                using (var cmd = new OracleCommand(
+                           "SELECT nazev FROM fitnesscentra WHERE idfitness=:id",
+                           (OracleConnection)con)
+                { BindByName = true })
+                {
+                    cmd.Parameters.Add("id", vm.SelectedFitnessCenterId.Value);
+                    var obj = await cmd.ExecuteScalarAsync();
+                    fcName = obj as string;
+                }
+
+                if (!string.IsNullOrWhiteSpace(fcName))
+                {
+                    var atIdx = lesson.Nazev?.LastIndexOf('@') ?? -1;
+                    var baseName = (atIdx >= 0 ? lesson.Nazev![..atIdx].Trim()
+                                               : lesson.Nazev?.Trim()) ?? "";
+                    lesson.Nazev = $"{baseName} @{fcName}";
+                }
+            }
+
             try
             {
                 var ok = await _lessons.UpdateAsync(lesson);
                 if (!ok)
                 {
                     ModelState.AddModelError(string.Empty, "Nepodařilo se uložit lekci.");
+                    ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
                     return View(vm);
                 }
 
                 TempData["Ok"] = "Lekce byla upravena.";
-                // ⬇⬇⬇ tady byl RedirectToAction(nameof(Detail)...)
                 return RedirectToAction(nameof(Index));
             }
             catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
                 return View(vm);
             }
             catch (OracleException ex)
             {
                 ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
                 return View(vm);
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
+                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
                 return View(vm);
             }
         }

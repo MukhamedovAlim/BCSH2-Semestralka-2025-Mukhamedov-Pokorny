@@ -17,16 +17,6 @@
 @if (TempData["Ok"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Err"] is string err) { <div class="alert alert-danger">@err</div> }
 
-@if (!ViewData.ModelState.IsValid)
-{
-    <div class="alert alert-danger">
-        @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-        {
-            <div>@e.ErrorMessage</div>
-        }
-    </div>
-}
-
 <form method="post" asp-action="Create" novalidate>
   @Html.AntiForgeryToken()
   <div asp-validation-summary="All" class="text-danger small mb-2"></div>
@@ -35,19 +25,16 @@
     <div class="col-md-6">
       <label asp-for="Nazev" class="form-label text-white"></label>
       <input asp-for="Nazev" class="form-control" placeholder="Název lekce" />
-      <span asp-validation-for="Nazev" class="text-danger small"></span>
     </div>
 
     <div class="col-md-6">
       <label asp-for="Zacatek" class="form-label text-white"></label>
       <input asp-for="Zacatek" type="datetime-local" class="form-control" />
-      <span asp-validation-for="Zacatek" class="text-danger small"></span>
     </div>
 
     <div class="col-md-3">
       <label asp-for="Kapacita" class="form-label text-white"></label>
       <input asp-for="Kapacita" type="number" class="form-control" min="1" />
-      <span asp-validation-for="Kapacita" class="text-danger small"></span>
     </div>
 
         <div class="col-md-6">
@@ -56,11 +43,25 @@
                 <option value="">— Vyber fitness centrum —</option>
                 @foreach (var it in fitness)
                 {
-                    <option value="@it.Value">@it.Text</option>
+                    var selected = (ViewBag.SelectedFitnessCenterId != null
+                    && ViewBag.SelectedFitnessCenterId.ToString() == it.Value);
+
+                    <option value="@it.Value" selected="@(selected ? "selected" : null)">
+                        @it.Text
+                    </option>
                 }
             </select>
-            <div class="form-text text-white-50">Název fitka se automaticky přidá do názvu lekce jako „@@Název“.</div>
+
+            @{
+                var fitErr = ViewData.ModelState["SelectedFitnessCenterId"]?
+                .Errors.FirstOrDefault()?.ErrorMessage;
+            }
+
+            <div class="form-text text-white-50">
+                Název fitka se automaticky přidá do názvu lekce jako „@@Název“.
+            </div>
         </div>
+
   </div>
 
   <button class="btn btn-warning mt-3" type="submit">Uložit</button>

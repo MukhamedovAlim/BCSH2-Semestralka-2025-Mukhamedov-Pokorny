@@ -1,16 +1,47 @@
-﻿@model List<string>
+﻿@model IEnumerable<FitnessCenter.Web.Models.Member.MemberTrainerListItem>
+
 @{
-    ViewData["Title"] = "Trenéři – veřejný seznam";
+    ViewData["Title"] = "Trenéři – veřejný přehled";
     Layout = "_AppLayout";
     ViewBag.Active = "Public";
 }
-<div class="glass p-3">
-    <a class="btn btn-sm btn-outline-light mb-3" href="@Url.Action("Index", "Public")">← Zpět</a>
-    <h4 class="text-white mb-3">Naši trenéři</h4>
-    <ul class="list-group list-group-flush">
-        @foreach (var name in Model)
-        {
-            <li class="list-group-item bg-transparent text-white">@name</li>
-        }
-    </ul>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Public")">← Zpět</a>
+        <span class="h3 text-white mb-0">Trenéři</span>
+    </div>
+    <div class="text-white-50 small">
+        Veřejný přehled trenérů Svalovna Gym.
+    </div>
+</div>
+
+<div class="table-responsive glass p-2">
+    @if (!(Model?.Any() ?? false))
+    {
+        <div class="text-white-50 p-2">
+            Zatím nemáme žádné trenéry v systému.
+        </div>
+    }
+    else
+    {
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Jméno</th>
+                    <th>Telefon</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in Model)
+                {
+                    <tr class="cursor-pointer"
+                        onclick="location.href='@Url.Action("TrainerDetail", "Public", new { id = t.Id })'">
+                        <td>@t.CeleJmeno</td>
+                        <td>@(string.IsNullOrWhiteSpace(t.Telefon) ? "—" : t.Telefon)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 </div>

@@ -3,33 +3,91 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Public";
 }
-<div class="glass p-3">
-    <h3 class="text-white mb-2">Veřejný přehled</h3>
-    <p class="text-white-50 mb-3">
-        Pro plný přístup se prosím <a href="@Url.Action("Login", "Account")">přihlas</a>
-        nebo <a href="@Url.Action("Register", "Account")">zaregistruj</a>.
-    </p>
 
+<!-- HERO / ÚVOD -->
+<div class="glass p-4 p-lg-5 mb-4">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-7">
+            <h1 class="display-5 text-white mb-2">
+                Svalovna Gym – veřejný přehled
+            </h1>
+            <p class="lead text-white-50 mb-3">
+                Podívej se na rozvrh, trenéry a vybavení. Pro rezervace lekcí
+                a plný přístup se staň členem našeho fitness centra.
+            </p>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary"
+                   href="@Url.Action("Register", "Account")">
+                    Vytvořit účet
+                </a>
+                <a class="btn btn-outline-light"
+                   href="@Url.Action("Login", "Account")">
+                    Přihlásit se
+                </a>
+            </div>
+
+            <div class="mt-3 small text-white-50">
+                Žádné skryté poplatky, jen čistý progress. 💪
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HLAVNÍ DLAŽDICE -->
+<div class="glass p-3">
     <div class="row g-3">
-        <div class="col-12 col-md-6 col-xl-4">
-            <div class="tile glass h-100">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass h-100 position-relative">
+                <div class="small text-white-50 text-uppercase mb-1">
+                    Přehled
+                </div>
                 <h5 class="text-white mb-1">Rozvrh lekcí</h5>
-                <div class="text-white-50 small">Veřejný náhled nadcházejících lekcí.</div>
-                <a class="stretched-link" href="@Url.Action("Lessons", "Public")"></a>
+                <div class="text-white-50 small mb-2">
+                    Veřejný náhled nadcházejících lekcí a základní kapacity.
+                </div>
+                <a class="stretched-link"
+                   href="@Url.Action("Lessons", "Public")"></a>
             </div>
         </div>
-        <div class="col-12 col-md-6 col-xl-4">
-            <div class="tile glass h-100">
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass h-100 position-relative">
+                <div class="small text-white-50 text-uppercase mb-1">
+                    Tým
+                </div>
                 <h5 class="text-white mb-1">Trenéři</h5>
-                <div class="text-white-50 small">Základní seznam trenérů.</div>
-                <a class="stretched-link" href="@Url.Action("Trainers", "Public")"></a>
+                <div class="text-white-50 small mb-2">
+                    Seznam trenérů, jejich specializace a pár ukázkových profilů.
+                </div>
+                <a href="@Url.Action("Trainers", "Public")" class="stretched-link"></a>
             </div>
         </div>
-        <div class="col-12 col-md-6 col-xl-4">
-            <div class="tile glass h-100">
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass h-100 position-relative">
+                <div class="small text-white-50 text-uppercase mb-1">
+                    Gym
+                </div>
+                <h5 class="text-white mb-1">Vybavení</h5>
+                <div class="text-white-50 small mb-2">
+                    Mrkni na naše vybavení – volné váhy, stroje, kardio zóna.
+                </div>
+                <a href="@Url.Action("Equipments", "Public")" class="stretched-link"></a>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="tile glass h-100 position-relative">
+                <div class="small text-white-50 text-uppercase mb-1">
+                    Členství
+                </div>
                 <h5 class="text-white mb-1">Registrace</h5>
-                <div class="text-white-50 small">Založ si účet a získej plný přístup.</div>
-                <a class="stretched-link" href="@Url.Action("Register", "Account")"></a>
+                <div class="text-white-50 small mb-2">
+                    Založ si účet, rezervuj lekce, sleduj historii docházky a členství.
+                </div>
+                <a class="stretched-link"
+                   href="@Url.Action("Register", "Account")"></a>
             </div>
         </div>
     </div>
