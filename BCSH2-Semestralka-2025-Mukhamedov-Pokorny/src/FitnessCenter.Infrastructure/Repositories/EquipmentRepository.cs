@@ -38,6 +38,16 @@ namespace FitnessCenter.Infrastructure.Repositories
         public string Label { get; set; } = default!;
         public int? FitnessId { get; set; }
         public int? EquipmentId { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public DateTime? DestroyedAt { get; set; }
+    }
+
+    public sealed class FitnessCenterRow
+    {
+        public int Id { get; set; }
+        public string Nazev { get; set; } = "";
     }
 
 
@@ -290,24 +300,31 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
             }
         }
 
-        public async Task<List<EquipmentHierarchyRow>> GetEquipmentHierarchyAsync()
+        public async Task<List<EquipmentHierarchyRow>> GetEquipmentHierarchyAsync(int? fitnessId)
         {
             const string sql = @"
         SELECT LEVEL       AS depth,
                node_type,
                label,
                idfitness,
-               idvybaveni
+               idvybaveni,
+               datum_vytvoreni,
+               datum_upravy,
+               datum_zniceni
         FROM V_FITKO_VYBAVENI_HIER
         START WITH parent_id IS NULL
+           AND (:p_fitko IS NULL OR idfitness = :p_fitko)
         CONNECT BY PRIOR node_id = parent_id
         ORDER SIBLINGS BY label";
 
             var result = new List<EquipmentHierarchyRow>();
 
-            // stejné otevření jako v ostatních metodách
             using var con = await OpenAsync();
             using var cmd = new OracleCommand(sql, con) { BindByName = true };
+
+            cmd.Parameters.Add("p_fitko", OracleDbType.Int32)
+                .Value = fitnessId.HasValue ? (object)fitnessId.Value : DBNull.Value;
+
             using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -318,11 +335,39 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                     NodeType = reader.GetString(1),
                     Label = reader.GetString(2),
                     FitnessId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
-                    EquipmentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4)
+                    EquipmentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4),
+                    CreatedAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                    UpdatedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                    DestroyedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
                 });
             }
 
             return result;
+        }
+
+        public async Task<List<FitnessCenterRow>> GetFitnessCentersAsync()
+        {
+            const string sql = @"
+        SELECT idfitness, nazev
+        FROM fitnesscentra
+        ORDER BY nazev";
+
+            var list = new List<FitnessCenterRow>();
+
+            using var con = await OpenAsync();
+            using var cmd = new OracleCommand(sql, con) { BindByName = true };
+            using var rd = await cmd.ExecuteReaderAsync();
+
+            while (await rd.ReadAsync())
+            {
+                list.Add(new FitnessCenterRow
+                {
+                    Id = rd.GetInt32(0),
+                    Nazev = rd.GetString(1)
+                });
+            }
+
+            return list;
         }
     }
 }

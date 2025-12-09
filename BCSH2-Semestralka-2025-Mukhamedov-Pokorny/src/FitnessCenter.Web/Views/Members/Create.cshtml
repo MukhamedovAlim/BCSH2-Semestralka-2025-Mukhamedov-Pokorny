@@ -10,18 +10,20 @@
 
 <h1 class="h4 text-white mb-2 d-flex align-items-center gap-2">
     <a class="btn btn-sm btn-outline-light"
-       href="@Url.Action("Index", "Members")"
-       onclick="if (history.length > 1) { history.back(); return false; }">← Zpět</a>
+       href="@Url.Action("Index", "Members")">
+        ← Zpět
+    </a>
     Přidat člena
 </h1>
 
-@if (TempData["Err"] is string err)
+@if (!ViewData.ModelState.IsValid &&
+         string.Equals(Context.Request.Method, "POST", StringComparison.OrdinalIgnoreCase))
 {
-    <div class="alert alert-danger">@err</div>
-}
-@if (TempData["Ok"] is string ok)
-{
-    <div class="alert alert-success">@ok</div>
+    <div class="alert alert-danger mb-3">
+        Vyplň prosím všechna povinná pole:
+        <strong>Jméno</strong>, <strong>Příjmení</strong>,
+        <strong>E-mail</strong>, <strong>Datum narození</strong> a <strong>Fitness centrum</strong>.
+    </div>
 }
 
 <form action="@Url.Action("Create", "Members")" method="post" novalidate>

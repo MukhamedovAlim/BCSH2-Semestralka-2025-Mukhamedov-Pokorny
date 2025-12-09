@@ -5,6 +5,7 @@
     var fitness = (IEnumerable<SelectListItem>)(ViewBag.FitnessCenters
                   ?? ViewBag.Fitka
                   ?? Enumerable.Empty<SelectListItem>());
+    ViewBag.HideMainNav = true;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -16,14 +17,25 @@
     </div>
 </div>
 
+@if (!ViewData.ModelState.IsValid &&
+    string.Equals(Context.Request.Method, "POST", System.StringComparison.OrdinalIgnoreCase))
+{
+    <div class="alert alert-danger mb-3">
+        Zkontroluj prosím <strong>název vybavení</strong>, <strong>typ</strong>,
+        <strong>stav</strong> a <strong>fitness centrum</strong>.
+    </div>
+}
+
 <form asp-action="Edit" asp-controller="Equipment" asp-route-id="@Model.Id" method="post" novalidate>
     @Html.AntiForgeryToken()
     <input type="hidden" name="Id" value="@Model.Id" />
 
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
     <div class="mb-3">
         <label class="form-label text-white" for="Nazev">Název</label>
         <input class="form-control" id="Nazev" name="Nazev" value="@Model.Nazev" />
-        <span class="text-danger" asp-validation-for="Nazev"></span>
+        <span class="text-danger small" asp-validation-for="Nazev"></span>
     </div>
 
     <div class="row g-3">
@@ -34,7 +46,7 @@
                 <option value="P" @(Model.Typ == "P" ? "selected" : null)>Posilovací</option>
                 <option value="V" @(Model.Typ == "V" ? "selected" : null)>Volná závaží</option>
             </select>
-            <span class="text-danger" asp-validation-for="Typ"></span>
+            <span class="text-danger small" asp-validation-for="Typ"></span>
         </div>
 
         <div class="col-sm-4">
@@ -44,7 +56,7 @@
                 <option value="Oprava" @(Model.Stav == "Oprava" ? "selected" : null)>Oprava</option>
                 <option value="Mimo provoz" @(Model.Stav == "Mimo provoz" ? "selected" : null)>Mimo provoz</option>
             </select>
-            <span class="text-danger" asp-validation-for="Stav"></span>
+            <span class="text-danger small" asp-validation-for="Stav"></span>
         </div>
 
         <div class="col-sm-4">
@@ -57,7 +69,7 @@
                     <option value="@it.Value" @sel>@it.Text</option>
                 }
             </select>
-            <span class="text-danger" asp-validation-for="FitkoId"></span>
+            <span class="text-danger small" asp-validation-for="FitkoId"></span>
         </div>
     </div>
 
@@ -67,4 +79,6 @@
     </div>
 </form>
 
-<div asp-validation-summary="All" class="text-danger small mt-3"></div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

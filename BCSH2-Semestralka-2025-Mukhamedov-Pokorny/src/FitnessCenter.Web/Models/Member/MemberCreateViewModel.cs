@@ -5,25 +5,31 @@ namespace FitnessCenter.Web.Models
 {
     public class MemberCreateViewModel
     {
-        [Required, MaxLength(50)]
+        [Required(ErrorMessage = "Zadej jméno."), MaxLength(50)]
         public string FirstName { get; set; } = "";
 
-        [Required, MaxLength(50)]
+        [Required(ErrorMessage = "Zadej příjmení."), MaxLength(50)]
         public string LastName { get; set; } = "";
 
-        [Required, EmailAddress, MaxLength(100)]
+        [Required(ErrorMessage = "Zadej e-mail.")]
+        [MaxLength(100)]
+        [RegularExpression(
+            @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            ErrorMessage = "Zadej platný e-mail (např. uzivatel@example.cz).")]
         public string Email { get; set; } = "";
 
         [MaxLength(20)]
         public string? Phone { get; set; }
 
-        [Required, DataType(DataType.Date)]
+        [Required(ErrorMessage = "Zadej datum narození.")]
+        [DataType(DataType.Date)]
         public DateTime? BirthDate { get; set; }
 
         [MaxLength(100)]
         public string? Address { get; set; }
 
-        [Required, Range(1, int.MaxValue, ErrorMessage = "Vyber fitness centrum.")]
+        [Required(ErrorMessage = "Vyber fitness centrum.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Vyber fitness centrum.")]
         public int FitnessCenterId { get; set; }
     }
 }

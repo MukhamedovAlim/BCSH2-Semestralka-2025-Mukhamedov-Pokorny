@@ -138,6 +138,7 @@ namespace FitnessCenter.Web.Controllers
                 // jinak pošli z formuláře
                 var member = (await _members.GetAllAsync())
                              .FirstOrDefault(m => string.Equals(m.Email, email, StringComparison.OrdinalIgnoreCase));
+
                 var telefonForProc = string.IsNullOrWhiteSpace(member?.Phone)
                     ? (string.IsNullOrWhiteSpace(phone) ? null : phone.Trim())
                     : null;
@@ -148,12 +149,15 @@ namespace FitnessCenter.Web.Controllers
                     CommandType = CommandType.StoredProcedure,
                     BindByName = true
                 };
+
                 cmd.Parameters.Add("p_email", OracleDbType.Varchar2, email, ParameterDirection.Input);
                 cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2,
-                                    (object?)telefonForProc ?? DBNull.Value, ParameterDirection.Input);
+                                   (object?)telefonForProc ?? DBNull.Value, ParameterDirection.Input);
 
                 var pOut = new OracleParameter("p_idtrener", OracleDbType.Decimal)
-                { Direction = ParameterDirection.Output };
+                {
+                    Direction = ParameterDirection.Output
+                };
                 cmd.Parameters.Add(pOut);
 
                 await cmd.ExecuteNonQueryAsync();
@@ -167,12 +171,24 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ox)
             {
-                TempData["Err"] = $"DB chyba při povýšení: {ox.Message}";
+                string msg;
+
+                // naše custom chyba z procedury – chybí telefon
+                if (ox.Number == 20041 || ox.Message.Contains("ORA-20041"))
+                {
+                    msg = "Chybí telefonní číslo pro trenéra. Doplň ho prosím a zkus to znovu.";
+                }
+                else
+                {
+                    msg = "Databázová chyba při povýšení: " + ox.Message;
+                }
+
+                TempData["Err"] = msg;
                 return RedirectToAction(nameof(Promote));
             }
             catch (Exception ex)
             {
-                TempData["Err"] = $"Chyba při povýšení: {ex.Message}";
+                TempData["Err"] = "Chyba při povýšení: " + ex.Message;
                 return RedirectToAction(nameof(Promote));
             }
         }
@@ -213,7 +229,7 @@ namespace FitnessCenter.Web.Controllers
             return View(vm); // Views/AdminTrainers/Edit.cshtml
         }
 
-        // POST /AdminTrainers/Edit/5
+        //POST /AdminTrainers/Edit/5
         [HttpPost("Edit/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, TrainerEditViewModel vm)
@@ -226,7 +242,12 @@ namespace FitnessCenter.Web.Controllers
             if (vm.TrainerId != id)
                 ModelState.AddModelError(nameof(vm.TrainerId), "Nesouhlasí ID v adrese a ve formuláři.");
 
-            // jednoduché validace (klidně si uprav)
+            // otrimujeme vstupy, ať se neprojde jen mezera
+            vm.Jmeno = vm.Jmeno?.Trim();
+            vm.Prijmeni = vm.Prijmeni?.Trim();
+            vm.Email = vm.Email?.Trim();
+            vm.Telefon = vm.Telefon?.Trim();
+
             if (string.IsNullOrWhiteSpace(vm.Jmeno))
                 ModelState.AddModelError(nameof(vm.Jmeno), "Zadej jméno.");
             if (string.IsNullOrWhiteSpace(vm.Prijmeni))
@@ -235,8 +256,11 @@ namespace FitnessCenter.Web.Controllers
                 ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
 
             if (!ModelState.IsValid)
+            {
                 return View(vm);
+            }
 
+            // ===== pokud jsme tady, validace prošla =====
             try
             {
                 using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
@@ -249,16 +273,16 @@ namespace FitnessCenter.Web.Controllers
                 cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = vm.TrainerId;
 
                 cmd.Parameters.Add("p_jmeno", OracleDbType.Varchar2).Value =
-                    string.IsNullOrWhiteSpace(vm.Jmeno) ? (object)DBNull.Value : vm.Jmeno.Trim();
+                    (object?)vm.Jmeno ?? DBNull.Value;
 
                 cmd.Parameters.Add("p_prijmeni", OracleDbType.Varchar2).Value =
-                    string.IsNullOrWhiteSpace(vm.Prijmeni) ? (object)DBNull.Value : vm.Prijmeni.Trim();
+                    (object?)vm.Prijmeni ?? DBNull.Value;
 
                 cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2).Value =
-                    string.IsNullOrWhiteSpace(vm.Telefon) ? (object)DBNull.Value : vm.Telefon.Trim();
+                    string.IsNullOrWhiteSpace(vm.Telefon) ? (object)DBNull.Value : vm.Telefon;
 
                 cmd.Parameters.Add("p_email", OracleDbType.Varchar2).Value =
-                    string.IsNullOrWhiteSpace(vm.Email) ? (object)DBNull.Value : vm.Email.Trim();
+                    (object?)vm.Email ?? DBNull.Value;
 
                 await cmd.ExecuteNonQueryAsync();
 
@@ -267,13 +291,12 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ox) when (ox.Number == 20051)
             {
-                // RAISE_APPLICATION_ERROR(-20051, 'Trenér s daným ID neexistuje.');
                 TempData["Err"] = "Trenér s daným ID neexistuje.";
                 return RedirectToAction(nameof(Index));
             }
             catch (OracleException ox) when (ox.Number == 20052)
             {
-                // DUP_VAL_ON_INDEX → telefon nebo e-mail už existuje
+                // duplicitní email/telefon
                 ModelState.AddModelError(string.Empty, "Telefon nebo e-mail je již použit u jiného trenéra.");
                 return View(vm);
             }
@@ -288,6 +311,7 @@ namespace FitnessCenter.Web.Controllers
                 return View(vm);
             }
         }
+
 
         // POST /AdminTrainers/Delete
         [HttpPost("Delete")]

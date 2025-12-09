@@ -104,10 +104,7 @@ namespace FitnessCenter.Web.Controllers
 
             if (!ModelState.IsValid)
             {
-                var errs = ModelState.Where(kv => kv.Value?.Errors?.Any() == true)
-                                     .Select(kv => $"{kv.Key}: {string.Join(" | ", kv.Value!.Errors.Select(e => e.ErrorMessage))}");
-                TempData["Err"] = "Form error: " + string.Join(" || ", errs);
-                await FillFitnessViewBagAsync();
+
                 return View(vm);
             }
 
@@ -142,7 +139,7 @@ namespace FitnessCenter.Web.Controllers
             var dto = await _repo.GetByIdAsync(id);
             if (dto is null) return NotFound();
 
-            await FillFitnessViewBagAsync(); // <-- DŮLEŽITÉ
+            await FillFitnessViewBagAsync();
 
             var vm = new EquipmentEditViewModel
             {
@@ -172,7 +169,6 @@ namespace FitnessCenter.Web.Controllers
 
             if (!ModelState.IsValid)
             {
-                await FillFitnessViewBagAsync(); // <-- DŮLEŽITÉ i při návratu s chybou
                 return View(vm);
             }
 
@@ -221,9 +217,15 @@ namespace FitnessCenter.Web.Controllers
         // ============================
         [Authorize(Roles = "Admin")]
         [HttpGet("Hierarchy")]
-        public async Task<IActionResult> Hierarchy()
+        public async Task<IActionResult> Hierarchy(int? fitkoId)
         {
-            var rows = await _repo.GetEquipmentHierarchyAsync();
+            // seznam fitek do comboboxu
+            var fitka = await _repo.GetFitnessCentersAsync();
+            ViewBag.FitnessCenters = fitka;
+            ViewBag.SelectedFitnessId = fitkoId;
+
+            // samotná hierarchie (případně filtrovaná)
+            var rows = await _repo.GetEquipmentHierarchyAsync(fitkoId);
             return View(rows);
         }
     }

@@ -19,6 +19,15 @@
     </div>
 </div>
 
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger mb-3">
+        Zkontroluj prosím jméno, příjmení, e-mail a povinné údaje – něco chybí nebo je špatně.
+    </div>
+}
+
+<div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
 <div class="glass p-3">
     <form asp-action="Edit"
           asp-controller="Members"
@@ -32,21 +41,25 @@
             <div class="col-md-6">
                 <label class="form-label text-white" for="Jmeno">Jméno</label>
                 <input class="form-control" id="Jmeno" name="Jmeno" value="@Model.Jmeno" />
+                <span class="text-danger small" asp-validation-for="Jmeno"></span>
             </div>
 
             <div class="col-md-6">
                 <label class="form-label text-white" for="Prijmeni">Příjmení</label>
                 <input class="form-control" id="Prijmeni" name="Prijmeni" value="@Model.Prijmeni" />
+                <span class="text-danger small" asp-validation-for="Prijmeni"></span>
             </div>
 
             <div class="col-md-6">
                 <label class="form-label text-white" for="Email">E-mail</label>
                 <input class="form-control" id="Email" name="Email" value="@Model.Email" />
+                <span class="text-danger small" asp-validation-for="Email"></span>
             </div>
 
             <div class="col-md-6">
                 <label class="form-label text-white" for="Telefon">Telefon</label>
                 <input class="form-control" id="Telefon" name="Telefon" value="@Model.Telefon" />
+                <span class="text-danger small" asp-validation-for="Telefon"></span>
             </div>
 
             <div class="col-md-6">
@@ -56,11 +69,13 @@
                        id="DatumNarozeni"
                        name="DatumNarozeni"
                        value="@(Model.DatumNarozeni.HasValue? Model.DatumNarozeni.Value.ToString("yyyy-MM-dd") : "")" />
+                <span class="text-danger small" asp-validation-for="DatumNarozeni"></span>
             </div>
 
             <div class="col-md-6">
                 <label class="form-label text-white" for="Adresa">Adresa</label>
                 <input class="form-control" id="Adresa" name="Adresa" value="@Model.Adresa" />
+                <span class="text-danger small" asp-validation-for="Adresa"></span>
             </div>
 
             <div class="col-md-6">
@@ -75,6 +90,7 @@
                         <option value="@it.Value" @sel>@it.Text</option>
                     }
                 </select>
+                <span class="text-danger small" asp-validation-for="FitnesscentrumId"></span>
             </div>
         </div>
 
@@ -83,6 +99,8 @@
             <a class="btn btn-secondary" href="@Url.Action("Index", "Members")">Zrušit</a>
         </div>
     </form>
-
-    <div asp-validation-summary="All" class="text-danger small mt-3"></div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

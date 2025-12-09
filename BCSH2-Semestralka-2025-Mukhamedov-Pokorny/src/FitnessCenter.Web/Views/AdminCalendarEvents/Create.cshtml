@@ -27,7 +27,6 @@
 
 <div class="glass p-3">
 
-    @* TADY JEDNODUCHÁ HLÁŠKA KDYŽ JE FORMULÁŘ NEPLATNÝ *@
     @if (!ViewData.ModelState.IsValid &&
         string.Equals(Context.Request.Method, "POST", System.StringComparison.OrdinalIgnoreCase))
     {

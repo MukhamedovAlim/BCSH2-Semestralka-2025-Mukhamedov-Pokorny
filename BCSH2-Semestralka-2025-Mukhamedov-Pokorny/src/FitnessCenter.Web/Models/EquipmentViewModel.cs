@@ -1,5 +1,4 @@
-﻿
-namespace FitnessCenter.Web.Models
+﻿namespace FitnessCenter.Web.Models
 {
     public sealed class EquipmentViewModel
     {

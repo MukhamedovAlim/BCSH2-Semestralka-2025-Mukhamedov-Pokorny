@@ -1,9 +1,89 @@
 ﻿@model IEnumerable<FitnessCenter.Infrastructure.Repositories.EquipmentHierarchyRow>
+@using FitnessCenter.Infrastructure.Repositories
 
 @{
     ViewData["Title"] = "Strom vybavení";
     Layout = "_AppLayout";
+    ViewBag.HideMainNav = true;
+
+    var fitka = ViewBag.FitnessCenters as IEnumerable<FitnessCenterRow> ?? Enumerable.Empty<FitnessCenterRow>();
+    var selectedFitkoId = ViewBag.SelectedFitnessId;
 }
+
+<style>
+    .equipment-tree {
+        border-radius: 1rem;
+    }
+
+    /* seznam bez odrážek + jemná levá linka */
+    .equipment-tree-list {
+        margin: 0;
+        padding-left: 0.75rem;
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .equipment-tree-item {
+        position: relative;
+        margin: 0.15rem 0;
+        padding-left: calc(0.75rem + (var(--depth) - 1) * 1.2rem);
+    }
+
+        /* jeden tenký spojovací proužek mezi položkami */
+        .equipment-tree-item + .equipment-tree-item {
+            margin-top: 0.2rem;
+        }
+
+    .equipment-tree-node {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.18rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.25);
+        color: #e5e5e5;
+        font-size: 0.9rem;
+    }
+
+        .equipment-tree-node:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+    .equipment-tree-bullet {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #ffb300;
+        flex-shrink: 0;
+    }
+
+    .equipment-tree-item[data-node-type="FITKO"] .equipment-tree-node {
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        background: rgba(0, 0, 0, 0.35);
+        color: #ffffff;
+    }
+
+    /* trochu větší tečka u fitka */
+    .equipment-tree-item[data-node-type="FITKO"] .equipment-tree-bullet {
+        width: 7px;
+        height: 7px;
+    }
+
+    .equipment-tree-item[data-node-type="KAT"] .equipment-tree-node {
+        font-weight: 500;
+        color: #ffd27b;
+        background: rgba(0, 0, 0, 0.3);
+        font-size: 0.9rem;
+    }
+
+    .equipment-tree-item[data-node-type="VYBAVENI"] .equipment-tree-node {
+        font-weight: 400;
+        font-size: 0.88rem;
+        cursor: pointer; /* kvůli modalu */
+    }
+</style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -14,15 +94,129 @@
     </div>
 </div>
 
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <label class="form-label text-white-50 small mb-1">Fitness centrum</label>
+        <select name="fitkoId" class="form-select form-select-sm">
+            <option value="">Všechna fitness centra</option>
+            @foreach (var f in fitka)
+            {
+                <option value="@f.Id"
+                        @(selectedFitkoId != null && (int)selectedFitkoId == f.Id ? "selected" : "")>
+                    @f.Nazev
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-warning btn-sm">
+            Použít
+        </button>
+    </div>
+</form>
+
 <h3 class="text-white mb-3">Strom vybavení podle fitness center</h3>
 
-<div class="glass p-3">
-    <ul class="list-unstyled mb-0">
+<div class="glass p-4 equipment-tree">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <div class="text-white fw-semibold">Mapa vybavení</div>
+            <small class="text-white-50">
+                Fitness centrum → kategorie → konkrétní stroj / náčiní
+            </small>
+        </div>
+    </div>
+
+    <ul class="equipment-tree-list list-unstyled mb-0">
         @foreach (var r in Model)
         {
-            <li style="margin-left:@((r.Depth - 1) * 20)px" class="text-white-50">
-                @r.Label
+            <li class="equipment-tree-item"
+                data-depth="@r.Depth"
+                data-node-type="@r.NodeType"
+                data-created="@(r.CreatedAt?.ToString("d. M. yyyy HH:mm"))"
+                data-updated="@(r.UpdatedAt?.ToString("d. M. yyyy HH:mm"))"
+                data-destroyed="@(r.DestroyedAt?.ToString("d. M. yyyy HH:mm"))"
+                style="--depth:@r.Depth">
+                <div class="equipment-tree-node text-white-50">
+                    <span class="equipment-tree-bullet"></span>
+                    <span class="equipment-tree-label">@r.Label</span>
+                </div>
             </li>
         }
     </ul>
 </div>
+
+<!-- Modal pro detail vybavení -->
+<div class="modal fade" id="equipDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass">
+            <div class="modal-header border-0">
+                <div>
+                    <h5 class="modal-title text-white mb-0" id="equipDetailTitle"></h5>
+                    <small class="text-white-50">Detail vybavení</small>
+                </div>
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"
+                        aria-label="Zavřít"></button>
+            </div>
+            <div class="modal-body pt-0 small text-white-50">
+                <div class="mb-1">
+                    <span class="text-white">Vytvořeno:</span>
+                    <span id="equipDetailCreated">–</span>
+                </div>
+                <div class="mb-1">
+                    <span class="text-white">Naposledy upraveno:</span>
+                    <span id="equipDetailUpdated">–</span>
+                </div>
+                <div class="mb-1">
+                    <span class="text-white">Vyřazeno / zničeno:</span>
+                    <span id="equipDetailDestroyed">–</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-outline-light"
+                        data-bs-dismiss="modal">
+                    Zavřít
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        (function () {
+            const modalEl = document.getElementById('equipDetailModal');
+            if (!modalEl || !window.bootstrap) return;
+
+            const bsModal = new bootstrap.Modal(modalEl);
+            const titleEl = document.getElementById('equipDetailTitle');
+            const createdEl = document.getElementById('equipDetailCreated');
+            const updatedEl = document.getElementById('equipDetailUpdated');
+            const destroyedEl = document.getElementById('equipDetailDestroyed');
+
+            // klik jen na listy = depth 3 (konkrétní vybavení)
+            document
+                .querySelectorAll('.equipment-tree-item[data-depth="3"] .equipment-tree-node')
+                .forEach(node => {
+                    node.addEventListener('click', function () {
+                        const li = this.closest('.equipment-tree-item');
+                        if (!li) return;
+
+                        const label = li.querySelector('.equipment-tree-label')?.textContent ?? '';
+                        const created = li.dataset.created || 'neuvedeno';
+                        const updated = li.dataset.updated || 'neuvedeno';
+                        const destroyed = li.dataset.destroyed || 'nikdy';
+
+                        titleEl.textContent = label;
+                        createdEl.textContent = created;
+                        updatedEl.textContent = updated;
+                        destroyedEl.textContent = destroyed;
+
+                        bsModal.show();
+                    });
+                });
+        })();
+    </script>
+}

@@ -224,6 +224,7 @@ ORDER BY c.prijmeni, c.jmeno
             return View(new MemberCreateViewModel());
         }
 
+
         // =====================================
         //            CREATE (POST)
         // =====================================
@@ -231,7 +232,10 @@ ORDER BY c.prijmeni, c.jmeno
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberCreateViewModel vm)
         {
+            // musíš načíst fitness centra, jinak se po znovuzobrazení stránky neukazují
             ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
+
+            // ----- SERVER VALIDACE NAVÍC (protože některé věci nejsou v DataAnnotations) -----
 
             if (!vm.BirthDate.HasValue)
                 ModelState.AddModelError(nameof(vm.BirthDate), "Zadej datum narození.");
@@ -239,10 +243,12 @@ ORDER BY c.prijmeni, c.jmeno
             if (vm.FitnessCenterId <= 0)
                 ModelState.AddModelError(nameof(vm.FitnessCenterId), "Vyber fitness centrum.");
 
+            // pokud validace neprojde → zobrazíme zpět view
             if (!ModelState.IsValid)
                 return View(vm);
 
-            var m = new Member
+            // ============== VYTVOŘENÍ ENTITY ==============
+            var member = new Member
             {
                 FirstName = vm.FirstName?.Trim() ?? "",
                 LastName = vm.LastName?.Trim() ?? "",
@@ -251,37 +257,35 @@ ORDER BY c.prijmeni, c.jmeno
                 Address = string.IsNullOrWhiteSpace(vm.Address) ? null : vm.Address.Trim(),
                 BirthDate = vm.BirthDate!.Value,
                 FitnessCenterId = vm.FitnessCenterId,
-
-                // účet vytvořený adminem MUSÍ změnit heslo
                 MustChangePassword = true
             };
 
-            // 1) vygenerujeme heslo
+            // ============== GENEROVÁNÍ A HASHOVÁNÍ HESLA ==============
             var plainPassword = GeneratePassword();
-
-            // 2) zahashujeme a uložíme do entity
-            m.PasswordHash = _hasher.HashPassword(m, plainPassword);
+            member.PasswordHash = _hasher.HashPassword(member, plainPassword);
 
             try
             {
-                await _members.CreateViaProcedureAsync(m);
+                // vytvoření člena přes proceduru
+                await _members.CreateViaProcedureAsync(member);
 
-                // 3) pošleme e-mail uživateli (pokud má mail)
-                if (!string.IsNullOrWhiteSpace(m.Email))
+                // ============== ODESLÁNÍ E-MAILU (optional) ==============
+                if (!string.IsNullOrWhiteSpace(member.Email))
                 {
                     try
                     {
                         var subject = "Váš účet ve Svalovna Gym";
                         var body = $@"
-<p>Dobrý den, {m.FirstName} {m.LastName},</p>
-<p>byl pro vás vytvořen účet ve Svalovna Gym.</p>
-<p><b>Přihlašovací e-mail:</b> {m.Email}<br/>
-<b>Heslo:</b> {plainPassword}</p>
-<p>Po prvním přihlášení si prosím heslo změňte v sekci „Změna hesla“.</p>
-<p>Hezký den,<br/>Fitness Center</p>";
+<p>Dobrý den, {member.FirstName} {member.LastName},</p>
+<p>byl pro vás vytvořen účet ve <b>Svalovna Gym</b>.</p>
+<p>
+<b>Přihlašovací e-mail:</b> {member.Email}<br/>
+<b>Heslo:</b> {plainPassword}
+</p>
+<p>Po prvním přihlášení si prosím heslo změňte.</p>";
 
                         await _emailSender.SendEmailAsync(
-                            m.Email,
+                            member.Email,
                             subject,
                             body,
                             isHtml: true
@@ -289,12 +293,13 @@ ORDER BY c.prijmeni, c.jmeno
                     }
                     catch
                     {
-                        // mail selhal – ale nechceme kvůli tomu shodit vytvoření člena
+                        // mail fail nesmí shodit celý proces
                     }
                 }
 
-                // 4) heslo zobrazíme adminovi
-                TempData["Ok"] = $"Člen byl vytvořen. Heslo: {plainPassword}";
+                // ============== INFO PRO ADMINA ==============
+                TempData["Ok"] = $"Člen byl úspěšně vytvořen. Heslo: {plainPassword}";
+
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
@@ -349,7 +354,6 @@ ORDER BY c.prijmeni, c.jmeno
 
             return View(vm);
         }
-
         // POST /Members/Edit/63
         [HttpPost("/Members/Edit/{id:int}")]
         [ValidateAntiForgeryToken]
@@ -358,6 +362,16 @@ ORDER BY c.prijmeni, c.jmeno
             if (vm.IdClen <= 0) vm.IdClen = id;
             if (vm.IdClen != id)
                 ModelState.AddModelError(nameof(vm.IdClen), "Nesouhlasí ID v adrese a ve formuláři.");
+
+            // povinná pole – stejné jako u trenérů
+            if (string.IsNullOrWhiteSpace(vm.Jmeno))
+                ModelState.AddModelError(nameof(vm.Jmeno), "Zadej jméno.");
+
+            if (string.IsNullOrWhiteSpace(vm.Prijmeni))
+                ModelState.AddModelError(nameof(vm.Prijmeni), "Zadej příjmení.");
+
+            if (string.IsNullOrWhiteSpace(vm.Email))
+                ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
 
             if (!ModelState.IsValid)
             {
@@ -414,6 +428,7 @@ ORDER BY c.prijmeni, c.jmeno
                 return View(vm);
             }
         }
+
         // =============================
         //            DELETE (force)
         // =============================
