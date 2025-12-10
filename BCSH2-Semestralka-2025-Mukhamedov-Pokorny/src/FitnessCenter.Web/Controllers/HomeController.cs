@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
@@ -210,6 +213,12 @@ namespace FitnessCenter.Web.Controllers
 
             int members = 0, trainers = 0, lessonsCount = 0, pendingPayments = 0, logCount = 0, equipmentCount = 0;
 
+            // === kolekce pro nový graf – stav vybavení podle fitka ===
+            var equipLabels = new List<string>();
+            var equipOkCounts = new List<int>();
+            var equipRepairCounts = new List<int>();
+            var equipOutCounts = new List<int>();
+
             try
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
@@ -248,6 +257,29 @@ WHERE  (:p_fitko IS NULL OR EXISTS (
 
                 using (var cmd = new OracleCommand("SELECT COUNT(*) FROM VYBAVENI", oc))
                     equipmentCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+                // === nový SELECT – stav vybavení podle fitness centra ===
+                const string equipSql = @"
+SELECT fc.nazev,
+       SUM(CASE WHEN v.stav = 'OK'          THEN 1 ELSE 0 END) AS ok_count,
+       SUM(CASE WHEN v.stav = 'Oprava'      THEN 1 ELSE 0 END) AS repair_count,
+       SUM(CASE WHEN v.stav = 'Mimo provoz' THEN 1 ELSE 0 END) AS out_count
+FROM   vybaveni v
+JOIN   fitnesscentra fc ON fc.idfitness = v.fitnesscentrum_idfitness
+GROUP  BY fc.nazev
+ORDER  BY fc.nazev";
+
+                using (var cmd = new OracleCommand(equipSql, oc) { BindByName = true })
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                    {
+                        equipLabels.Add(rd.GetString(0));
+                        equipOkCounts.Add(rd.IsDBNull(1) ? 0 : rd.GetInt32(1));
+                        equipRepairCounts.Add(rd.IsDBNull(2) ? 0 : rd.GetInt32(2));
+                        equipOutCounts.Add(rd.IsDBNull(3) ? 0 : rd.GetInt32(3));
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -261,6 +293,12 @@ WHERE  (:p_fitko IS NULL OR EXISTS (
             ViewBag.AdminMessagesCnt = 0;
             ViewBag.LogCount = logCount;
             ViewBag.EquipmentCount = equipmentCount;
+
+            // >>> data pro nový graf vybavení <<<
+            ViewBag.EquipCenterLabels = equipLabels;
+            ViewBag.EquipOkCounts = equipOkCounts;
+            ViewBag.EquipRepairCounts = equipRepairCounts;
+            ViewBag.EquipOutCounts = equipOutCounts;
 
             // 3 FUNKCE
             try

@@ -10,6 +10,7 @@
     var selectedTyp = ViewBag.SelectedTyp as string; // "K","P","V" nebo null
     var fitka = ViewBag.Fitka as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();
     int? fitkoId = ViewBag.FitkoId as int?;
+    string? selectedStav = ViewBag.SelectedStav as string;   // OK / Oprava / Mimo provoz / null
 }
 
 <!-- Hlavička s tlačítkem Zpět -->
@@ -26,7 +27,7 @@
     <h3 class="text-white mb-0">Vybavení</h3>
 
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        <!-- JEDEN formulář pro typ + fitko -->
+        <!-- JEDEN formulář pro typ + stav + fitko -->
         <form method="get"
               action="@Url.Action("Index", "Equipment")"
               class="d-flex gap-2 align-items-center flex-wrap mb-0">
@@ -48,6 +49,14 @@
                        @(selectedTyp == "V" ? "checked" : "") />
                 <label class="btn btn-sm btn-outline-light" for="typV">Volná závaží</label>
             </div>
+
+            <!-- filtr podle stavu -->
+            <select name="stav" class="form-select form-select-sm" style="width: 160px;">
+                <option value="" @(string.IsNullOrEmpty(selectedStav) ? "selected" : null)>Všechny stavy</option>
+                <option value="OK" @(selectedStav == "OK" ? "selected" : null)>OK</option>
+                <option value="Oprava" @(selectedStav == "Oprava" ? "selected" : null)>Oprava</option>
+                <option value="Mimo provoz" @(selectedStav == "Mimo provoz" ? "selected" : null)>Mimo provoz</option>
+            </select>
 
             <select name="fitko" class="form-select form-select-sm" style="width: 180px;">
                 <option value="">Všechna fitka</option>
@@ -95,6 +104,15 @@
         <div class="row g-3 mt-1">
             @foreach (var it in Model!)
             {
+                // barvy štítku podle stavu
+                var stavClass = it.Stav switch
+                {
+                    "OK" => "bg-success",
+                    "Oprava" => "bg-warning text-dark",
+                    "Mimo provoz" => "bg-danger",
+                    _ => "bg-secondary"
+                };
+
                 <div class="col-12 col-md-6 col-xl-4">
                     <div class="tile glass p-3 h-100 equipment-card">
                         <div class="d-flex justify-content-between align-items-start">
@@ -105,7 +123,8 @@
                             Fitko: <strong class="text-white">@it.Fitko</strong>
                         </div>
                         <div class="text-white-50 small">
-                            Stav: <strong class="text-white">@it.Stav</strong>
+                            Stav:
+                            <span class="badge @stavClass">@it.Stav</span>
                         </div>
                         @if (User.IsInRole("Admin"))
                         {

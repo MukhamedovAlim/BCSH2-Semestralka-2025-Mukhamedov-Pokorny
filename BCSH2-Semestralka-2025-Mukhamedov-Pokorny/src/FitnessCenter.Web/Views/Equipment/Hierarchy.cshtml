@@ -136,6 +136,7 @@
                 data-created="@(r.CreatedAt?.ToString("d. M. yyyy HH:mm"))"
                 data-updated="@(r.UpdatedAt?.ToString("d. M. yyyy HH:mm"))"
                 data-destroyed="@(r.DestroyedAt?.ToString("d. M. yyyy HH:mm"))"
+                data-repaired="@(r.RepairedAt?.ToString("d. M. yyyy HH:mm"))"
                 style="--depth:@r.Depth">
                 <div class="equipment-tree-node text-white-50">
                     <span class="equipment-tree-bullet"></span>
@@ -170,6 +171,10 @@
                     <span id="equipDetailUpdated">–</span>
                 </div>
                 <div class="mb-1">
+                    <span class="text-white">Naposledy opravováno:</span>
+                    <span id="equipDetailRepaired">–</span>
+                </div>
+                <div class="mb-1">
                     <span class="text-white">Vyřazeno / zničeno:</span>
                     <span id="equipDetailDestroyed">–</span>
                 </div>
@@ -195,6 +200,7 @@
             const createdEl = document.getElementById('equipDetailCreated');
             const updatedEl = document.getElementById('equipDetailUpdated');
             const destroyedEl = document.getElementById('equipDetailDestroyed');
+            const repairedEl = document.getElementById('equipDetailRepaired');
 
             // klik jen na listy = depth 3 (konkrétní vybavení)
             document
@@ -208,11 +214,13 @@
                         const created = li.dataset.created || 'neuvedeno';
                         const updated = li.dataset.updated || 'neuvedeno';
                         const destroyed = li.dataset.destroyed || 'nikdy';
+                        const repaired = li.dataset.repaired || 'nikdy';
 
                         titleEl.textContent = label;
                         createdEl.textContent = created;
                         updatedEl.textContent = updated;
                         destroyedEl.textContent = destroyed;
+                        repairedEl.textContent = repaired;
 
                         bsModal.show();
                     });

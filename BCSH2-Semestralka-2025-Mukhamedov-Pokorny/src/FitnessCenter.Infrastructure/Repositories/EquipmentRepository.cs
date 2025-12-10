@@ -42,6 +42,8 @@ namespace FitnessCenter.Infrastructure.Repositories
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DestroyedAt { get; set; }
+
+        public DateTime? RepairedAt { get; set; }
     }
 
     public sealed class FitnessCenterRow
@@ -310,7 +312,8 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                idvybaveni,
                datum_vytvoreni,
                datum_upravy,
-               datum_zniceni
+               datum_zniceni,
+               datum_opravy
         FROM V_FITKO_VYBAVENI_HIER
         START WITH parent_id IS NULL
            AND (:p_fitko IS NULL OR idfitness = :p_fitko)
@@ -338,9 +341,11 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                     EquipmentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4),
                     CreatedAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                     UpdatedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                    DestroyedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
+                    DestroyedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    RepairedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8)
                 });
             }
+
 
             return result;
         }

@@ -39,7 +39,7 @@ namespace FitnessCenter.Web.Controllers
 
         // LIST
         [HttpGet("")]
-        public async Task<IActionResult> Index(string? typ, int? fitko)
+        public async Task<IActionResult> Index(string? typ, int? fitko, string? stav)
         {
             // K/P/V nebo null → textový label pro UI
             string filterLabel = typ switch
@@ -50,17 +50,31 @@ namespace FitnessCenter.Web.Controllers
                 _ => "Vše"
             };
 
-            // pokud je tam nějaká blbost, radši filtr vypneme
             if (filterLabel == "Vše")
                 typ = null;
 
-            ViewBag.Filter = filterLabel;   // jen text na zobrazení (když budeš chtít)
-            ViewBag.SelectedTyp = typ;      // K/P/V/null pro view
+            string? stavFilter = stav;
+            if (string.IsNullOrWhiteSpace(stavFilter))
+                stavFilter = null; // znamená "vše"
+
+            ViewBag.Filter = filterLabel;
+            ViewBag.SelectedTyp = typ;
             ViewBag.FitkoId = fitko;
+            ViewBag.SelectedStav = stavFilter; // OK / Oprava / Mimo provoz / null
 
             await FillFitnessViewBagAsync();
 
             var rows = await _repo.GetAsync(typ, fitko);
+
+            // lokální filtr podle stavu (OK / Oprava / Mimo provoz)
+            if (!string.IsNullOrEmpty(stavFilter))
+            {
+                rows = rows
+                    .Where(r => string.Equals(r.Stav, stavFilter,
+                                 StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
             var vm = rows.Select(r => new EquipmentViewModel
             {
                 Id = r.Id,

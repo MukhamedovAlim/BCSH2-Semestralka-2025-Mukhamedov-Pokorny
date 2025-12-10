@@ -1,4 +1,4 @@
-﻿
+﻿@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "Admin – Přehled";
     Layout = "_AppLayout";
@@ -34,10 +34,10 @@
                         ?? Enumerable.Empty<string>();
     var revenueValues = ViewBag.RevenueValues as IEnumerable<decimal>
                         ?? Enumerable.Empty<decimal>();
-    
+
     // ---- pro členské statistiky ----
     var memberTypes = ViewBag.MemberTypes as IEnumerable<string>
- ?? Enumerable.Empty<string>();
+                      ?? Enumerable.Empty<string>();
     var memberCounts = ViewBag.MemberCounts as IEnumerable<int>
                        ?? Enumerable.Empty<int>();
 
@@ -45,8 +45,23 @@
     var topTrainerNames = ViewBag.TopTrainerNames as IEnumerable<string> ?? Enumerable.Empty<string>();
     var topTrainerCounts = ViewBag.TopTrainerCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
 
-
+    // ---- pro graf vybavení (stav podle fitka) ----
+    var equipCenterLabels = ViewBag.EquipCenterLabels as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var equipOkCounts = ViewBag.EquipOkCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
+    var equipRepairCounts = ViewBag.EquipRepairCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
+    var equipOutCounts = ViewBag.EquipOutCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
 }
+
+<style>
+    /* Taby Analytika – Tržby / Vybavení */
+    #analyticsTabs .nav-link {
+        color: #ffffff;
+        background: transparent;
+        border-radius: 999px;
+        padding: 0.35rem 1.1rem;
+        border: 1px solid transparent;
+    }
+</style>
 
 <!-- Úvodní panel -->
 <div class="glass p-3 mb-4">
@@ -263,17 +278,36 @@
         </div>
     </div>
 
-    <!-- ===== Graf: tržby ===== -->
+    <!-- ===== Analytika – Tržby / Vybavení ===== -->
     <div class="glass p-3 mt-4">
         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
             <div>
-                <h4 class="text-white mb-0">Denní tržby</h4>
+                <h4 class="text-white mb-0">Analytika</h4>
                 <span class="text-white-50 small">
-                    Součet schválených plateb po dnech v zadaném období.
+                    Přehled denních tržeb a stavu vybavení ve fitness centrech.
                 </span>
             </div>
 
-            <!-- Ovládací prvky grafu -->
+            <ul class="nav nav-pills ms-auto" id="analyticsTabs">
+                <li class="nav-item">
+                    <button type="button"
+                            class="nav-link active"
+                            data-target="revenuePanel">
+                        Tržby
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button type="button"
+                            class="nav-link"
+                            data-target="equipmentPanel">
+                        Vybavení
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- PANEL: Tržby -->
+        <div id="revenuePanel">
             <div class="row g-2 mb-3">
                 <div class="col-12 d-flex justify-content-end flex-wrap gap-3 rev-filter-wrapper">
 
@@ -296,7 +330,6 @@
                     </div>
 
                     <div class="rev-filter-group">
-                        <!-- prázdný label, jen aby výška sloupce seděla s ostatními -->
                         <label class="form-label text-white-50 mb-1 small">&nbsp;</label>
 
                         <div class="form-check d-flex align-items-center m-0">
@@ -309,14 +342,24 @@
 
                 </div>
             </div>
+
+            <div class="glass p-3">
+                <div style="height: 260px;">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
         </div>
 
-        <div class="glass p-3">
-            <div style="height: 260px;">
-                <canvas id="revenueChart"></canvas>
+        <!-- PANEL: Vybavení -->
+        <div id="equipmentPanel" class="d-none">
+            <div class="glass p-3 mt-2">
+                <div style="height: 260px;">
+                    <canvas id="equipmentChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
+
     <!-- ===== Podíl typů členství + Nejvytíženější trenéři ===== -->
     <div class="glass p-3 mt-4">
         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
@@ -602,5 +645,93 @@
                 }
             });
         }
+
+        // ===== Stacked bar – stav vybavení podle fitka =====
+        const equipLabels       = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(equipCenterLabels));
+        const equipOkCounts     = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(equipOkCounts));
+        const equipRepairCounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(equipRepairCounts));
+        const equipOutCounts    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(equipOutCounts));
+
+        const equipCtx = document.getElementById('equipmentChart');
+
+        if (equipCtx && equipLabels.length > 0) {
+            new Chart(equipCtx, {
+                type: 'bar',
+                data: {
+                    labels: equipLabels,
+                    datasets: [
+                        {
+                            label: 'OK',
+                            data: equipOkCounts,
+                            backgroundColor: '#28a745'
+                        },
+                        {
+                            label: 'Oprava',
+                            data: equipRepairCounts,
+                            backgroundColor: '#ffc107'
+                        },
+                        {
+                            label: 'Mimo provoz',
+                            data: equipOutCounts,
+                            backgroundColor: '#dc3545'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx2) {
+                                    const v = ctx2.parsed.y ?? 0;
+                                    return v.toLocaleString('cs-CZ') + ' ks';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: { color: '#bfbfbf' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#bfbfbf',
+                                precision: 0
+                            },
+                            grid: { color: 'rgba(255,255,255,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== Přepínání tabů Tržby / Vybavení =====
+        const analyticsTabs = document.querySelectorAll('#analyticsTabs .nav-link');
+        const revenuePanel = document.getElementById('revenuePanel');
+        const equipmentPanel = document.getElementById('equipmentPanel');
+
+        analyticsTabs.forEach(btn => {
+            btn.addEventListener('click', function () {
+                analyticsTabs.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const target = this.getAttribute('data-target');
+                if (target === 'equipmentPanel') {
+                    revenuePanel.classList.add('d-none');
+                    equipmentPanel.classList.remove('d-none');
+                } else {
+                    equipmentPanel.classList.add('d-none');
+                    revenuePanel.classList.remove('d-none');
+                }
+            });
+        });
     </script>
 }
