@@ -5,6 +5,7 @@
     ViewData["Title"] = "Detail trenéra";
     Layout = "_AppLayout";
 
+    // v adminu schováváš hlavní nav
     ViewBag.HideMainNav = true;
 
     var ordered = Model.Lekce.OrderBy(l => l.Datum).ToList();
@@ -14,7 +15,10 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "MemberTrainers")">← Zpět</a>
+        <!-- DŮLEŽITÁ ZMĚNA: zpět na ADMIN náhled trenérů -->
+        <a class="btn btn-outline-light me-2"
+           href="@Url.Action("AdminPreview", "AdminTrainers")">← Zpět</a>
+
         <span class="h3 text-white mb-0">
             @Model.Jmeno @Model.Prijmeni
         </span>
@@ -95,7 +99,6 @@
                         <div class="text-white-50 small">v kalendáři</div>
                     </div>
                 </div>
-
 
                 <div class="col-12 col-md-4">
                     <div class="border rounded-3 border-secondary p-3 h-100">

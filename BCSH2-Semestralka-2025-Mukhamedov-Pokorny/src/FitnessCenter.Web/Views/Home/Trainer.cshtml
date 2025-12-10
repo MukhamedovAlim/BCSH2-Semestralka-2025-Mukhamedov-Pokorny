@@ -49,7 +49,6 @@
                                 <tr class="text-white-50">
                                     <th style="width:90px;">Čas</th>
                                     <th>Lekce</th>
-                                    <th style="width:140px;">Místnost</th>
                                     <th style="width:120px;">Obsazeno</th>
                                     <th style="width:160px;"></th>
                                 </tr>
@@ -60,11 +59,12 @@
                                     <tr>
                                         <td>@l.Time</td>
                                         <td class="text-white">@l.Name</td>
-                                        <td>@l.Room</td>
                                         <td>@l.Slots</td>
                                         <td class="text-end">
-                                            <a href="@Url.Action("Detail", "Lessons", new { id = l.Id })" class="btn btn-sm btn-outline-light">Detail</a>
-                                            <a href="@Url.Action("Attendance", "Lessons", new { id = l.Id })" class="btn btn-sm btn-warning ms-1">Docházka</a>
+                                            <a href="@Url.Action("Detail", "Lessons", new { id = l.Id })"
+                                               class="btn btn-sm btn-outline-light">Detail</a>
+                                            <a href="@Url.Action("Attendance", "Lessons", new { id = l.Id })"
+                                               class="btn btn-sm btn-warning ms-1">Docházka</a>
                                         </td>
                                     </tr>
                                 }

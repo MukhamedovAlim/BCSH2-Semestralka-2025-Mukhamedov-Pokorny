@@ -32,5 +32,14 @@ namespace FitnessCenter.Web.Models.Member
         public int PocetLekci { get; set; }
 
         public List<MemberTrainerLessonRow> Lekce { get; set; } = new();
+
+
+        public int? MemberId { get; set; }
+
+        public string? ProfilePhotoUrl { get; set; }
+
+        public string Initials =>
+            (string.IsNullOrWhiteSpace(Jmeno) ? "" : Jmeno[0].ToString().ToUpper()) +
+            (string.IsNullOrWhiteSpace(Prijmeni) ? "" : Prijmeni[0].ToString().ToUpper());
     }
 }

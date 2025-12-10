@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using FitnessCenter.Application.Interfaces;
+﻿using FitnessCenter.Application.Interfaces;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Web.Models;
+using FitnessCenter.Web.Models.Member;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
 {
@@ -40,7 +41,25 @@ namespace FitnessCenter.Web.Controllers
             return int.TryParse(v.ToString(), out var parsed) ? parsed : 0;
         }
 
-        // GET /AdminTrainers
+        // malý helper na URL profilovky člena
+        private static string BuildProfilePhotoUrl(int memberId)
+        {
+            var fileName = $"member_{memberId}.jpg";
+            var relPath = $"/uploads/avatars/{fileName}";
+            var physPath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "uploads",
+                "avatars",
+                fileName);
+
+            return System.IO.File.Exists(physPath) ? relPath : "";
+        }
+
+        // ==========================
+        //   HLAVNÍ SEZNAM TRENÉRŮ
+        //   GET /AdminTrainers
+        // ==========================
         [HttpGet("")]
         public async Task<IActionResult> Index(string? search, string? sort)
         {
@@ -95,9 +114,12 @@ namespace FitnessCenter.Web.Controllers
                 _ => list.OrderBy(t => t.LastName).ThenBy(t => t.FirstName).ToList()
             };
 
-            return View(list); // /Views/AdminTrainers/Index.cshtml
+            return View(list); // Views/AdminTrainers/Index.cshtml
         }
 
+        // ==========================
+        //   PROMOTE NA TRENÉRA
+        // ==========================
         // GET /AdminTrainers/Promote
         [HttpGet("Promote")]
         public async Task<IActionResult> Promote(string? search)
@@ -193,6 +215,9 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
+        // ==========================
+        //   EDIT TRENÉRA
+        // ==========================
         // GET /AdminTrainers/Edit/5
         [HttpGet("Edit/{id:int}")]
         public async Task<IActionResult> Edit(int id)
@@ -202,10 +227,10 @@ namespace FitnessCenter.Web.Controllers
 
             using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
             using var cmd = new OracleCommand(@"
-        SELECT idtrener, jmeno, prijmeni, email, telefon
-        FROM TRENERI
-        WHERE idtrener = :id
-    ", con)
+                SELECT idtrener, jmeno, prijmeni, email, telefon
+                  FROM TRENERI
+                 WHERE idtrener = :id
+            ", con)
             { BindByName = true };
 
             cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
@@ -229,7 +254,7 @@ namespace FitnessCenter.Web.Controllers
             return View(vm); // Views/AdminTrainers/Edit.cshtml
         }
 
-        //POST /AdminTrainers/Edit/5
+        // POST /AdminTrainers/Edit/5
         [HttpPost("Edit/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, TrainerEditViewModel vm)
@@ -242,7 +267,7 @@ namespace FitnessCenter.Web.Controllers
             if (vm.TrainerId != id)
                 ModelState.AddModelError(nameof(vm.TrainerId), "Nesouhlasí ID v adrese a ve formuláři.");
 
-            // otrimujeme vstupy, ať se neprojde jen mezera
+            // otrimujeme vstupy
             vm.Jmeno = vm.Jmeno?.Trim();
             vm.Prijmeni = vm.Prijmeni?.Trim();
             vm.Email = vm.Email?.Trim();
@@ -256,11 +281,8 @@ namespace FitnessCenter.Web.Controllers
                 ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
 
             if (!ModelState.IsValid)
-            {
                 return View(vm);
-            }
 
-            // ===== pokud jsme tady, validace prošla =====
             try
             {
                 using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
@@ -271,16 +293,12 @@ namespace FitnessCenter.Web.Controllers
                 };
 
                 cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = vm.TrainerId;
-
                 cmd.Parameters.Add("p_jmeno", OracleDbType.Varchar2).Value =
                     (object?)vm.Jmeno ?? DBNull.Value;
-
                 cmd.Parameters.Add("p_prijmeni", OracleDbType.Varchar2).Value =
                     (object?)vm.Prijmeni ?? DBNull.Value;
-
                 cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2).Value =
                     string.IsNullOrWhiteSpace(vm.Telefon) ? (object)DBNull.Value : vm.Telefon;
-
                 cmd.Parameters.Add("p_email", OracleDbType.Varchar2).Value =
                     (object?)vm.Email ?? DBNull.Value;
 
@@ -296,7 +314,6 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ox) when (ox.Number == 20052)
             {
-                // duplicitní email/telefon
                 ModelState.AddModelError(string.Empty, "Telefon nebo e-mail je již použit u jiného trenéra.");
                 return View(vm);
             }
@@ -312,7 +329,9 @@ namespace FitnessCenter.Web.Controllers
             }
         }
 
-
+        // ==========================
+        //   Smazání / DEMOTE
+        // ==========================
         // POST /AdminTrainers/Delete
         [HttpPost("Delete")]
         [ValidateAntiForgeryToken]
@@ -366,6 +385,7 @@ namespace FitnessCenter.Web.Controllers
                     || ox.Number == 4043   // ORA-04043: objekt neexistuje
                     || ox.Number == 6553)  // jiné PL/SQL chyby, procedura není k dispozici
                 {
+                    // spadne do fallbacku
                 }
 
                 // 2) Fallback – původní DEMOTE_TRAINER (selže, pokud má lekce)
@@ -394,6 +414,135 @@ namespace FitnessCenter.Web.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // ==========================
+        //   ADMIN PREVIEW TRENÉRŮ
+        //   GET /AdminTrainers/Preview
+        // ==========================
+        [HttpGet("Preview")]
+        public async Task<IActionResult> AdminPreview()
+        {
+            ViewBag.HideMainNav = true;
+            ViewBag.Active = "Admin";
+
+            var list = new List<MemberTrainerListItem>();
+
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(@"
+                SELECT idtrener,
+                       jmeno,
+                       prijmeni,
+                       telefon
+                  FROM treneri
+                 ORDER BY prijmeni, jmeno", con);
+
+            using var rd = await cmd.ExecuteReaderAsync();
+            while (await rd.ReadAsync())
+            {
+                list.Add(new MemberTrainerListItem
+                {
+                    Id = rd.GetInt32(0),
+                    Jmeno = rd.IsDBNull(1) ? "" : rd.GetString(1),
+                    Prijmeni = rd.IsDBNull(2) ? "" : rd.GetString(2),
+                    Telefon = rd.IsDBNull(3) ? "" : rd.GetString(3)
+                });
+            }
+
+            return View("AdminPreview", list); // Views/AdminTrainers/AdminPreview.cshtml
+        }
+
+        // ===========================
+        //  ADMIN PREVIEW DETAIL TRENÉRA
+        //  GET /AdminTrainers/AdminPreviewDetails/5
+        // ===========================
+        [HttpGet("AdminPreviewDetails/{id:int}")]
+        public async Task<IActionResult> AdminPreviewDetails(int id)
+        {
+            var model = new MemberTrainerDetailViewModel();
+
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+
+            // 1) základní info o trenérovi
+            using (var cmd = new OracleCommand(@"
+                SELECT idtrener,
+                       jmeno,
+                       prijmeni,
+                       email,
+                       telefon
+                  FROM treneri
+                 WHERE idtrener = :id", con)
+            { BindByName = true })
+            {
+                cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                if (!await rd.ReadAsync())
+                {
+                    TempData["Err"] = "Trenér s daným ID neexistuje.";
+                    return RedirectToAction(nameof(AdminPreview));
+                }
+
+                model.TrenerId = rd.GetInt32(0);
+                model.Jmeno = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                model.Prijmeni = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                model.Email = rd.IsDBNull(3) ? "" : rd.GetString(3);
+                model.Telefon = rd.IsDBNull(4) ? "" : rd.GetString(4);
+            }
+
+            // 1b) zkus najít odpovídajícího člena podle e-mailu trenéra,
+            // abychom mohli vzít jeho profilovku
+            if (!string.IsNullOrWhiteSpace(model.Email))
+            {
+                using var cmdMember = new OracleCommand(@"
+                    SELECT idclen
+                      FROM clenove
+                     WHERE LOWER(email) = LOWER(:mail)", con)
+                { BindByName = true };
+
+                cmdMember.Parameters.Add("mail", OracleDbType.Varchar2).Value = model.Email;
+
+                var result = await cmdMember.ExecuteScalarAsync();
+                if (result != null && result != DBNull.Value)
+                {
+                    var memberId = Convert.ToInt32(result);
+                    model.MemberId = memberId;
+                    model.ProfilePhotoUrl = BuildProfilePhotoUrl(memberId);
+                }
+            }
+
+            // 2) nadcházející lekce trenéra
+            model.Lekce = new List<MemberTrainerLessonRow>();
+
+            using (var cmd2 = new OracleCommand(@"
+                SELECT idlekce,
+                       nazevlekce,
+                       datumlekce,
+                       obsazenost
+                  FROM lekce
+                 WHERE trener_idtrener = :id
+                   AND datumlekce >= TRUNC(SYSDATE)
+                 ORDER BY datumlekce", con)
+            { BindByName = true })
+            {
+                cmd2.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                using var rd2 = await cmd2.ExecuteReaderAsync();
+                while (await rd2.ReadAsync())
+                {
+                    model.Lekce.Add(new MemberTrainerLessonRow
+                    {
+                        IdLekce = rd2.GetInt32(0),
+                        Nazev = rd2.GetString(1),
+                        Datum = rd2.GetDateTime(2),
+                        Obsazenost = rd2.GetInt32(3)
+                    });
+                }
+            }
+
+            model.PocetLekci = model.Lekce.Count;
+
+            return View("AdminPreviewDetails", model);
         }
     }
 }

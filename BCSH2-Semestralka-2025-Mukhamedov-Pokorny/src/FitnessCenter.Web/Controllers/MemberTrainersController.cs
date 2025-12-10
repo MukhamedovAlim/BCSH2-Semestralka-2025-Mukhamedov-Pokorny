@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using FitnessCenter.Infrastructure.Persistence;
 using FitnessCenter.Web.Models.Member;
@@ -13,6 +14,24 @@ namespace FitnessCenter.Web.Controllers
     [Route("MemberTrainers")]
     public sealed class MemberTrainersController : Controller
     {
+        // ==========================
+        //   pomocná metoda pro avatar
+        // ==========================
+        private static string? BuildProfilePhotoUrl(int memberId)
+        {
+            var fileName = $"member_{memberId}.jpg";
+            var relative = $"/uploads/avatars/{fileName}";
+
+            var path = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "uploads",
+                "avatars",
+                fileName);
+
+            return System.IO.File.Exists(path) ? relative : null;
+        }
+
         // GET /MemberTrainers
         [HttpGet("")]
         public async Task<IActionResult> Index()
@@ -85,6 +104,26 @@ namespace FitnessCenter.Web.Controllers
                 model.Telefon = rd.IsDBNull(4) ? "" : rd.GetString(4);
             }
 
+            // 1b) pokusit se najít odpovídajícího člena podle e-mailu trenéra
+            if (!string.IsNullOrWhiteSpace(model.Email))
+            {
+                using var cmdMember = new OracleCommand(@"
+                    SELECT idclen
+                      FROM clenove
+                     WHERE LOWER(email) = LOWER(:mail)", con)
+                { BindByName = true };
+
+                cmdMember.Parameters.Add("mail", OracleDbType.Varchar2).Value = model.Email;
+
+                var result = await cmdMember.ExecuteScalarAsync();
+                if (result != null && result != DBNull.Value)
+                {
+                    var memberId = Convert.ToInt32(result);
+                    model.MemberId = memberId;
+                    model.ProfilePhotoUrl = BuildProfilePhotoUrl(memberId);
+                }
+            }
+
             // 2) Lekce trenéra (pouze nadcházející)
             model.Lekce = new List<MemberTrainerLessonRow>();
 
@@ -114,7 +153,7 @@ namespace FitnessCenter.Web.Controllers
                 }
             }
 
-            // počet lekcí vezmeme z listu
+            // 3) počet lekcí vezmeme z listu
             model.PocetLekci = model.Lekce.Count;
 
             return View(model); // Views/MemberTrainers/Detail.cshtml

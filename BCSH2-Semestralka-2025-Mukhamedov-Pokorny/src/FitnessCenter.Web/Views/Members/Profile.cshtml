@@ -1,45 +1,159 @@
-﻿@model FitnessCenter.Domain.Entities.Member
+﻿@model FitnessCenter.Web.Models.Member.MemberProfileViewModel
+
 @{
     ViewData["Title"] = "Můj profil";
     Layout = "_AppLayout";
+    ViewBag.Active = "Profile";
 }
 
-<div class="glass p-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="text-white mb-0">Můj profil</h3>
+@if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
+{
+    <div class="alert alert-success mb-3">@ok</div>
+}
+@if (TempData["Err"] is string err && !string.IsNullOrWhiteSpace(err))
+{
+    <div class="alert alert-danger mb-3">@err</div>
+}
 
-        <a asp-controller="Account"
-           asp-action="ChangePassword"
-           class="btn btn-sm btn-outline-light">
-            Změnit heslo
-        </a>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a class="btn btn-outline-light me-2" href="@Url.Action("Index", "Home")">← Zpět</a>
+        <span class="h3 text-white mb-0">Můj profil</span>
     </div>
-
-    <div class="mb-3">
-        <div><strong>Jméno:</strong> @Model.FirstName @Model.LastName</div>
-        <div><strong>E-mail:</strong> @(string.IsNullOrWhiteSpace(Model.Email) ? "—" : Model.Email)</div>
-        <div><strong>Telefon:</strong> @(string.IsNullOrWhiteSpace(Model.Phone) ? "—" : Model.Phone)</div>
-        <div><strong>Narozen:</strong> @(Model.BirthDate.ToString("dd.MM.yyyy"))</div>
-        <div><strong>Adresa:</strong> @(string.IsNullOrWhiteSpace(Model.Address) ? "—" : Model.Address)</div>
-    </div>
-
-    <hr class="border-secondary" />
-
-    @{
-        var ms = ViewBag.Membership;
-    }
-    @if (ms == null)
-    {
-        <div class="alert alert-warning mb-0">Aktuálně nemáš aktivní permanentku.</div>
-    }
-    else
-    {
-        dynamic m = ms;
-        <div class="alert alert-success mb-0">
-            <strong>Permanentka:</strong> @m.Typ <br />
-            <strong>Platnost:</strong>
-            @(((DateTime)m.Od).ToString("dd.MM.yyyy")) –
-            @(m.Do is DateTime d ? d.ToString("dd.MM.yyyy") : "neomezeně")
-        </div>
-    }
 </div>
+
+<div class="glass p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div class="d-flex align-items-center gap-3">
+            <!-- malý avatar v headeru -->
+            <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center"
+                 style="width:64px;height:64px;font-size:1.5rem;overflow:hidden;">
+                @if (!string.IsNullOrWhiteSpace(Model.ProfilePhotoUrl))
+                {
+                    <img src="@Model.ProfilePhotoUrl"
+                         alt="Profilová fotka"
+                         style="width:100%;height:100%;object-fit:cover;" />
+                }
+                else
+                {
+                    <span class="text-white fw-bold">@Model.Initials</span>
+                }
+            </div>
+            <div>
+                <h3 class="text-white mb-0">@Model.Jmeno @Model.Prijmeni</h3>
+                <div class="text-white-50 small">Můj profil · nastavení účtu</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- KONT. ÚDAJE -->
+    <div class="col-12 col-lg-7">
+        <div class="glass p-3 h-100">
+            <h5 class="text-white mb-2">Kontaktní údaje</h5>
+            <div class="accent-line mb-3"></div>
+
+            <!-- FORM: změna telefonu + e-mailu -->
+            <form asp-action="Profile" asp-controller="Members" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-2 text-white-50 small">
+                    Jméno
+                </div>
+                <div class="mb-3 text-white fw-semibold">
+                    @Model.Jmeno @Model.Prijmeni
+                </div>
+
+                <div class="mb-2 text-white-50 small">
+                    Telefon
+                </div>
+                <div class="mb-3">
+                    <input name="Telefon" class="form-control" value="@Model.Telefon" />
+                </div>
+
+                <div class="mb-2 text-white-50 small">
+                    E-mail
+                </div>
+                <div class="mb-3">
+                    <input name="Email" class="form-control" value="@Model.Email" />
+                    @if (ViewData.ModelState.TryGetValue("Email", out var emailState) &&
+                                        emailState.Errors.Count > 0)
+                    {
+                        <span class="text-danger small">
+                            @string.Join(" | ", emailState.Errors.Select(e => e.ErrorMessage))
+                        </span>
+                    }
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Uložit změny
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PRAVÝ SLOUPEC: heslo + fotka -->
+    <div class="col-12 col-lg-5">
+        <div class="glass p-3 mb-3">
+            <h5 class="text-white mb-2">Zabezpečení účtu</h5>
+            <div class="accent-line mb-3"></div>
+            <p class="text-white-50 small mb-2">
+                Pro změnu hesla přejdi do speciálního formuláře.
+            </p>
+            <a href="@Url.Action("ChangePassword", "Account")"
+               class="btn btn-outline-light btn-sm">
+                Změnit heslo
+            </a>
+        </div>
+
+        <div class="glass p-3">
+            <h5 class="text-white mb-2">Profilová fotka</h5>
+            <div class="accent-line mb-3"></div>
+
+            <div class="d-flex align-items-center mb-3">
+                @if (!string.IsNullOrEmpty(Model.ProfilePhotoUrl))
+                {
+                    <img src="@Model.ProfilePhotoUrl"
+                         alt="Profilová fotka"
+                         class="rounded-circle me-3"
+                         style="width:48px;height:48px;object-fit:cover;" />
+                }
+                else
+                {
+                    <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center me-3"
+                         style="width:48px;height:48px;font-size:1.2rem;">
+                        <span class="text-white fw-bold">@Model.Initials</span>
+                    </div>
+                }
+
+                <div class="text-white-50 small">
+                    Obrázek se uloží jako profilová fotka pro tento účet.
+                    Formáty: JPG, PNG. Max. velikost např. 2 MB.
+                </div>
+            </div>
+
+            <form method="post"
+                  action="@Url.Action("UploadAvatar", "Members")"
+                  enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-2">
+                    <input type="file"
+                           name="avatar"
+                           class="form-control form-control-sm"
+                           accept="image/*" />
+                </div>
+
+                <button type="submit" class="btn btn-outline-light btn-sm">
+                    Nahrát fotku
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

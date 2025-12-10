@@ -6,27 +6,35 @@ using FitnessCenter.Web.Infrastructure.Security;
 using FitnessCenter.Web.Models;
 using FitnessCenter.Web.Models.Member;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
+using System.IO;
 using MemberVM = FitnessCenter.Web.Models.Member.MemberViewModel;
 
 namespace FitnessCenter.Web.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    // všichni přihlášení; role se řeší na jednotlivých akcích
+    [Authorize]
     public class MembersController : Controller
     {
         private readonly IMembersService _members;
         private readonly IEmailSender _emailSender;
         private readonly PasswordHasher<Member> _hasher = new();
+        private readonly IWebHostEnvironment _env;   // kvůli ukládání profilovek
 
-        public MembersController(IMembersService members, IEmailSender emailSender)
+        public MembersController(
+            IMembersService members,
+            IEmailSender emailSender,
+            IWebHostEnvironment env)
         {
             _members = members;
             _emailSender = emailSender;
+            _env = env;
         }
 
         // -------------------------
@@ -75,12 +83,47 @@ namespace FitnessCenter.Web.Controllers
             return items;
         }
 
+        // ===== pomocné pro profilovky =====
+
+        private string GetProfilePicsFolder()
+        {
+            return Path.Combine(_env.WebRootPath, "profile-pics");
+        }
+
+        private string? FindProfilePhotoFile(int memberId)
+        {
+            var folder = GetProfilePicsFolder();
+            if (!Directory.Exists(folder)) return null;
+
+            var pattern = memberId + ".*";
+            var matches = Directory.GetFiles(folder, pattern);
+            return matches.FirstOrDefault();
+        }
+
+        private static string? BuildProfilePhotoUrl(int memberId)
+        {
+            var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var relPath = Path.Combine("uploads", "avatars", $"member_{memberId}.jpg");
+            var fullPath = Path.Combine(wwwroot, relPath);
+
+            if (!System.IO.File.Exists(fullPath))
+                return null;
+
+            // cache-buster, aby se po uploadu hned načetla nová fotka
+            var url = "/" + relPath.Replace("\\", "/");
+            return url + "?v=" + DateTime.UtcNow.Ticks;
+        }
+
+        // ======================
+        //        LIST (ADMIN)
+        // ======================
+
+        // jen pro admina – health check
+        [Authorize(Roles = "Admin")]
         [HttpGet("/Members/Ping")]
         public IActionResult Ping() => Content("OK");
 
-        // ======================
-        //        LIST
-        // ======================
+        [Authorize(Roles = "Admin")]
         [HttpGet("/Members")]
         [HttpGet("/Members/Index")]
         public async Task<IActionResult> Index(
@@ -215,8 +258,10 @@ ORDER BY c.prijmeni, c.jmeno
         }
 
         // =====================================
-        //            CREATE (GET)
+        //            CREATE (ADMIN)
         // =====================================
+
+        [Authorize(Roles = "Admin")]
         [HttpGet("/Members/Create")]
         public async Task<IActionResult> Create()
         {
@@ -224,18 +269,12 @@ ORDER BY c.prijmeni, c.jmeno
             return View(new MemberCreateViewModel());
         }
 
-
-        // =====================================
-        //            CREATE (POST)
-        // =====================================
+        [Authorize(Roles = "Admin")]
         [HttpPost("/Members/Create")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberCreateViewModel vm)
         {
-            // musíš načíst fitness centra, jinak se po znovuzobrazení stránky neukazují
             ViewBag.FitnessCenters = await LoadFitnessForSelectAsync();
-
-            // ----- SERVER VALIDACE NAVÍC (protože některé věci nejsou v DataAnnotations) -----
 
             if (!vm.BirthDate.HasValue)
                 ModelState.AddModelError(nameof(vm.BirthDate), "Zadej datum narození.");
@@ -243,11 +282,9 @@ ORDER BY c.prijmeni, c.jmeno
             if (vm.FitnessCenterId <= 0)
                 ModelState.AddModelError(nameof(vm.FitnessCenterId), "Vyber fitness centrum.");
 
-            // pokud validace neprojde → zobrazíme zpět view
             if (!ModelState.IsValid)
                 return View(vm);
 
-            // ============== VYTVOŘENÍ ENTITY ==============
             var member = new Member
             {
                 FirstName = vm.FirstName?.Trim() ?? "",
@@ -260,16 +297,13 @@ ORDER BY c.prijmeni, c.jmeno
                 MustChangePassword = true
             };
 
-            // ============== GENEROVÁNÍ A HASHOVÁNÍ HESLA ==============
             var plainPassword = GeneratePassword();
             member.PasswordHash = _hasher.HashPassword(member, plainPassword);
 
             try
             {
-                // vytvoření člena přes proceduru
                 await _members.CreateViaProcedureAsync(member);
 
-                // ============== ODESLÁNÍ E-MAILU (optional) ==============
                 if (!string.IsNullOrWhiteSpace(member.Email))
                 {
                     try
@@ -297,9 +331,7 @@ ORDER BY c.prijmeni, c.jmeno
                     }
                 }
 
-                // ============== INFO PRO ADMINA ==============
                 TempData["Ok"] = $"Člen byl úspěšně vytvořen. Heslo: {plainPassword}";
-
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
@@ -309,7 +341,11 @@ ORDER BY c.prijmeni, c.jmeno
             }
         }
 
-        // GET /Members/Edit/63
+        // =====================================
+        //            EDIT (ADMIN)
+        // =====================================
+
+        [Authorize(Roles = "Admin")]
         [HttpGet("/Members/Edit/{id:int}")]
         public async Task<IActionResult> Edit(int id)
         {
@@ -354,7 +390,8 @@ ORDER BY c.prijmeni, c.jmeno
 
             return View(vm);
         }
-        // POST /Members/Edit/63
+
+        [Authorize(Roles = "Admin")]
         [HttpPost("/Members/Edit/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, MemberEditViewModel vm)
@@ -363,7 +400,6 @@ ORDER BY c.prijmeni, c.jmeno
             if (vm.IdClen != id)
                 ModelState.AddModelError(nameof(vm.IdClen), "Nesouhlasí ID v adrese a ve formuláři.");
 
-            // povinná pole – stejné jako u trenérů
             if (string.IsNullOrWhiteSpace(vm.Jmeno))
                 ModelState.AddModelError(nameof(vm.Jmeno), "Zadej jméno.");
 
@@ -430,11 +466,12 @@ ORDER BY c.prijmeni, c.jmeno
         }
 
         // =============================
-        //            DELETE (force)
+        //            DELETE (ADMIN)
         // =============================
+
+        [Authorize(Roles = "Admin")]
         [HttpPost("/Members/Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete([FromForm] int id)
         {
             if (id <= 0)
@@ -501,10 +538,10 @@ ORDER BY c.prijmeni, c.jmeno
         }
 
         // =============================
-        //            PROFILE
+        //            PROFILE (člen)
         // =============================
-        [Authorize]
-        [HttpGet("/Profile")]
+
+        [HttpGet("/Members/Profile")]
         public async Task<IActionResult> Profile(CancellationToken ct)
         {
             var memberId = User.GetRequiredCurrentMemberId();
@@ -512,34 +549,167 @@ ORDER BY c.prijmeni, c.jmeno
             if (me == null) return NotFound();
 
             using var conn = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand(@"
-            SELECT IDCLENSTVI, TYP, DAT_OD, DAT_DO
-            FROM CLENSTVI
-            WHERE CLEN_IDCLEN = :id
-                  AND DAT_OD <= SYSDATE
-                  AND (DAT_DO IS NULL OR DAT_DO >= SYSDATE)
-            ORDER BY DAT_OD DESC",
-                (OracleConnection)conn);
+            var oconn = (OracleConnection)conn;
 
-            cmd.BindByName = true;
-            cmd.Parameters.Add("id", OracleDbType.Int32, memberId);
-
-            using var rd = await cmd.ExecuteReaderAsync(ct);
-
-            object? membership = null;
-            if (await rd.ReadAsync(ct))
+            string fitnessName = "";
+            if (me.FitnessCenterId > 0)
             {
-                membership = new
-                {
-                    Id = rd.GetInt32(0),
-                    Typ = rd.GetString(1),
-                    Od = rd.GetDateTime(2),
-                    Do = rd.IsDBNull(3) ? (DateTime?)null : rd.GetDateTime(3)
-                };
+                using var cmdFit = new OracleCommand(
+                    "SELECT nazev FROM fitnesscentra WHERE idfitness = :id",
+                    oconn);
+                cmdFit.BindByName = true;
+                cmdFit.Parameters.Add("id", OracleDbType.Int32).Value = me.FitnessCenterId;
+
+                var result = await cmdFit.ExecuteScalarAsync(ct);
+                fitnessName = result == null || result == DBNull.Value ? "" : result.ToString()!;
             }
 
-            ViewBag.Membership = membership;
-            return View("Profile", me);
+            var vm = new MemberProfileViewModel
+            {
+                Jmeno = me.FirstName ?? "",
+                Prijmeni = me.LastName ?? "",
+                Telefon = me.Phone ?? "",
+                Email = me.Email ?? "",
+                FitnessCenter = fitnessName,
+                ProfilePhotoUrl = BuildProfilePhotoUrl(memberId)
+            };
+
+            ViewBag.Active = "Profile";
+            return View("Profile", vm);
+        }
+
+        [HttpPost("/Members/Profile")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Profile(MemberProfileViewModel model, CancellationToken ct)
+        {
+            var memberId = User.GetRequiredCurrentMemberId();
+            var me = await _members.GetByIdAsync(memberId);
+            if (me == null) return NotFound();
+
+            model.Jmeno = me.FirstName ?? "";
+            model.Prijmeni = me.LastName ?? "";
+
+            using var connInfo = await DatabaseManager.GetOpenConnectionAsync();
+            var oconnInfo = (OracleConnection)connInfo;
+
+            string fitnessName = "";
+            if (me.FitnessCenterId > 0)
+            {
+                using var cmdFit = new OracleCommand(
+                    "SELECT nazev FROM fitnesscentra WHERE idfitness = :id",
+                    oconnInfo);
+                cmdFit.BindByName = true;
+                cmdFit.Parameters.Add("id", OracleDbType.Int32).Value = me.FitnessCenterId;
+                var result = await cmdFit.ExecuteScalarAsync(ct);
+                fitnessName = result == null || result == DBNull.Value ? "" : result.ToString()!;
+            }
+            model.FitnessCenter = fitnessName;
+
+            // doplníme i profilovku (aby se ukázala i při chybné validaci)
+            model.ProfilePhotoUrl = BuildProfilePhotoUrl(memberId);
+
+            // --- ruční jednoduchá validace, ať nespadneme na ORA-01407 ---
+            if (string.IsNullOrWhiteSpace(model.Email))
+            {
+                ModelState.AddModelError(nameof(model.Email), "E-mail je povinný.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Active = "Profile";
+                return View("Profile", model);
+            }
+
+            var email = model.Email.Trim();
+            var telefon = string.IsNullOrWhiteSpace(model.Telefon)
+                ? null
+                : model.Telefon.Trim();
+
+            using var conn = await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(@"
+        UPDATE CLENOVE
+           SET TELEFON = :tel,
+               EMAIL   = :mail
+         WHERE IDCLEN = :id", (OracleConnection)conn);
+            cmd.BindByName = true;
+
+            cmd.Parameters.Add("tel", OracleDbType.Varchar2).Value =
+                telefon == null ? (object)DBNull.Value : telefon;
+            cmd.Parameters.Add("mail", OracleDbType.Varchar2).Value = email; // nikdy NULL
+            cmd.Parameters.Add("id", OracleDbType.Int32).Value = memberId;
+
+            await cmd.ExecuteNonQueryAsync(ct);
+
+            TempData["Ok"] = "Kontaktní údaje byly upraveny.";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        // =============================
+        //      UPLOAD PROFILOVÉ FOTKY
+        // =============================
+        [HttpPost("/Members/UploadAvatar")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadAvatar(IFormFile avatar, CancellationToken ct)
+        {
+            var memberId = User.GetRequiredCurrentMemberId();
+
+            if (avatar == null || avatar.Length == 0)
+            {
+                TempData["Err"] = "Nebyl vybrán žádný soubor.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            // max 2 MB
+            if (avatar.Length > 2 * 1024 * 1024)
+            {
+                TempData["Err"] = "Soubor je příliš velký (max. 2 MB).";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var ext = Path.GetExtension(avatar.FileName).ToLowerInvariant();
+            if (ext != ".jpg" && ext != ".jpeg" && ext != ".png")
+            {
+                TempData["Err"] = "Podporované jsou pouze soubory JPG a PNG.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadDir = Path.Combine(wwwroot, "uploads", "avatars");
+            if (!Directory.Exists(uploadDir))
+                Directory.CreateDirectory(uploadDir);
+
+            // uložíme jako member_{id}.jpg
+            var fileName = $"member_{memberId}.jpg";
+            var filePath = Path.Combine(uploadDir, fileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                await avatar.CopyToAsync(stream, ct);
+            }
+
+            // 💡 zkusíme najít trenéra se stejným e-mailem a zkopírujeme fotku i pro něj
+            var me = await _members.GetByIdAsync(memberId);
+            if (me != null && !string.IsNullOrWhiteSpace(me.Email))
+            {
+                using var conn = await DatabaseManager.GetOpenConnectionAsync();
+                using var cmd = new OracleCommand(
+                    "SELECT idtrener FROM treneri WHERE LOWER(email) = LOWER(:mail)",
+                    (OracleConnection)conn);
+
+                cmd.BindByName = true;
+                cmd.Parameters.Add("mail", OracleDbType.Varchar2).Value = me.Email.Trim();
+
+                var trainerIdObj = await cmd.ExecuteScalarAsync(ct);
+                if (trainerIdObj != null && trainerIdObj != DBNull.Value)
+                {
+                    var trainerId = Convert.ToInt32(trainerIdObj);
+                    var trainerFile = Path.Combine(uploadDir, $"trainer_{trainerId}.jpg");
+                    System.IO.File.Copy(filePath, trainerFile, overwrite: true);
+                }
+            }
+
+            TempData["Ok"] = "Profilová fotka byla nahrána.";
+            return RedirectToAction(nameof(Profile));
         }
     }
 }
