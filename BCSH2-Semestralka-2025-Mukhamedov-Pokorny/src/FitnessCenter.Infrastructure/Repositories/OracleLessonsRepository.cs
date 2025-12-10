@@ -10,7 +10,36 @@ using Oracle.ManagedDataAccess.Types;
 
 namespace FitnessCenter.Infrastructure.Repositories
 {
-    public sealed record LessonAttendee(int MemberId, string FullName, string Email);
+    public sealed class LessonAttendee
+    {
+        public int MemberId { get; set; }
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? Telefon { get; set; }
+
+        public string? ProfilePhotoUrl { get; set; }
+
+        // Inicialy pro „default“ avatar (TD, VT, …)
+        public string Initials
+        {
+            get
+            {
+                var parts = (FullName ?? "")
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                if (parts.Length == 0)
+                    return "?";
+
+                if (parts.Length == 1)
+                    return parts[0].Substring(0, 1).ToUpperInvariant();
+
+                var first = parts[0][0];
+                var last = parts[^1][0];
+                return $"{char.ToUpperInvariant(first)}{char.ToUpperInvariant(last)}";
+            }
+        }
+    }
+
 
     public sealed class OracleLessonsRepository : ILessonRepository
     {
@@ -97,26 +126,39 @@ namespace FitnessCenter.Infrastructure.Repositories
 
         // ---------------------------------------------------------------------
         // 3) REZERVACE – vytvořit / zrušit
-        //    - REZERVACE:   rezervovat_lekci(p_idclen, p_idlecke, p_idrez_out OUT)
+        //    - REZERVACE:   rezervovat_lekci(p_idclen, p_idlekce, p_idrez_out OUT)
         //    - ZRUŠENÍ:     SP_CANCEL_RESERVATION(p_idclen, p_idrez)
         // ---------------------------------------------------------------------
         public async Task<int> ReserveLessonAsync(int idClen, int idLekce)
         {
             using var con = await OpenAsync();
-            using var cmd = new OracleCommand("rezervovat_lekci", con)
+            using var cmd = new OracleCommand(@"
+        BEGIN
+          rezervovat_lekci(
+            p_idclen    => :p_idclen,
+            p_idlekce   => :p_idlekce,
+            p_idrez_out => :p_idrez_out
+          );
+        END;", con)
             {
-                CommandType = CommandType.StoredProcedure,
+                CommandType = CommandType.Text,
                 BindByName = true
             };
 
             cmd.Parameters.Add("p_idclen", OracleDbType.Int32).Value = idClen;
-            cmd.Parameters.Add("p_idlecke", OracleDbType.Int32).Value = idLekce;
-            cmd.Parameters.Add("p_idrez_out", OracleDbType.Int32).Direction = ParameterDirection.Output;
+            cmd.Parameters.Add("p_idlekce", OracleDbType.Int32).Value = idLekce;
+
+            var pOut = new OracleParameter("p_idrez_out", OracleDbType.Int32)
+            {
+                Direction = ParameterDirection.Output
+            };
+            cmd.Parameters.Add(pOut);
 
             await cmd.ExecuteNonQueryAsync();
 
-            return Convert.ToInt32(cmd.Parameters["p_idrez_out"].Value.ToString());
+            return Convert.ToInt32(pOut.Value.ToString());
         }
+
 
         /// <summary>
         /// Zruší rezervaci podle ID rezervace; vlastnictví kontroluje samotná procedura v DB.
@@ -145,7 +187,7 @@ namespace FitnessCenter.Infrastructure.Repositories
                 BindByName = true
             };
 
-            cmd.Parameters.Add("p_idlecke", OracleDbType.Int32).Value = lessonId;
+            cmd.Parameters.Add("p_idlekce", OracleDbType.Int32).Value = lessonId;
             cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = trainerId;
 
             var outParam = new OracleParameter("p_smazano_rez", OracleDbType.Int32)
@@ -406,7 +448,8 @@ namespace FitnessCenter.Infrastructure.Repositories
         SELECT DISTINCT 
                c.idclen,
                c.prijmeni || ' ' || c.jmeno AS full_name,
-               LOWER(c.email) AS email
+               LOWER(c.email) AS email,
+               c.telefon
         FROM   relekci r
         JOIN   clenove c
                ON c.idclen = r.rezervacelekci_clen_idclen
@@ -421,11 +464,20 @@ namespace FitnessCenter.Infrastructure.Repositories
             using var rd = await cmd.ExecuteReaderAsync(ct);
             while (await rd.ReadAsync(ct))
             {
-                list.Add(new LessonAttendee(
-                    rd.GetInt32(0),      // idclen
-                    rd.GetString(1),     // prijmeni + jmeno
-                    rd.GetString(2)      // email
-                ));
+                var memberId = rd.GetInt32(0);
+
+                var attendee = new LessonAttendee
+                {
+                    MemberId = memberId,                      // idclen
+                    FullName = rd.GetString(1),              // full_name
+                    Email = rd.GetString(2),                 // email
+                    Telefon = rd.IsDBNull(3) ? null : rd.GetString(3)
+                };
+
+                // dopočítáme URL profilové fotky
+                attendee.ProfilePhotoUrl = BuildProfilePhotoUrlForMember(memberId);
+
+                list.Add(attendee);
             }
 
             return list;
@@ -466,5 +518,21 @@ namespace FitnessCenter.Infrastructure.Repositories
             }
 
         }
+
+        //pomocna metoda na url fotky clena
+        private static string? BuildProfilePhotoUrlForMember(int memberId)
+        {
+            var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var relPath = Path.Combine("uploads", "avatars", $"member_{memberId}.jpg");
+            var fullPath = Path.Combine(wwwroot, relPath);
+
+            if (!File.Exists(fullPath))
+                return null;
+
+            var url = "/" + relPath.Replace("\\", "/");
+            // cache-buster – po uploadu se hned načte nová verze
+            return url + "?v=" + File.GetLastWriteTimeUtc(fullPath).Ticks;
+        }
+
     }
 }

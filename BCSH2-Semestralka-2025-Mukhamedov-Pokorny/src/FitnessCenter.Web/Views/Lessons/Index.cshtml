@@ -2,6 +2,9 @@
 @{
     ViewData["Title"] = "Moje lekce";
     Layout = "_AppLayout";
+
+    var attCounts = ViewBag.AttCounts as IDictionary<int, int>
+                    ?? new Dictionary<int, int>();
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -33,17 +36,20 @@ else
                 <tr class="text-white-50">
                     <th>Datum/čas</th>
                     <th>Název</th>
-                    <th>Kapacita</th>
+                    <th>Obsazenost</th>   @* dřív Kapacita *@
                     <th class="text-end">Akce</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var l in Model)
                 {
+                    var used = attCounts.TryGetValue(l.Id, out var u) ? u : 0;
+                    var cap = l.Kapacita;
+
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
                         <td class="text-white">@l.Nazev</td>
-                        <td>@l.Kapacita</td>
+                        <td>@used / @cap</td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-warning ms-1"
                                href="@Url.Action("Attendance", "Lessons", new { id = l.Id })">

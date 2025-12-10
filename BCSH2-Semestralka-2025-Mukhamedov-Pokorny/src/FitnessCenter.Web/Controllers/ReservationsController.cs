@@ -171,21 +171,42 @@ namespace FitnessCenter.Web.Controllers
         // ============================ AKCE ============================
 
         // GET /Reservations
-        // GET /Reservations
         [HttpGet("")]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? search, DateTime? from)
         {
-            var list = await _repo.GetUpcomingViaProcAsync();
-
-            ViewBag.Trainers = await LoadTrainersByLessonIdsAsync(list.Select(l => l.Id));
-            ViewBag.VolnoMap = await LoadFreeSlotsMapAsync(list.Select(l => l.Id));   // ⬅️ DŮLEŽITÉ
-
-            // membership do UI (jak už máš)
+            // 1) zjistíme člena
             var idClen = await ResolveMemberId();
+
+            // 2) nadcházející lekce (od data `from`, pokud je vyplněné)
+            var list = await _repo.GetUpcomingViaProcAsync(from);
+
+            // 3) trenéři + volná místa
+            ViewBag.Trainers = await LoadTrainersByLessonIdsAsync(list.Select(l => l.Id));
+            ViewBag.VolnoMap = await LoadFreeSlotsMapAsync(list.Select(l => l.Id));
+
+            // 4) moje rezervace → seznam ID lekcí, které už mám zarezervované
+            var myRes = await _repo.GetMyReservationsViaProcAsync(idClen);
+            var reservedLessonIds = new HashSet<int>(myRes.Select(r => r.IdLekce));
+            ViewBag.ReservedLessonIds = reservedLessonIds;
+
+            // 5) membership do UI
             var ms = await _members.GetMembershipAsync(idClen);
             ViewBag.MembershipActive = ms.Active;
             ViewBag.MembershipFrom = ms.From;
             ViewBag.MembershipTo = ms.To;
+
+            // 6) textové vyhledávání podle názvu lekce
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                list = list
+                    .Where(l => !string.IsNullOrEmpty(l.Nazev) &&
+                                l.Nazev.ToLower().Contains(s))
+                    .ToList();
+            }
+
+            ViewBag.Search = search;
+            ViewBag.From = from;
 
             return View(list);
         }

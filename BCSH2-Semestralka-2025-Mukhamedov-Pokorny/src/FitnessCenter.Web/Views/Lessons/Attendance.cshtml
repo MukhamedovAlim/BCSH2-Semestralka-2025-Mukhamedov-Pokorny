@@ -5,7 +5,14 @@
     ViewData["Title"] = "Docházka";
     Layout = "_AppLayout";
     var lessonId = (int)ViewBag.LessonId;
+
+    int capacity = ViewBag.Capacity is int c ? c : 0;
+    int used = Model.Count;
+    int free = capacity > 0 ? capacity - used : 0;
+
+    var defaultAvatar = Url.Content("~/img/avatar-default.png");
 }
+
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -27,6 +34,21 @@
         }
     </div>
 
+    <div class="glass p-3">
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-white-50 small">
+                Obsazenost:
+                <span class="text-white">@used</span> /
+                <span class="text-white">@capacity</span>
+                @if (capacity > 0)
+                {
+                    <span class="text-white-50"> (volno @free)</span>
+                }
+            </div>
+        </div>
+
+
     @if (!Model.Any())
     {
         <div class="text-white-50">Nikdo zatím není přihlášen.</div>
@@ -47,9 +69,19 @@
                     @for (int i = 0; i < Model.Count; i++)
                     {
                         var a = Model[i];
+                        var detailId = $"member-detail-{a.MemberId}";
+
+                        <!-- hlavní řádek -->
                         <tr>
                             <td>@(i + 1)</td>
-                            <td>@a.FullName</td>
+                            <td>
+                                <a href="javascript:void(0);"
+                                   data-bs-toggle="collapse"
+                                   data-bs-target="#@detailId"
+                                   class="text-decoration-none text-white">
+                                    @a.FullName
+                                </a>
+                            </td>
                             <td>@a.Email</td>
                             <td>
                                 <a href="/Lessons/RemoveMember?lessonId=@lessonId&memberId=@a.MemberId"
@@ -57,6 +89,41 @@
                                    onclick="return confirm('Odepsat člena @a.FullName z lekce?');">
                                     Odepsat
                                 </a>
+                            </td>
+                        </tr>
+
+                        <!-- detailní řádek -->
+                        <tr class="collapse bg-dark" id="@detailId">
+                            <td></td>
+                            <td colspan="3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        @* avatar stejně jako v profilu *@
+                                        <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center me-3"
+                                             style="width:64px;height:64px;font-size:1.3rem;overflow:hidden;">
+                                            @if (!string.IsNullOrWhiteSpace(a.ProfilePhotoUrl))
+                                            {
+                                                <img src="@a.ProfilePhotoUrl"
+                                                     alt="Profilová fotka"
+                                                     style="width:100%;height:100%;object-fit:cover;" />
+                                            }
+                                            else
+                                            {
+                                                <span class="text-white fw-bold">@a.Initials</span>
+                                            }
+                                        </div>
+
+                                        <div>
+                                            <div class="text-white">
+                                                <strong>Jméno:</strong> @a.FullName
+                                            </div>
+                                            <div class="text-white">
+                                                <strong>E-mail:</strong> @a.Email
+                                            </div>
+                                            <div class="text-white">
+                                                <strong>Telefon:</strong> @(string.IsNullOrWhiteSpace(a.Telefon) ? "neuveden" : a.Telefon)
+                                            </div>
+                                        </div>
+                                    </div>
                             </td>
                         </tr>
                     }

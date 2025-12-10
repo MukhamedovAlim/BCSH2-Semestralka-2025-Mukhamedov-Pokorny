@@ -25,7 +25,7 @@ namespace FitnessCenter.Web.Controllers
         private readonly IMembersService _members;
         private readonly IEmailSender _emailSender;
         private readonly PasswordHasher<Member> _hasher = new();
-        private readonly IWebHostEnvironment _env;   // kvůli ukládání profilovek
+        private readonly IWebHostEnvironment _env;   // kvůli ukládání Profilovek
 
         public MembersController(
             IMembersService members,
@@ -710,6 +710,35 @@ ORDER BY c.prijmeni, c.jmeno
 
             TempData["Ok"] = "Profilová fotka byla nahrána.";
             return RedirectToAction(nameof(Profile));
+        }
+
+        // =============================
+        //  AVATAR PODLE ID ČLENA (pro trenéra / ostatní)
+        // =============================
+        [HttpGet("/Members/AvatarByMember/{id:int}")]
+        public IActionResult AvatarByMember(int id)
+        {
+            var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadDir = Path.Combine(wwwroot, "uploads", "avatars");
+            var memberFile = Path.Combine(uploadDir, $"member_{id}.jpg");
+
+            string pathToUse;
+            string contentType;
+
+            if (System.IO.File.Exists(memberFile))
+            {
+                // člen má nahranou fotku
+                pathToUse = memberFile;
+                contentType = "image/jpeg";
+            }
+            else
+            {
+                // fallback na default avatar
+                pathToUse = Path.Combine(wwwroot, "img", "avatar-default.png");
+                contentType = "image/png";
+            }
+
+            return PhysicalFile(pathToUse, contentType);
         }
     }
 }

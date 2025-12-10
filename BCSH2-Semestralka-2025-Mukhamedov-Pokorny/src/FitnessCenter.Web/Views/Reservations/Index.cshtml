@@ -11,6 +11,15 @@
     bool hasActiveMembership = ViewBag.MembershipActive is bool b && b;
     DateTime? memFrom = ViewBag.MembershipFrom is DateTime mf ? mf : (DateTime?)null;
     DateTime? memTo = ViewBag.MembershipTo is DateTime mt ? mt : (DateTime?)null;
+
+    // seznam ID lekcí, které má člen už rezervované
+    var reservedIds =
+        ViewBag.ReservedLessonIds as System.Collections.Generic.ISet<int>
+        ?? new System.Collections.Generic.HashSet<int>();
+
+    // hodnoty pro filtr
+    string currentSearch = ViewBag.Search as string ?? "";
+    string currentFrom = ViewBag.From is DateTime dt ? dt.ToString("yyyy-MM-dd") : "";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -25,6 +34,30 @@
 {
     <div class="alert alert-success small py-2">@msg</div>
 }
+
+<!-- Filtrovací formulář -->
+<div class="mb-3">
+    <form method="get" class="row g-2">
+        <div class="col-sm-4 col-12">
+            <input type="text"
+                   name="search"
+                   value="@currentSearch"
+                   class="form-control form-control-sm"
+                   placeholder="Hledat podle názvu lekce" />
+        </div>
+        <div class="col-sm-3 col-6">
+            <input type="date"
+                   name="from"
+                   value="@currentFrom"
+                   class="form-control form-control-sm" />
+        </div>
+        <div class="col-sm-3 col-6">
+            <button type="submit" class="btn btn-sm btn-outline-light me-1">Filtrovat</button>
+            <a href="@Url.Action("Index", "Reservations")"
+               class="btn btn-sm btn-secondary">Reset</a>
+        </div>
+    </form>
+</div>
 
 @if (Model == null || Model.Count == 0)
 {
@@ -52,7 +85,11 @@ else
                     string nazev = raw, misto = "";
 
                     var atIdx = raw.LastIndexOf('@');
-                    if (atIdx >= 0) { nazev = raw[..atIdx].Trim(); misto = raw[(atIdx + 1)..].Trim(); }
+                    if (atIdx >= 0)
+                    {
+                        nazev = raw[..atIdx].Trim();
+                        misto = raw[(atIdx + 1)..].Trim();
+                    }
 
                     if (string.IsNullOrEmpty(misto))
                     {
@@ -73,7 +110,8 @@ else
                     && l.Zacatek.Date >= memFrom.Value.Date
                     && l.Zacatek.Date <= memTo.Value.Date;
 
-                    bool allowed = inMembershipWindow && volno > 0;
+                    // Je už tahle lekce rezervovaná tímto členem?
+                    bool alreadyReserved = reservedIds.Contains(l.Id);
 
                     <tr>
                         <td>@l.Zacatek.ToString("dd.MM.yyyy HH:mm")</td>
@@ -100,6 +138,11 @@ else
                             {
                                 <span class="badge bg-secondary me-2">Mimo platnost</span>
                                 <button class="btn btn-sm btn-secondary" disabled>Nelze zapsat</button>
+                            }
+                            else if (alreadyReserved)
+                            {
+                                <span class="badge bg-info me-2">Rezervováno</span>
+                                <button class="btn btn-sm btn-secondary" disabled>Již zapsán</button>
                             }
                             else if (volno <= 0)
                             {

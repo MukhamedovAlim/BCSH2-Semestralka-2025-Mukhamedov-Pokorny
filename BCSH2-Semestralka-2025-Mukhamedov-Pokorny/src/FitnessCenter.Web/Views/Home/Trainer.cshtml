@@ -59,12 +59,18 @@
                                     <tr>
                                         <td>@l.Time</td>
                                         <td class="text-white">@l.Name</td>
-                                        <td>@l.Slots</td>
+                                        <td>@l.Reserved / @l.Capacity</td>
+
+
                                         <td class="text-end">
-                                            <a href="@Url.Action("Detail", "Lessons", new { id = l.Id })"
-                                               class="btn btn-sm btn-outline-light">Detail</a>
                                             <a href="@Url.Action("Attendance", "Lessons", new { id = l.Id })"
-                                               class="btn btn-sm btn-warning ms-1">Docházka</a>
+                                               class="btn btn-sm btn-warning">
+                                                Docházka
+                                            </a>
+                                            <a href="@Url.Action("Edit", "Lessons", new { id = l.Id })"
+                                               class="btn btn-sm btn-outline-info ms-1">
+                                                Upravit
+                                            </a>
                                         </td>
                                     </tr>
                                 }

@@ -92,7 +92,7 @@ namespace FitnessCenter.Web.Controllers
 
         // ===== Trainer dashboard – dnešní lekce =====
         [Authorize(Roles = "Trainer")]
-        public async Task<IActionResult> Trainer()
+        public async Task<IActionResult> Trainer(CancellationToken ct)
         {
             ViewBag.Active = "HomeTrainer";
 
@@ -112,18 +112,33 @@ namespace FitnessCenter.Web.Controllers
                 return View();
             }
 
+            // všechny lekce trenéra
             var all = await _lessons.GetForTrainerAsync(trainerId.Value);
 
-            var todays = all
+            // dnešní lekce jako list (budeme je používat 2×)
+            var todaysLessons = all
                 .Where(l => l.Zacatek >= today && l.Zacatek < tomorrow)
                 .OrderBy(l => l.Zacatek)
+                .ToList();
+
+            // spočítáme obsazenost (počet rezervovaných) pro každou dnešní lekci
+            var reservedMap = new Dictionary<int, int>();
+            foreach (var l in todaysLessons)
+            {
+                var attendees = await _lessons.GetAttendeesAsync(l.Id, ct);
+                reservedMap[l.Id] = attendees.Count;
+            }
+
+            // naplníme objekt pro view
+            var todays = todaysLessons
                 .Select(l => new
                 {
                     Id = l.Id,
                     Time = l.Zacatek.ToString("HH:mm"),
                     Name = l.Nazev,
                     Room = string.IsNullOrWhiteSpace(l.Mistnost) ? "—" : l.Mistnost,
-                    Slots = l.Kapacita.ToString()
+                    Capacity = l.Kapacita,
+                    Reserved = reservedMap.TryGetValue(l.Id, out var cnt) ? cnt : 0
                 })
                 .ToList();
 

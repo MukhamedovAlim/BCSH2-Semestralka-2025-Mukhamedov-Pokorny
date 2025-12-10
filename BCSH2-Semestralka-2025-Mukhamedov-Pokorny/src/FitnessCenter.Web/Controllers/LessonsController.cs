@@ -64,7 +64,7 @@ namespace FitnessCenter.Web.Controllers
 
         // Správa lekcí (list) – pro trenéra
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(CancellationToken ct)
         {
             var trainerId = await GetCurrentTrainerIdAsync();
             if (trainerId is null)
@@ -74,6 +74,17 @@ namespace FitnessCenter.Web.Controllers
             }
 
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
+
+            // spočítáme, kolik lidí je na každé lekci přihlášeno
+            var attCounts = new Dictionary<int, int>();
+            foreach (var l in list)
+            {
+                var attendees = await _lessons.GetAttendeesAsync(l.Id, ct);
+                attCounts[l.Id] = attendees.Count;
+            }
+
+            ViewBag.AttCounts = attCounts;
+
             return View(list);
         }
 
@@ -87,6 +98,7 @@ namespace FitnessCenter.Web.Controllers
             var attendees = await _lessons.GetAttendeesAsync(id, ct);
 
             ViewBag.LessonId = id;
+            ViewBag.Capacity = lesson?.Kapacita ?? 0;
             return View(attendees);
         }
 
