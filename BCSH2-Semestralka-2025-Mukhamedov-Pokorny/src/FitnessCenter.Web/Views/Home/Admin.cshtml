@@ -266,10 +266,49 @@
     <!-- ===== Graf: tržby ===== -->
     <div class="glass p-3 mt-4">
         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
-            <h4 class="text-white mb-0">Denní tržby</h4>
-            <span class="text-white-50 small">
-                Zobrazuje součet schválených plateb po dnech v zadaném období.
-            </span>
+            <div>
+                <h4 class="text-white mb-0">Denní tržby</h4>
+                <span class="text-white-50 small">
+                    Součet schválených plateb po dnech v zadaném období.
+                </span>
+            </div>
+
+            <!-- Ovládací prvky grafu -->
+            <div class="row g-2 mb-3">
+                <div class="col-12 d-flex justify-content-end flex-wrap gap-3 rev-filter-wrapper">
+
+                    <div class="rev-filter-group">
+                        <label class="form-label text-white-50 mb-1 small">Období</label>
+                        <select id="revRange" class="form-select form-select-sm rev-filter-select">
+                            <option value="7">Posledních 7 dní</option>
+                            <option value="14">Posledních 14 dní</option>
+                            <option value="30" selected>Posledních 30 dní</option>
+                            <option value="all">Celé období</option>
+                        </select>
+                    </div>
+
+                    <div class="rev-filter-group">
+                        <label class="form-label text-white-50 mb-1 small">Zobrazení</label>
+                        <select id="revChartType" class="form-select form-select-sm rev-filter-select">
+                            <option value="line" selected>Čárový</option>
+                            <option value="bar">Sloupcový</option>
+                        </select>
+                    </div>
+
+                    <div class="rev-filter-group">
+                        <!-- prázdný label, jen aby výška sloupce seděla s ostatními -->
+                        <label class="form-label text-white-50 mb-1 small">&nbsp;</label>
+
+                        <div class="form-check d-flex align-items-center m-0">
+                            <input class="form-check-input me-2" type="checkbox" value="1" id="revShowCumulative" />
+                            <label class="form-check-label text-white-50 small" for="revShowCumulative">
+                                Kumulativně
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
 
         <div class="glass p-3">
@@ -278,7 +317,6 @@
             </div>
         </div>
     </div>
-
     <!-- ===== Podíl typů členství + Nejvytíženější trenéři ===== -->
     <div class="glass p-3 mt-4">
         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
@@ -321,30 +359,87 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // ===== Line chart – denní tržby =====
+        // ===== Line/Bar chart – denní tržby =====
         const revenueLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(revenueLabels));
         const revenueData   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(revenueValues));
 
         const ctx = document.getElementById('revenueChart');
+        const typeSelect = document.getElementById('revChartType');
+        const cumulativeCheckbox = document.getElementById('revShowCumulative');
+        const rangeSelect = document.getElementById('revRange');
 
-        if (ctx && revenueLabels.length > 0) {
-            new Chart(ctx, {
-                type: 'line',
+        // full data (co přišlo ze serveru)
+        const fullLabels = Array.isArray(revenueLabels) ? revenueLabels : [];
+        const fullDailyData = Array.isArray(revenueData) ? revenueData.map(Number) : [];
+
+        // kumulativní data pro celé období
+        const fullCumulativeData = [];
+        let sum = 0;
+        for (let i = 0; i < fullDailyData.length; i++) {
+            const v = isNaN(fullDailyData[i]) ? 0 : fullDailyData[i];
+            sum += v;
+            fullCumulativeData.push(sum);
+        }
+
+        let currentType = 'line';
+        let showCumulative = false;
+        let currentRange = 'all';
+        let revenueChart = null;
+
+        function sliceByRange(labels, daily, cumulative, rangeKey) {
+            if (!labels.length) {
+                return { labels: [], daily: [], cumulative: [] };
+            }
+
+            if (rangeKey === 'all') {
+                return { labels: labels, daily: daily, cumulative: cumulative };
+            }
+
+            const n = parseInt(rangeKey, 10);
+            if (isNaN(n) || n <= 0) {
+                return { labels: labels, daily: daily, cumulative: cumulative };
+            }
+
+            const startIndex = Math.max(labels.length - n, 0);
+            return {
+                labels: labels.slice(startIndex),
+                daily: daily.slice(startIndex),
+                cumulative: cumulative.slice(startIndex)
+            };
+        }
+
+        function buildRevenueDataset(dataArray) {
+            const labelText = showCumulative ? 'Kumulativní tržby (Kč)' : 'Tržby (Kč)';
+
+            return {
+                label: labelText,
+                data: dataArray,
+                borderWidth: 3,
+                borderColor: '#ffc107',
+                backgroundColor: currentType === 'line'
+                    ? 'rgba(255,193,7,0.15)'
+                    : 'rgba(255,193,7,0.6)',
+                pointBackgroundColor: '#ffc107',
+                pointBorderColor: '#ffffff',
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                fill: currentType === 'line',
+                tension: 0.25
+            };
+        }
+
+        function rebuildRevenueChart() {
+            if (!ctx || fullLabels.length === 0) return;
+
+            // vybereme subset podle range
+            const subset = sliceByRange(fullLabels, fullDailyData, fullCumulativeData, currentRange);
+            const dataArray = showCumulative ? subset.cumulative : subset.daily;
+
+            const config = {
+                type: currentType,
                 data: {
-                    labels: revenueLabels,
-                    datasets: [{
-                        label: 'Tržby (Kč)',
-                        data: revenueData,
-                        borderWidth: 3,
-                        borderColor: '#ffc107',
-                        backgroundColor: 'rgba(255,193,7,0.15)',
-                        pointBackgroundColor: '#ffc107',
-                        pointBorderColor: '#ffffff',
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        fill: false,
-                        tension: 0.25
-                    }]
+                    labels: subset.labels,
+                    datasets: [buildRevenueDataset(dataArray)]
                 },
                 options: {
                     responsive: true,
@@ -356,9 +451,11 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: function (ctx) {
-                                    const v = ctx.parsed.y ?? 0;
-                                    return v.toLocaleString('cs-CZ') + ' Kč';
+                                label: function (ctx2) {
+                                    var y = ctx2 && ctx2.parsed && typeof ctx2.parsed.y === 'number'
+                                        ? ctx2.parsed.y
+                                        : 0;
+                                    return y.toLocaleString('cs-CZ') + ' Kč';
                                 }
                             }
                         }
@@ -380,6 +477,40 @@
                         }
                     }
                 }
+            };
+
+            if (revenueChart) {
+                revenueChart.destroy();
+            }
+            revenueChart = new Chart(ctx, config);
+        }
+
+        // inicializace
+        if (ctx && fullLabels.length > 0) {
+            rebuildRevenueChart();
+        }
+
+        // změna typu grafu (čára <-> sloupce)
+        if (typeSelect) {
+            typeSelect.addEventListener('change', function () {
+                currentType = this.value || 'line';
+                rebuildRevenueChart();
+            });
+        }
+
+        // přepnutí Kumulativně / Denní
+        if (cumulativeCheckbox) {
+            cumulativeCheckbox.addEventListener('change', function () {
+                showCumulative = this.checked;
+                rebuildRevenueChart();
+            });
+        }
+
+        // změna rozsahu (Celé / 7 / 14 / 30 dní)
+        if (rangeSelect) {
+            rangeSelect.addEventListener('change', function () {
+                currentRange = this.value || 'all';
+                rebuildRevenueChart();
             });
         }
 
@@ -445,9 +576,11 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: function (ctx) {
-                                    const v = ctx.parsed.y ?? 0;
-                                    return v.toLocaleString('cs-CZ') + ' rezervací';
+                                label: function (ctx2) {
+                                    var y = ctx2 && ctx2.parsed && typeof ctx2.parsed.y === 'number'
+                                        ? ctx2.parsed.y
+                                        : 0;
+                                    return y.toLocaleString('cs-CZ') + ' rezervací';
                                 }
                             }
                         }
@@ -471,4 +604,3 @@
         }
     </script>
 }
-

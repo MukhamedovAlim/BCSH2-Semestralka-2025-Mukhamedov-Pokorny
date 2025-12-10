@@ -90,6 +90,56 @@
             text-transform: uppercase;
             letter-spacing: .04em;
         }
+
+        /* ==== GRAF – filtry nad revenueChart ==== */
+
+        /* celý řádek s „Období / Zobrazení / Kumulativně“ */
+        .rev-filter-wrapper {
+            display: flex;
+            justify-content: flex-end; /* filtry doprava */
+            align-items: flex-end; /* zarovnání všech prvků na spodní hranu */
+            gap: 1.5rem; /* mezera mezi boxy */
+            flex-wrap: wrap; /* když je málo místa, mohou spadnout na další řádek */
+        }
+
+        /* skupina s label + selectem (Období, Zobrazení) */
+        .rev-filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+        }
+
+            .rev-filter-group .form-label {
+                margin-bottom: 0.25rem;
+                font-size: .8rem;
+                color: rgba(255, 255, 255, 0.75);
+            }
+
+        /* blok pro checkbox „Kumulativně“ */
+        .rev-filter-check {
+            min-width: 130px;
+            display: flex;
+            align-items: flex-end; /* spodní hrana stejně jako selecty */
+        }
+
+            /* odstraníme defaultní marže form-check, ať to neleze nahoru/dolu */
+            .rev-filter-check .form-check {
+                margin: 0;
+            }
+
+        /* samotné selecty */
+        .rev-filter-select {
+            width: 100%;
+            background: rgba(0, 0, 0, .35);
+            border-color: rgba(255, 255, 255, .16);
+            color: #fff;
+        }
+
+            .rev-filter-select:focus {
+                border-color: #ffc107;
+                box-shadow: 0 0 0 .15rem rgba(255, 193, 7, .25);
+            }
+
     </style>
 </head>
 <body class="app-bg d-flex flex-column min-vh-100">
