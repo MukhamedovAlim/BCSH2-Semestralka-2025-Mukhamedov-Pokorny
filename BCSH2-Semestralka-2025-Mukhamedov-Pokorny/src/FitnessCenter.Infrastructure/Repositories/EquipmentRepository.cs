@@ -254,23 +254,16 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
 
         public async Task<bool> DeleteAsync(int id, string kdo)
         {
-            using var con = (Oracle.ManagedDataAccess.Client.OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
             using var tx = con.BeginTransaction();
 
             try
             {
                 int rows;
 
-                // Smažeme případné podtypy (pokud je používáš)
-                using (var cmd = new OracleCommand("DELETE FROM kardiostroje WHERE idvybaveni = :id", con) { BindByName = true, Transaction = tx })
-                { cmd.Parameters.Add("id", OracleDbType.Int32).Value = id; await cmd.ExecuteNonQueryAsync(); }
-                using (var cmd = new OracleCommand("DELETE FROM posilovacistroje WHERE idvybaveni = :id", con) { BindByName = true, Transaction = tx })
-                { cmd.Parameters.Add("id", OracleDbType.Int32).Value = id; await cmd.ExecuteNonQueryAsync(); }
-                using (var cmd = new OracleCommand("DELETE FROM volnezavazi WHERE idvybaveni = :id", con) { BindByName = true, Transaction = tx })
-                { cmd.Parameters.Add("id", OracleDbType.Int32).Value = id; await cmd.ExecuteNonQueryAsync(); }
-
-                // Hlavní DELETE
-                using (var cmd = new OracleCommand("DELETE FROM VYBAVENI WHERE IDVYBAVENI = :id", con) { BindByName = true, Transaction = tx })
+                using (var cmd = new OracleCommand(
+                    "DELETE FROM VYBAVENI WHERE IDVYBAVENI = :id", con)
+                { BindByName = true, Transaction = tx })
                 {
                     cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
                     rows = await cmd.ExecuteNonQueryAsync();
@@ -278,7 +271,8 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
 
                 // Log
                 using (var log = new OracleCommand(
-                    "INSERT INTO LOG_OPERACE(TABULKA,OPERACE,KDO,POPIS) VALUES('VYBAVENI','DELETE',:kdo,:popis)", con)
+                    "INSERT INTO LOG_OPERACE(TABULKA,OPERACE,KDO,POPIS) " +
+                    "VALUES('VYBAVENI','DELETE',:kdo,:popis)", con)
                 { BindByName = true, Transaction = tx })
                 {
                     log.Parameters.Add("kdo", OracleDbType.Varchar2).Value = kdo;
@@ -289,11 +283,11 @@ SELECT v.idvybaveni, v.nazev, v.typ, NVL(v.stav,'OK'), v.fitnesscentrum_idfitnes
                 tx.Commit();
                 return rows > 0;
             }
-            catch (OracleException ox) when (ox.Number == 2292) // child records exist
+            catch (OracleException ox) when (ox.Number == 2292)
             {
                 tx.Rollback();
-                // necháme vybublat srozumitelně do controlleru
-                throw new InvalidOperationException("Nelze smazat – existují na něj navázané záznamy.", ox);
+                throw new InvalidOperationException(
+                    "Nelze smazat – existují na něj navázané záznamy.", ox);
             }
             catch
             {

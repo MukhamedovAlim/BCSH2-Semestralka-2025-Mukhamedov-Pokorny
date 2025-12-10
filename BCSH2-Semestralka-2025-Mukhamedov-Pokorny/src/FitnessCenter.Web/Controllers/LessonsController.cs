@@ -102,7 +102,6 @@ namespace FitnessCenter.Web.Controllers
             return View(attendees);
         }
 
-
         // Vytvoření lekce – formulář
         [HttpGet]
         public async Task<IActionResult> Create()
@@ -147,6 +146,41 @@ namespace FitnessCenter.Web.Controllers
                 return RedirectToAction(nameof(Create));
             }
 
+            // 2b) kontrola, jestli má trenér jako člen nějakou permici
+            var userEmail = User.FindFirstValue(ClaimTypes.Email);
+            bool hasMembership = false;
+
+            try
+            {
+                using (var con = await DatabaseManager.GetOpenConnectionAsync())
+                using (var cmd = new OracleCommand(@"
+        SELECT COUNT(*)
+          FROM CLENSTVI cs
+          JOIN CLENOVE c ON c.IDCLEN = cs.CLEN_IDCLEN
+         WHERE UPPER(c.EMAIL) = :email",
+                    (OracleConnection)con)
+                { BindByName = true })
+                {
+                    cmd.Parameters.Add("email", OracleDbType.Varchar2)
+                        .Value = (userEmail ?? "").ToUpperInvariant();
+
+                    var result = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    hasMembership = result > 0;
+                }
+            }
+            catch (OracleException ex)
+            {
+                TempData["Err"] = $"Chyba při ověřování permice (DB {ex.Number}).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // NEMÁ žádnou permici → stopka
+            if (!hasMembership)
+            {
+                TempData["Err"] = "Nemáš permici – nemůžeš vytvářet lekce.";
+                return RedirectToAction(nameof(Index));
+            }
+
             // 3) doplnění @NázevFitka do názvu
             if (SelectedFitnessCenterId is > 0)
             {
@@ -177,7 +211,10 @@ namespace FitnessCenter.Web.Controllers
                 TempData["Ok"] = $"Lekce „{model.Nazev}“ byla úspěšně vytvořena.";
                 return RedirectToAction(nameof(Index));
             }
-            catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
+            catch (OracleException ex) when (
+                       ex.Number == 20006
+                    || ex.Number == 20007
+                    || ex.Number == 20010)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
             }
@@ -190,13 +227,11 @@ namespace FitnessCenter.Web.Controllers
                 ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
             }
 
-            // při chybě z DB znovu naplnit fitka + vrátit view
             ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(
                 SelectedFitnessCenterId > 0 ? SelectedFitnessCenterId : null);
             ViewBag.SelectedFitnessCenterId = SelectedFitnessCenterId;
             return View(model);
         }
-
 
         // GET /Lessons/Edit/5
         [HttpGet]
@@ -212,15 +247,12 @@ namespace FitnessCenter.Web.Controllers
                 Zacatek = lesson.Zacatek,
                 Kapacita = lesson.Kapacita,
                 Popis = lesson.Popis,
-
                 SelectedFitnessCenterId = null
             };
 
             ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
-
             return View(vm);
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -244,7 +276,6 @@ namespace FitnessCenter.Web.Controllers
             lesson.Kapacita = vm.Kapacita;
             lesson.Popis = vm.Popis;
 
-            // stejná logika jako v Create – přidání @Fitko do názvu
             if (vm.SelectedFitnessCenterId is > 0)
             {
                 string? fcName = null;
@@ -284,23 +315,21 @@ namespace FitnessCenter.Web.Controllers
             catch (OracleException ex) when (ex.Number == 20006 || ex.Number == 20007)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
-                return View(vm);
             }
             catch (OracleException ex)
             {
                 ModelState.AddModelError(string.Empty, $"Databázová chyba ({ex.Number}): {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
-                return View(vm);
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, $"Neočekávaná chyba: {ex.Message}");
-                ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
-                return View(vm);
             }
+
+            ViewBag.FitnessCenters = await LoadFitnessForSelectAsync(vm.SelectedFitnessCenterId);
+            return View(vm);
         }
 
+        // GET – stránka „Smazat lekci“
         [HttpGet]
         public async Task<IActionResult> Delete()
         {
@@ -314,6 +343,58 @@ namespace FitnessCenter.Web.Controllers
             var list = await _lessons.GetForTrainerAsync(trainerId.Value);
             return View(list);
         }
+
+        // POST – skutečné zrušení lekce pomocí PROC_CANCEL_LEKCE
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        {
+            var trainerId = await GetCurrentTrainerIdAsync();
+            if (trainerId is null)
+            {
+                TempData["Err"] = "Tvůj účet není svázaný s žádným trenérem v databázi.";
+                return RedirectToAction(nameof(Delete));
+            }
+
+            try
+            {
+                using var con = await DatabaseManager.GetOpenConnectionAsync();
+                using var cmd = new OracleCommand("ZRUSIT_LEKCI_TRENER", (OracleConnection)con)
+                {
+                    CommandType = System.Data.CommandType.StoredProcedure,
+                    BindByName = true
+                };
+
+                cmd.Parameters.Add("p_idlecke", OracleDbType.Int32).Value = id;
+                cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = trainerId.Value;
+
+                var pSmazano = new OracleParameter("p_smazano_rez", OracleDbType.Int32)
+                {
+                    Direction = System.Data.ParameterDirection.Output
+                };
+                cmd.Parameters.Add(pSmazano);
+
+                await cmd.ExecuteNonQueryAsync(ct);
+
+                var pocet = Convert.ToInt32(pSmazano.Value.ToString());
+                TempData["Ok"] = $"Lekce byla zrušena. Zrušených rezervací: {pocet}.";
+            }
+            catch (OracleException ex) when (ex.Number == 20060)
+            {
+                TempData["Err"] = ex.Message;
+            }
+            catch (OracleException ex)
+            {
+                TempData["Err"] = $"Zrušení lekce selhalo: ORA-{ex.Number}: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                TempData["Err"] = $"Zrušení lekce selhalo: {ex.Message}";
+            }
+
+            return RedirectToAction(nameof(Delete));
+        }
+
 
         [Authorize(Roles = "Trainer")]
         public async Task<IActionResult> RemoveMember(int lessonId, int memberId)
@@ -339,7 +420,5 @@ namespace FitnessCenter.Web.Controllers
 
             return RedirectToAction(nameof(Attendance), new { id = lessonId });
         }
-
-
     }
 }

@@ -181,15 +181,17 @@ namespace FitnessCenter.Infrastructure.Repositories
         public async Task<int> CancelLessonByTrainerAsync(int lessonId, int trainerId, CancellationToken ct = default)
         {
             using var con = await OpenAsync();
-            using var cmd = new OracleCommand("zrusit_lekci_trener", con)
+            using var cmd = new OracleCommand("ZRUSIT_LEKCI_TRENER", (OracleConnection)con)
             {
-                CommandType = CommandType.StoredProcedure,
+                CommandType = System.Data.CommandType.StoredProcedure,
                 BindByName = true
             };
 
-            cmd.Parameters.Add("p_idlekce", OracleDbType.Int32).Value = lessonId;
-            cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = trainerId;
+            // IN parametry
+            cmd.Parameters.Add("p_idlecke", OracleDbType.Int32).Value = lessonId;   // ID lekce
+            cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = trainerId;  // ID trenéra
 
+            // OUT parametr
             var outParam = new OracleParameter("p_smazano_rez", OracleDbType.Int32)
             {
                 Direction = ParameterDirection.Output
@@ -198,11 +200,11 @@ namespace FitnessCenter.Infrastructure.Repositories
 
             try
             {
-                // ODP.NET podporuje async; tam kde to jde, předej ct
                 await cmd.ExecuteNonQueryAsync(ct);
 
                 // Bezpečný převod výstupu (bývá OracleDecimal)
                 var val = outParam.Value;
+
                 if (val is OracleDecimal od && !od.IsNull)
                     return (int)od.Value;
 
@@ -321,10 +323,32 @@ namespace FitnessCenter.Infrastructure.Repositories
         public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
         {
             using var con = await OpenAsync();
-            using var cmd = new OracleCommand("DELETE FROM lekce WHERE idlekce = :id", con) { BindByName = true };
-            cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
-            var rows = await cmd.ExecuteNonQueryAsync(ct);
-            return rows > 0;
+
+            using var cmd = new OracleCommand("PROC_CANCEL_LEKCE", con)
+            {
+                BindByName = true,
+                CommandType = System.Data.CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.Add("p_idlekce", OracleDbType.Int32).Value = id;
+
+            var pRelek = new OracleParameter("p_del_relekci", OracleDbType.Int32)
+            { Direction = System.Data.ParameterDirection.Output };
+            cmd.Parameters.Add(pRelek);
+
+            var pRez = new OracleParameter("p_del_rez", OracleDbType.Int32)
+            { Direction = System.Data.ParameterDirection.Output };
+            cmd.Parameters.Add(pRez);
+
+            var pLekce = new OracleParameter("p_del_lekce", OracleDbType.Int32)
+            { Direction = System.Data.ParameterDirection.Output };
+            cmd.Parameters.Add(pLekce);
+
+            await cmd.ExecuteNonQueryAsync(ct);
+
+            // lekce byla smazána?
+            int deleted = Convert.ToInt32(pLekce.Value.ToString());
+            return deleted > 0;
         }
 
         public async Task<int?> GetTrainerIdByEmailAsync(string email)
