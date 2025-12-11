@@ -8,8 +8,10 @@ using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
@@ -218,6 +220,7 @@ namespace FitnessCenter.Web.Controllers
         // ==========================
         //   EDIT TRENÉRA
         // ==========================
+
         // GET /AdminTrainers/Edit/5
         [HttpGet("Edit/{id:int}")]
         public async Task<IActionResult> Edit(int id)
@@ -227,10 +230,10 @@ namespace FitnessCenter.Web.Controllers
 
             using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
             using var cmd = new OracleCommand(@"
-                SELECT idtrener, jmeno, prijmeni, email, telefon
-                  FROM TRENERI
-                 WHERE idtrener = :id
-            ", con)
+        SELECT idtrener, jmeno, prijmeni, email, telefon
+          FROM TRENERI
+         WHERE idtrener = :id
+    ", con)
             { BindByName = true };
 
             cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
@@ -245,10 +248,10 @@ namespace FitnessCenter.Web.Controllers
             var vm = new TrainerEditViewModel
             {
                 TrainerId = rd.GetInt32(0),
-                Jmeno = rd.IsDBNull(1) ? null : rd.GetString(1),
-                Prijmeni = rd.IsDBNull(2) ? null : rd.GetString(2),
-                Email = rd.IsDBNull(3) ? null : rd.GetString(3),
-                Telefon = rd.IsDBNull(4) ? null : rd.GetString(4)
+                Jmeno = rd.IsDBNull(1) ? string.Empty : rd.GetString(1),
+                Prijmeni = rd.IsDBNull(2) ? string.Empty : rd.GetString(2),
+                Email = rd.IsDBNull(3) ? string.Empty : rd.GetString(3),
+                Telefon = rd.IsDBNull(4) ? string.Empty : rd.GetString(4)
             };
 
             return View(vm); // Views/AdminTrainers/Edit.cshtml
@@ -263,26 +266,55 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.Active = "Admin";
 
             // sladit ID z URL a z formuláře
-            if (vm.TrainerId <= 0) vm.TrainerId = id;
+            if (vm.TrainerId <= 0)
+                vm.TrainerId = id;
+
             if (vm.TrainerId != id)
-                ModelState.AddModelError(nameof(vm.TrainerId), "Nesouhlasí ID v adrese a ve formuláři.");
+                ModelState.AddModelError(nameof(vm.TrainerId),
+                    "Nesouhlasí ID v adrese a ve formuláři.");
 
             // otrimujeme vstupy
-            vm.Jmeno = vm.Jmeno?.Trim();
-            vm.Prijmeni = vm.Prijmeni?.Trim();
-            vm.Email = vm.Email?.Trim();
-            vm.Telefon = vm.Telefon?.Trim();
+            vm.Jmeno = vm.Jmeno?.Trim() ?? string.Empty;
+            vm.Prijmeni = vm.Prijmeni?.Trim() ?? string.Empty;
+            vm.Email = vm.Email?.Trim() ?? string.Empty;
+            vm.Telefon = vm.Telefon?.Trim() ?? string.Empty;
+
+            // --- jednoduchá server-side validace ---
 
             if (string.IsNullOrWhiteSpace(vm.Jmeno))
                 ModelState.AddModelError(nameof(vm.Jmeno), "Zadej jméno.");
+
             if (string.IsNullOrWhiteSpace(vm.Prijmeni))
                 ModelState.AddModelError(nameof(vm.Prijmeni), "Zadej příjmení.");
-            if (string.IsNullOrWhiteSpace(vm.Email))
-                ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
 
+            // e-mail – povinný + základní formát
+            if (string.IsNullOrWhiteSpace(vm.Email))
+            {
+                ModelState.AddModelError(nameof(vm.Email), "Zadej e-mail.");
+            }
+            else
+            {
+                var emailAttr = new EmailAddressAttribute();
+                if (!emailAttr.IsValid(vm.Email))
+                    ModelState.AddModelError(nameof(vm.Email), "Zadej platný e-mail.");
+            }
+
+            // telefon – povinný + 9 číslic
+            if (string.IsNullOrWhiteSpace(vm.Telefon))
+            {
+                ModelState.AddModelError(nameof(vm.Telefon), "Zadej telefon.");
+            }
+            else if (!Regex.IsMatch(vm.Telefon, @"^\d{9}$"))
+            {
+                ModelState.AddModelError(nameof(vm.Telefon),
+                    "Telefon musí mít 9 číslic bez mezer (např. 777123456).");
+            }
+
+            // pokud je v ModelState cokoli, vrátíme formulář
             if (!ModelState.IsValid)
                 return View(vm);
 
+            // --- DB UPDATE přes proceduru ---
             try
             {
                 using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
@@ -294,13 +326,13 @@ namespace FitnessCenter.Web.Controllers
 
                 cmd.Parameters.Add("p_idtrener", OracleDbType.Int32).Value = vm.TrainerId;
                 cmd.Parameters.Add("p_jmeno", OracleDbType.Varchar2).Value =
-                    (object?)vm.Jmeno ?? DBNull.Value;
+                    string.IsNullOrEmpty(vm.Jmeno) ? (object)DBNull.Value : vm.Jmeno;
                 cmd.Parameters.Add("p_prijmeni", OracleDbType.Varchar2).Value =
-                    (object?)vm.Prijmeni ?? DBNull.Value;
+                    string.IsNullOrEmpty(vm.Prijmeni) ? (object)DBNull.Value : vm.Prijmeni;
                 cmd.Parameters.Add("p_telefon", OracleDbType.Varchar2).Value =
-                    string.IsNullOrWhiteSpace(vm.Telefon) ? (object)DBNull.Value : vm.Telefon;
+                    string.IsNullOrEmpty(vm.Telefon) ? (object)DBNull.Value : vm.Telefon;
                 cmd.Parameters.Add("p_email", OracleDbType.Varchar2).Value =
-                    (object?)vm.Email ?? DBNull.Value;
+                    string.IsNullOrEmpty(vm.Email) ? (object)DBNull.Value : vm.Email;
 
                 await cmd.ExecuteNonQueryAsync();
 
@@ -314,7 +346,9 @@ namespace FitnessCenter.Web.Controllers
             }
             catch (OracleException ox) when (ox.Number == 20052)
             {
-                ModelState.AddModelError(string.Empty, "Telefon nebo e-mail je již použit u jiného trenéra.");
+                // uníkátní telefon / e-mail
+                ModelState.AddModelError(string.Empty,
+                    "Telefon nebo e-mail je již použit u jiného trenéra.");
                 return View(vm);
             }
             catch (OracleException ox)

@@ -50,6 +50,7 @@
     var equipOkCounts = ViewBag.EquipOkCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
     var equipRepairCounts = ViewBag.EquipRepairCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
     var equipOutCounts = ViewBag.EquipOutCounts as IEnumerable<int> ?? Enumerable.Empty<int>();
+
 }
 
 <style>
@@ -316,8 +317,8 @@
                         <select id="revRange" class="form-select form-select-sm rev-filter-select">
                             <option value="7">Posledních 7 dní</option>
                             <option value="14">Posledních 14 dní</option>
-                            <option value="30" selected>Posledních 30 dní</option>
-                            <option value="all">Celé období</option>
+                            <option value="30">Posledních 30 dní</option>
+                            <option value="all" selected>Celé období</option>
                         </select>
                     </div>
 
@@ -429,21 +430,60 @@
         let currentRange = 'all';
         let revenueChart = null;
 
+        // pomocná funkce – datum ve formátu "dd.MM.yyyy" -> Date
+        function parseCzDate(str) {
+            if (!str) return null;
+            const parts = str.split(".");
+            if (parts.length < 3) return null;
+
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1; // měsíce 0–11
+            const y = parseInt(parts[2], 10);
+
+            if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+            return new Date(y, m, d);
+        }
+
         function sliceByRange(labels, daily, cumulative, rangeKey) {
             if (!labels.length) {
                 return { labels: [], daily: [], cumulative: [] };
             }
 
             if (rangeKey === 'all') {
-                return { labels: labels, daily: daily, cumulative: cumulative };
+                return { labels, daily, cumulative };
             }
 
             const n = parseInt(rangeKey, 10);
             if (isNaN(n) || n <= 0) {
-                return { labels: labels, daily: daily, cumulative: cumulative };
+                return { labels, daily, cumulative };
             }
 
-            const startIndex = Math.max(labels.length - n, 0);
+            // vezmeme datum POSLEDNÍHO bodu a spočítáme "od" (n-1 dní zpět)
+            const lastLabel = labels[labels.length - 1];
+            const lastDate = parseCzDate(lastLabel);
+            if (!lastDate) {
+                // fallback – kdyby se datum nepodařilo parse-nout, chovej se jako dřív
+                const startIndexFallback = Math.max(labels.length - n, 0);
+                return {
+                    labels: labels.slice(startIndexFallback),
+                    daily: daily.slice(startIndexFallback),
+                    cumulative: cumulative.slice(startIndexFallback)
+                };
+            }
+
+            const minDate = new Date(lastDate);
+            minDate.setDate(minDate.getDate() - (n - 1));
+
+            // najdeme první index, který už spadá do rozsahu
+            let startIndex = 0;
+            for (let i = 0; i < labels.length; i++) {
+                const d = parseCzDate(labels[i]);
+                if (d && d >= minDate) {
+                    startIndex = i;
+                    break;
+                }
+            }
+
             return {
                 labels: labels.slice(startIndex),
                 daily: daily.slice(startIndex),

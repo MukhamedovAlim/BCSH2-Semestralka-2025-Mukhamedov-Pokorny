@@ -191,7 +191,6 @@ namespace FitnessCenter.Web.Controllers
                 items.Add(new SelectListItem { Value = rd.GetInt32(0).ToString(), Text = rd.GetString(1) });
             return items;
         }
-
         // ===== Admin dashboard – statistiky + 3 funkce =====
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Admin(int? fitko = null, DateTime? od = null, DateTime? @do = null, int? memberId = null)
@@ -202,9 +201,9 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.FitnessCenters = await LoadFitnessCentersAsync();
             ViewBag.Fitka = ViewBag.FitnessCenters;
 
-            // parametry pro funkční boxy
+            // ===== 1) Parametry pro FUNKČNÍ boxy (aktivní členové, příjem, hodnocení) =====
             int fitkoId = fitko.GetValueOrDefault(1);
-            var from = od ?? DateTime.Today.AddDays(-30);
+            var from = od ?? DateTime.Today.AddDays(-30);   // pro funkce
             var to = @do ?? DateTime.Today;
 
             // seznam členů pro vybrané fitko (pro dropdown)
@@ -288,7 +287,7 @@ ORDER  BY fc.nazev";
 
             ViewBag.MembersCount = members;
             ViewBag.TrainersCount = trainers;
-            ViewBag.LessonsToday = lessonsCount; // teď obsahuje VŠECHNY lekce
+            ViewBag.LessonsToday = lessonsCount; // (pokud chceš fakt "dnešní", musí se dotaz upravit)
             ViewBag.PendingPayments = pendingPayments;
             ViewBag.AdminMessagesCnt = 0;
             ViewBag.LogCount = logCount;
@@ -300,13 +299,13 @@ ORDER  BY fc.nazev";
             ViewBag.EquipRepairCounts = equipRepairCounts;
             ViewBag.EquipOutCounts = equipOutCounts;
 
-            // 3 FUNKCE
+            // ===== 3 FUNKCE (aktivní členové, příjem, hodnocení) =====
             try
             {
                 // 1) aktivní členové ve fitku
                 ViewBag.ActiveMembersFunc = await _stats.GetActiveMembersAsync(fitkoId);
 
-                // 2) příjem za období
+                // 2) příjem za zvolené období (from/to z filtru)
                 ViewBag.IncomeFunc = await _stats.GetIncomeAsync(from, to);
 
                 // 3) hodnocení člena
@@ -328,10 +327,37 @@ ORDER  BY fc.nazev";
                 TempData["Err"] = "Chyba při volání funkcí: " + ex.Message;
             }
 
-            //DATA PRO GRAF TRŽEB
+            // ===== DATA PRO GRAF TRŽEB – VLASTNÍ OBDOBÍ (nezávislé na from/to) =====
             try
             {
-                var (days, revenue) = await _dashboard.GetDailyRevenueAsync(from, to);
+                var revTo = DateTime.Today;
+
+                // 1) Zjistíme nejstarší datum platby v DB
+                DateTime revFrom;
+
+                using (var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync())
+                using (var cmd = new OracleCommand("SELECT MIN(TRUNC(datumplatby)) FROM platby", con))
+                {
+                    var obj = await cmd.ExecuteScalarAsync();
+                    if (obj != null && obj != DBNull.Value)
+                    {
+                        revFrom = ((DateTime)obj).Date;
+                    }
+                    else
+                    {
+                        // fallback – kdyby v DB nebyly žádné platby
+                        revFrom = revTo.AddDays(-30);
+                    }
+                }
+
+                // 2) Omezíme začátek MINIMÁLNĚ na 20.10. tohoto roku,
+                //    aby graf nebyl zbytečně roztažený dozadu
+                var hardMin = new DateTime(revTo.Year, 10, 20);
+                if (revFrom < hardMin)
+                    revFrom = hardMin;
+
+                // 3) Natáhneme data pro graf (od revFrom do dneška)
+                var (days, revenue) = await _dashboard.GetDailyRevenueAsync(revFrom, revTo);
                 ViewBag.RevenueLabels = days;
                 ViewBag.RevenueValues = revenue;
             }
@@ -364,6 +390,7 @@ ORDER  BY fc.nazev";
                 TempData["Err"] = "Chyba při načítání nejvytíženějších trenérů: " + ex.Message;
             }
 
+            // from/to zůstává pro funkční boxy (příjem za období)
             ViewBag.FitkoId = fitkoId;
             ViewBag.PeriodFrom = from;
             ViewBag.PeriodTo = to;
