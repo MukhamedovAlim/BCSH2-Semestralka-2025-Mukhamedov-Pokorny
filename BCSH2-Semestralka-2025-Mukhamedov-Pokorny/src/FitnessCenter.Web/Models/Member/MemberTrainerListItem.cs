@@ -10,6 +10,7 @@ namespace FitnessCenter.Web.Models.Member
         public string Prijmeni { get; set; } = "";
         public string Telefon { get; set; } = "";
 
+        public string Email { get; set; } = "";
         public string CeleJmeno => $"{Jmeno} {Prijmeni}";
     }
 

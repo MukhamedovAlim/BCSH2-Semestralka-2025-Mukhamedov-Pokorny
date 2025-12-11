@@ -32,6 +32,27 @@
             </h5>
             <div class="accent-line mb-3"></div>
 
+            <!-- avatar trenéra -->
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center"
+                     style="width:64px;height:64px;font-size:1.5rem;overflow:hidden;">
+                    @if (!string.IsNullOrWhiteSpace(Model.ProfilePhotoUrl))
+                    {
+                        <img src="@Model.ProfilePhotoUrl"
+                             alt="Profilová fotka"
+                             style="width:100%;height:100%;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <span class="text-white fw-bold">@Model.Initials</span>
+                    }
+                </div>
+                <div>
+                    <div class="text-white fw-semibold">@Model.Jmeno @Model.Prijmeni</div>
+                    <div class="text-white-50 small">@Model.Email</div>
+                </div>
+            </div>
+
             <div class="mb-2">
                 <div class="text-white-50 small">Jméno</div>
                 <div class="text-white fw-semibold">@Model.Jmeno @Model.Prijmeni</div>
@@ -45,7 +66,14 @@
             <div class="mb-2">
                 <div class="text-white-50 small">Telefon</div>
                 <div class="text-white">
-                    @(string.IsNullOrWhiteSpace(Model.Telefon) ? "—" : Model.Telefon)
+                    @if (User?.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        @(string.IsNullOrWhiteSpace(Model.Telefon) ? "—" : Model.Telefon)
+                    }
+                    else
+                    {
+                        <span class="text-white-50">Pouze pro přihlášené uživatele</span>
+                    }
                 </div>
             </div>
 

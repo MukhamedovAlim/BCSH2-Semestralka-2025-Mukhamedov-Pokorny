@@ -8,6 +8,19 @@
     var filterTyp = ViewBag.SelectedTyp as string; // můžeš používat stejně jako u interní verze
     var fitka = ViewBag.Fitka as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();
     int? fitkoId = ViewBag.FitkoId as int?;
+
+    // helper pro barvičky stavu
+    string GetStatusClass(string stav)
+    {
+        var s = (stav ?? "").Trim().ToUpperInvariant();
+        return s switch
+        {
+            "OK" => "badge bg-success",              // zelená
+            "OPRAVA" => "badge bg-warning text-dark",    // žlutá
+            "MIMO PROVOZ" => "badge bg-danger",               // červená
+            _ => "badge bg-secondary"
+        };
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -79,11 +92,10 @@
                             Fitko: <strong class="text-white">@it.Fitko</strong>
                         </div>
                         <div class="text-white-50 small mb-1">
-                            Stav: <strong class="text-white">@it.Stav</strong>
+                            Stav:
+                            <span class="@GetStatusClass(it.Stav) ms-1">@it.Stav</span>
                         </div>
-                        <div class="text-white-50 small">
-                            ID: <span class="text-white">@it.Id</span>
-                        </div>
+
                     </div>
                 </div>
             }

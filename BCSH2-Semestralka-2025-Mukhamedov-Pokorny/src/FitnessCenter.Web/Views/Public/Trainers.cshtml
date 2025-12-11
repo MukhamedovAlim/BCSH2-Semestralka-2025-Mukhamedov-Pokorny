@@ -26,22 +26,31 @@
     else
     {
         <table class="table table-dark table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Jméno</th>
-                    <th>Telefon</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in Model)
-                {
-                    <tr class="cursor-pointer"
-                        onclick="location.href='@Url.Action("TrainerDetail", "Public", new { id = t.Id })'">
-                        <td>@t.CeleJmeno</td>
-                        <td>@(string.IsNullOrWhiteSpace(t.Telefon) ? "—" : t.Telefon)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <thead>
+        <tr>
+            <th>Jméno</th>
+            <th>Kontakt</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var t in Model)
+        {
+            <tr class="cursor-pointer"
+                onclick="location.href='@Url.Action("TrainerDetail", "Public", new { id = t.Id })'">
+                <td>@t.CeleJmeno</td>
+                        <td>
+                            @if (User?.Identity != null && User.Identity.IsAuthenticated)
+                            {
+                                @(string.IsNullOrWhiteSpace(t.Telefon) ? "—" : t.Telefon)
+                            }
+                            else
+                            {
+                                @(string.IsNullOrWhiteSpace(t.Email) ? "—" : t.Email)
+                            }
+                        </td>
+            </tr>
+        }
+    </tbody>
+</table>
     }
 </div>

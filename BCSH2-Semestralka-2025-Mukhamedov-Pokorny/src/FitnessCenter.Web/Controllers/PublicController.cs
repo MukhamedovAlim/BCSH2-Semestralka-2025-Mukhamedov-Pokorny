@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections.Generic;
+using System.Linq; // <-- přidáno
 using System.Threading.Tasks;
 
 namespace FitnessCenter.Web.Controllers
@@ -28,16 +29,21 @@ namespace FitnessCenter.Web.Controllers
             return View();
         }
 
-        // Veřejný rozvrh – bez osobních údajů, jen název, datum, volná místa
+        // Veřejný rozvrh – bez osobních údajů, jen název, datum, kapacita a volná místa
         public async Task<IActionResult> Lessons()
         {
-            var list = new List<(int Id, string Nazev, DateTime Datum, int Volno)>();
+            // Id, Název, Datum, Kapacita, Volno
+            var list = new List<(int Id, string Nazev, DateTime Datum, int Kapacita, int Volno)>();
 
             try
             {
                 using var con = await DatabaseManager.GetOpenConnectionAsync();
                 using var cmd = new OracleCommand(@"
-                    SELECT idlekce, nazevlekce, datumlekce, volno
+                    SELECT idlekce,
+                           nazevlekce,
+                           datumlekce,
+                           kapacita,
+                           volno
                     FROM v_lekce_volne
                     WHERE datumlekce >= SYSDATE
                     ORDER BY datumlekce", (OracleConnection)con);
@@ -46,10 +52,11 @@ namespace FitnessCenter.Web.Controllers
                 while (await rd.ReadAsync())
                 {
                     list.Add((
-                        rd.GetInt32(0),
-                        rd.GetString(1),
-                        rd.GetDateTime(2),
-                        rd.GetInt32(3)
+                        rd.GetInt32(0),     // Id
+                        rd.GetString(1),    // Nazev
+                        rd.GetDateTime(2),  // Datum
+                        rd.GetInt32(3),     // Kapacita
+                        rd.GetInt32(4)      // Volno
                     ));
                 }
             }
@@ -73,7 +80,8 @@ namespace FitnessCenter.Web.Controllers
                     SELECT idtrener,
                            jmeno,
                            prijmeni,
-                           telefon
+                           telefon,
+                           email
                     FROM treneri
                     ORDER BY prijmeni, jmeno", (OracleConnection)con);
 
@@ -84,13 +92,15 @@ namespace FitnessCenter.Web.Controllers
                     var jmeno = rd.GetString(1);
                     var prijmeni = rd.GetString(2);
                     var telefon = rd.IsDBNull(3) ? "" : rd.GetString(3);
+                    var email = rd.IsDBNull(4) ? "" : rd.GetString(4);
 
                     list.Add(new MemberTrainerListItem
                     {
                         Id = id,
                         Jmeno = jmeno,
                         Prijmeni = prijmeni,
-                        Telefon = telefon
+                        Telefon = telefon,
+                        Email = email
                     });
                 }
             }
@@ -200,8 +210,6 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.SelectedTyp = typ;
             ViewBag.FitkoId = fitko;
 
-            // Fitka – použijeme stejný helper jako v EquipmentController,
-            // jen zkopírovaný sem s jiným jménem, ať je to nezávislé.
             var fitka = await LoadFitnessCentersForPublicAsync();
             ViewBag.Fitka = fitka;
 
@@ -226,8 +234,6 @@ namespace FitnessCenter.Web.Controllers
             return View(vm); // Views/Public/Equipments.cshtml
         }
 
-        // stejný dotaz na fitness centra jako v EquipmentController,
-        // jen přejmenovaný
         private static async Task<List<SelectListItem>> LoadFitnessCentersForPublicAsync()
         {
             var items = new List<SelectListItem>();
