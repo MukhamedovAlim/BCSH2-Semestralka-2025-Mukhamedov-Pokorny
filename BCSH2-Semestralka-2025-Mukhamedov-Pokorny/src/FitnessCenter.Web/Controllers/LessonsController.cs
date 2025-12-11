@@ -420,5 +420,63 @@ namespace FitnessCenter.Web.Controllers
 
             return RedirectToAction(nameof(Attendance), new { id = lessonId });
         }
+        // ===== Detail lekce do modálního dialogu (partial view) =====
+        // GET /Lessons/DetailDialog/5
+        [HttpGet]
+        public async Task<IActionResult> DetailDialog(int id, CancellationToken ct)
+        {
+            // samotná lekce
+            var lesson = await _lessons.GetAsync(id);
+            if (lesson == null)
+                return NotFound();
+
+            // účastníci -> do budoucna
+            var attendees = await _lessons.GetAttendeesAsync(id, ct);
+
+            // --- zjistit jméno trenéra ---
+            string trainerName = "—";
+            try
+            {
+                using var con = await DatabaseManager.GetOpenConnectionAsync();
+                using var cmd = new OracleCommand(@"
+            SELECT t.jmeno, t.prijmeni
+              FROM TRENERI t
+              JOIN LEKCE l ON l.TRENER_IDTRENER = t.IDTRENER
+             WHERE l.IDLEKCE = :id
+        ", (OracleConnection)con)
+                { BindByName = true };
+
+                cmd.Parameters.Add("id", OracleDbType.Int32).Value = id;
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                if (await rd.ReadAsync())
+                {
+                    // „Příjmení Jméno“
+                    trainerName = $"{rd.GetString(1)} {rd.GetString(0)}";
+                }
+            }
+            catch
+            {
+                //zobrazí „—“
+            }
+
+            var vm = new LessonDetailDialogViewModel
+            {
+                Id = lesson.Id,
+                Nazev = lesson.Nazev,
+                Zacatek = lesson.Zacatek,
+                Mistnost = lesson.Mistnost,
+                Kapacita = lesson.Kapacita,
+                Reserved = attendees.Count,
+                TrainerName = trainerName,
+                Attendees = attendees.Select(a => new LessonDetailAttendeeRow
+                {
+                    Jmeno = a.FullName,
+                    Email = a.Email
+                }).ToList()
+            };
+
+            return PartialView("_LessonDetailDialog", vm);
+        }
     }
 }

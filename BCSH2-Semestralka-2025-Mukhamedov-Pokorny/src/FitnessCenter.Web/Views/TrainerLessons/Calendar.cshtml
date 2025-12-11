@@ -77,6 +77,7 @@
         text-overflow: clip;
         line-height: 1.1;
         font-size: 0.75rem;
+        cursor: pointer;
     }
 
     .cal-event-time {
@@ -162,7 +163,9 @@
                     {
                         @foreach (var l in lessonsForDay.OrderBy(x => x.Zacatek))
                         {
-                            <div class="cal-event" title="@($"{l.Zacatek:HH:mm} {l.Nazev}")">
+                            <div class="cal-event"
+                                 title="@($"{l.Zacatek:HH:mm} {l.Nazev}")"
+                                 onclick="openLessonDetail(@l.Id)">
                                 <span class="cal-event-time">@l.Zacatek.ToString("HH:mm")</span>
                                 @l.Nazev
                             </div>
@@ -185,3 +188,36 @@
         }
     </div>
 </div>
+
+<div class="modal fade" id="lessonDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content glass"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const lessonDetailUrlBase = '@Url.Action("DetailDialog", "Lessons")';
+
+        function openLessonDetail(lessonId) {
+            const modalEl = document.getElementById('lessonDetailModal');
+            const modalContent = modalEl.querySelector('.modal-content');
+
+            modalContent.innerHTML = '<div class="p-4 text-center text-white-50">Načítám…</div>';
+
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            fetch(lessonDetailUrlBase + '/' + lessonId)
+                .then(r => r.text())
+                .then(html => {
+                    modalContent.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error(err);
+                    modalContent.innerHTML =
+                        '<div class="p-4 text-danger">Nepodařilo se načíst detail lekce.</div>';
+                });
+        }
+    </script>
+}

@@ -37,6 +37,7 @@ namespace FitnessCenter.Web.Controllers
         public async Task<IActionResult> Create(CalendarEventCreateViewModel model)
         {
 
+
             if (!ModelState.IsValid)
             {
                 return View(model);
@@ -55,7 +56,7 @@ namespace FitnessCenter.Web.Controllers
                 using var cmd = new OracleCommand(sql, con) { BindByName = true };
                 cmd.Parameters.Add("d", OracleDbType.Date).Value = model.Date.Date;
                 cmd.Parameters.Add("t", OracleDbType.Varchar2).Value = model.Type ?? "";
-                cmd.Parameters.Add("p", OracleDbType.Varchar2).Value = model.Text ?? "";
+                cmd.Parameters.Add("p", OracleDbType.Varchar2).Value = model.Description ?? ""; // <<< tady
                 cmd.Parameters.Add("f", OracleDbType.Int32).Value =
                     (object?)model.FitnessId ?? DBNull.Value;
                 cmd.Parameters.Add("who", OracleDbType.Varchar2).Value =
@@ -74,6 +75,7 @@ namespace FitnessCenter.Web.Controllers
                 return View(model);
             }
         }
+
 
         // ====== EDIT GET ======
         [HttpGet]
@@ -98,7 +100,7 @@ namespace FitnessCenter.Web.Controllers
                 Id = rd.GetInt32(0),
                 Date = rd.GetDateTime(1),
                 Type = rd.GetString(2),
-                Text = rd.GetString(3),
+                Description = rd.GetString(3),   // <<< místo Text
                 FitnessId = rd.IsDBNull(4) ? (int?)null : rd.GetInt32(4)
             };
 
@@ -117,17 +119,17 @@ namespace FitnessCenter.Web.Controllers
             using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
 
             const string sql = @"
-                UPDATE KALENDAR_AKCE
-                   SET DATUM = :d,
-                       TYP   = :t,
-                       POPIS = :p,
-                       FITNESSCENTRUM_IDFITNESS = :f
-                 WHERE IDAKCE = :id";
+    UPDATE KALENDAR_AKCE
+       SET DATUM = :d,
+           TYP   = :t,
+           POPIS = :p,
+           FITNESSCENTRUM_IDFITNESS = :f
+     WHERE IDAKCE = :id";
 
             using var cmd = new OracleCommand(sql, con) { BindByName = true };
             cmd.Parameters.Add("d", OracleDbType.Date).Value = model.Date.Date;
             cmd.Parameters.Add("t", OracleDbType.Varchar2).Value = model.Type;
-            cmd.Parameters.Add("p", OracleDbType.Varchar2).Value = model.Text;
+            cmd.Parameters.Add("p", OracleDbType.Varchar2).Value = model.Description ?? "";
             cmd.Parameters.Add("f", OracleDbType.Int32).Value =
                 (object?)model.FitnessId ?? DBNull.Value;
             cmd.Parameters.Add("id", OracleDbType.Int32).Value = model.Id.Value;

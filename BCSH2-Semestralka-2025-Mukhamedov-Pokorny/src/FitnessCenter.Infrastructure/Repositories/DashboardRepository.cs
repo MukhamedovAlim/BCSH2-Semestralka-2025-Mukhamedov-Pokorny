@@ -24,7 +24,7 @@ namespace FitnessCenter.Infrastructure.Repositories
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                mesice.Add(reader.GetString(0));   // MESIC (např. 2025-11)
+                mesice.Add(reader.GetString(0));   // MESIC
                 trzby.Add(reader.GetDecimal(1));   // TRZBA
             }
 
@@ -33,23 +33,25 @@ namespace FitnessCenter.Infrastructure.Repositories
 
         // --- DENNÍ TRŽBY pro HomeController.Admin ---
         public async Task<(List<string> Days, List<decimal> Revenue)> GetDailyRevenueAsync(
-        DateTime from,
-        DateTime to)
+            DateTime from,
+            DateTime to)
         {
             var byDay = new Dictionary<DateTime, decimal>();
 
-            using var con = await DatabaseManager.GetOpenConnectionAsync();
-            using var cmd = new OracleCommand(@"
-            SELECT TRUNC(p.datumplatby) AS den,
-                   SUM(p.castka)        AS suma
-            FROM   platby p
-            WHERE  p.datumplatby >= :p_from
-               AND p.datumplatby <= :p_to
-               AND p.stavplatby_idstavplatby = 2      -- <<< jen zaplacené platby
-            GROUP BY TRUNC(p.datumplatby)
-            ORDER BY den
-        ", (OracleConnection)con)
-            { BindByName = true };
+            const string sql = @"
+        SELECT TRUNC(p.datumplatby) AS den,
+               SUM(p.castka)        AS suma
+        FROM   platby p
+        WHERE  TRUNC(p.datumplatby) BETWEEN :p_from AND :p_to
+           AND p.stavplatby_idstavplatby = 2  -- jen zaplacené
+        GROUP BY TRUNC(p.datumplatby)
+        ORDER BY TRUNC(p.datumplatby)";
+
+            using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
+            using var cmd = new OracleCommand(sql, con)
+            {
+                BindByName = true
+            };
 
             cmd.Parameters.Add("p_from", OracleDbType.Date).Value = from.Date;
             cmd.Parameters.Add("p_to", OracleDbType.Date).Value = to.Date;

@@ -18,7 +18,7 @@ namespace FitnessCenter.Web.Models.Lessons
         [Required(ErrorMessage = "Popis akce je povinný.")]
         [StringLength(400)]
         [Display(Name = "Popis")]
-        public string Text { get; set; } = "";
+        public string? Description { get; set; }
 
         public int? FitnessId { get; set; }
     }

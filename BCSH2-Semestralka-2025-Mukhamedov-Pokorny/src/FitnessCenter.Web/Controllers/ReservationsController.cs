@@ -1,6 +1,7 @@
 ﻿using FitnessCenter.Domain.Entities;
 using FitnessCenter.Infrastructure.Persistence;      // DatabaseManager
 using FitnessCenter.Infrastructure.Repositories;
+using FitnessCenter.Web.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;              // OracleCommand
@@ -25,15 +26,10 @@ namespace FitnessCenter.Web.Controllers
             _members = members;
         }
 
-        private async Task<int> ResolveMemberId()
+        private Task<int> ResolveMemberId()
         {
-            if (int.TryParse(User.FindFirst("ClenId")?.Value, out var id) && id > 0)
-                return id;
-
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrWhiteSpace(email)) return 0;
-
-            return (await _members.GetMemberIdByEmailAsync(email)) ?? 0;
+            int id = User.GetRequiredCurrentMemberId();
+            return Task.FromResult(id);
         }
 
         // helper: načte volná místa pro dané lekce z v_lekce_volne
@@ -49,11 +45,11 @@ namespace FitnessCenter.Web.Controllers
             var sql = $@"
         SELECT idlekce, volno
         FROM v_lekce_volne
-        WHERE idlekce IN ({string.Join(",", paramNames)})
-    ";
+        WHERE idlekce IN ({string.Join(",", paramNames)})";
 
             using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
-            for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add($"p{i}", OracleDbType.Int32).Value = ids[i];
+            for (int i = 0; i < ids.Count; i++)
+                cmd.Parameters.Add($"p{i}", OracleDbType.Int32).Value = ids[i];
 
             using var rd = await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection);
             while (await rd.ReadAsync())
@@ -81,7 +77,8 @@ namespace FitnessCenter.Web.Controllers
          GROUP BY l.idlekce, l.obsazenost";
 
             using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
-            for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add($"p{i}", ids[i]);
+            for (int i = 0; i < ids.Count; i++)
+                cmd.Parameters.Add($"p{i}", ids[i]);
 
             using var rd = await cmd.ExecuteReaderAsync();
             while (await rd.ReadAsync())
@@ -89,7 +86,6 @@ namespace FitnessCenter.Web.Controllers
 
             return map;
         }
-
 
         // ===================== pomocné loadery trenérů =====================
 
@@ -102,18 +98,15 @@ namespace FitnessCenter.Web.Controllers
 
             using var con = await DatabaseManager.GetOpenConnectionAsync();
 
-            // Oracle: bezpečný IN s parametry
             var p = ids.Select((_, i) => $":p{i}").ToArray();
             var sql = $@"
         SELECT l.idlekce,
                TRIM(NVL(t.jmeno, '') || ' ' || NVL(t.prijmeni, '')) AS trener
           FROM lekce l
           LEFT JOIN treneri t ON t.idtrener = l.trener_idtrener
-         WHERE l.idlekce IN ({string.Join(",", p)})
-    ";
+         WHERE l.idlekce IN ({string.Join(",", p)})";
 
-            using var cmd = new Oracle.ManagedDataAccess.Client.OracleCommand(sql, (Oracle.ManagedDataAccess.Client.OracleConnection)con)
-            { BindByName = true };
+            using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
 
             for (int i = 0; i < ids.Count; i++)
                 cmd.Parameters.Add($"p{i}", ids[i]);
@@ -150,23 +143,23 @@ namespace FitnessCenter.Web.Controllers
               FROM {RezTable} r
               JOIN lekce l   ON l.idlekce = r.{RezLessonFK}
               JOIN treneri t ON t.idtrener = l.trener_idtrener
-             WHERE r.{RezIdCol} IN ({string.Join(",", p)})
-        ";
+             WHERE r.{RezIdCol} IN ({string.Join(",", p)})";
 
                 using var cmd = new OracleCommand(sql, (OracleConnection)con) { BindByName = true };
-                for (int i = 0; i < ids.Count; i++) cmd.Parameters.Add($"p{i}", ids[i]);
+                for (int i = 0; i < ids.Count; i++)
+                    cmd.Parameters.Add($"p{i}", ids[i]);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                     map[rd.GetInt32(0)] = rd.IsDBNull(1) ? "-" : rd.GetString(1);
             }
-            catch (OracleException ex) when (ex.Number == 942) // ORA-00942: tabulka/pohled neexistuje
+            catch (OracleException ex) when (ex.Number == 942)
             {
+                // tabulka neexistuje – ignorujeme
             }
 
             return map;
         }
-
 
         // ============================ AKCE ============================
 
@@ -177,25 +170,31 @@ namespace FitnessCenter.Web.Controllers
             // 1) zjistíme člena
             var idClen = await ResolveMemberId();
 
-            // 2) nadcházející lekce (od data `from`, pokud je vyplněné)
+            // 2) nadcházející lekce
             var list = await _repo.GetUpcomingViaProcAsync(from);
 
-            // 3) trenéři + volná místa
+            // 3) trenéři + volno
             ViewBag.Trainers = await LoadTrainersByLessonIdsAsync(list.Select(l => l.Id));
             ViewBag.VolnoMap = await LoadFreeSlotsMapAsync(list.Select(l => l.Id));
 
-            // 4) moje rezervace → seznam ID lekcí, které už mám zarezervované
+            // 4) moje rezervace
             var myRes = await _repo.GetMyReservationsViaProcAsync(idClen);
             var reservedLessonIds = new HashSet<int>(myRes.Select(r => r.IdLekce));
             ViewBag.ReservedLessonIds = reservedLessonIds;
 
-            // 5) membership do UI
+            // 5) membership do UI – *tady* se rozhoduje „Bez členství“
             var ms = await _members.GetMembershipAsync(idClen);
-            ViewBag.MembershipActive = ms.Active;
+
+            // rozhodnutí, jestli má nějaké členství
+            bool hasMembership = ms.From.HasValue && ms.To.HasValue;
+
+            ViewBag.HasMembership = hasMembership;
+            ViewBag.MembershipActive = hasMembership;
+
             ViewBag.MembershipFrom = ms.From;
             ViewBag.MembershipTo = ms.To;
 
-            // 6) textové vyhledávání podle názvu lekce
+            // 6) filtr podle textu
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
@@ -211,7 +210,6 @@ namespace FitnessCenter.Web.Controllers
             return View(list);
         }
 
-
         // GET /Reservations/Mine
         [HttpGet("Mine")]
         public async Task<IActionResult> Mine()
@@ -219,18 +217,12 @@ namespace FitnessCenter.Web.Controllers
             var idClen = await ResolveMemberId();
             var rows = await _repo.GetMyReservationsViaProcAsync(idClen);
 
-            // 1) sebereme ID lekcí z mých rezervací
             var lessonIds = rows.Select(r => r.IdLekce).Where(i => i > 0).Distinct();
-
-            // 2) dotáhneme jména trenérů pro tyto lekce
             var trainerMap = await LoadTrainersByLessonIdsAsync(lessonIds);
-
-            // 3) pošleme do view
             ViewBag.Trainers = trainerMap;
 
             return View(rows);
         }
-
 
         // POST /Reservations/Book/{id}
         [HttpPost("Book/{id:int}")]
@@ -239,7 +231,7 @@ namespace FitnessCenter.Web.Controllers
         {
             var idClen = await ResolveMemberId();
 
-            // 1) zjistíme lekci kvůli datu
+            // 1) lekce kvůli datu
             var lesson = await _repo.GetByIdAsync(id);
             if (lesson == null)
             {
@@ -247,7 +239,8 @@ namespace FitnessCenter.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // 2) membership z DB (stejně to ještě ohlídá trigger/procedura, ale UX bude v pohodě)
+            // 2) membership – tady klidně nechme původní logiku s .Active,
+            // případně ji můžeš později doladit podle repozitáře
             var ms = await _members.GetMembershipAsync(idClen);
 
             if (!(ms.Active && ms.From.HasValue && ms.To.HasValue))

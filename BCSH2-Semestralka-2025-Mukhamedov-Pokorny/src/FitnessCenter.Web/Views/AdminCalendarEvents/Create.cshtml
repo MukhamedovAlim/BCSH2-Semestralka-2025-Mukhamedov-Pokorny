@@ -4,7 +4,6 @@
     var isEdit = Model.Id.HasValue;
     ViewData["Title"] = isEdit ? "Upravit akci v kalendáři" : "Nová akce v kalendáři";
     Layout = "_AppLayout";
-
     ViewBag.HideMainNav = true;
 }
 
@@ -27,6 +26,7 @@
 
 <div class="glass p-3">
 
+    @* jednoduchá chybová hláška po POSTu *@
     @if (!ViewData.ModelState.IsValid &&
         string.Equals(Context.Request.Method, "POST", System.StringComparison.OrdinalIgnoreCase))
     {
@@ -35,49 +35,48 @@
         </div>
     }
 
-    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" class="row g-3">
+    <form method="post"
+          action="@Url.Action(isEdit ? "Edit" : "Create", "AdminCalendarEvents")"
+          class="row g-3">
         @Html.AntiForgeryToken()
-
-        @* zobrazení všech detailních chyb, kdybys je chtěl *@
-        <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
         @* ID pro edit *@
         @if (isEdit)
         {
-            <input type="hidden" asp-for="Id" />
+            <input type="hidden" name="Id" value="@Model.Id" />
         }
 
         <!-- DATUM -->
         <div class="col-12 col-md-4">
             <label class="form-label text-white">Datum akce</label>
 
+            @* jen zobrazení pro uživatele *@
             <input class="form-control"
                    value="@Model.Date.ToString("dd.MM.yyyy")"
                    readonly />
 
-            @* Skutečný hodnota pro model *@
-            <input type="hidden" asp-for="Date" />
-
-            <span asp-validation-for="Date" class="text-danger small"></span>
+            @* skutečná hodnota pro model *@
+            <input type="hidden"
+                   name="Date"
+                   value="@Model.Date.ToString("yyyy-MM-dd")" />
         </div>
 
         <!-- NÁZEV / TYP -->
         <div class="col-12 col-md-4">
-            <label asp-for="Type" class="form-label text-white"></label>
-            <input asp-for="Type"
-                   class="form-control"
+            <label class="form-label text-white">Název akce</label>
+            <input class="form-control"
+                   name="Type"
+                   value="@Model.Type"
                    placeholder="např. Změna otevírací doby, Servis, Info..." />
-            <span asp-validation-for="Type" class="text-danger small"></span>
         </div>
 
-        <!-- TEXT -->
+        <!-- POPIS -->
         <div class="col-12">
-            <label asp-for="Text" class="form-label text-white"></label>
-            <textarea asp-for="Text"
-                      class="form-control"
+            <label class="form-label text-white">Popis</label>
+            <textarea class="form-control"
+                      name="Description"
                       rows="3"
-                      placeholder="Např.: Otevřeno 9:00–20:00 (místo 8:00–22:00)."></textarea>
-            <span asp-validation-for="Text" class="text-danger small"></span>
+                      placeholder="Např.: Otevřeno 9:00–20:00 (místo 8:00–22:00).">@Model.Description</textarea>
         </div>
 
         <div class="col-12 mt-3">

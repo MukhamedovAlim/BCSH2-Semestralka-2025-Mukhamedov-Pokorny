@@ -4,20 +4,17 @@
     Layout = "_AppLayout";
     ViewBag.Active = "Reservations";
 
-    // z controlleru:
     var trainers = ViewBag.Trainers as IDictionary<int, string> ?? new Dictionary<int, string>();
     var volnoMap = ViewBag.VolnoMap as IDictionary<int, int> ?? new Dictionary<int, int>();
 
-    bool hasActiveMembership = ViewBag.MembershipActive is bool b && b;
+    bool hasActiveMembership = ViewBag.HasMembership is bool b && b;
     DateTime? memFrom = ViewBag.MembershipFrom is DateTime mf ? mf : (DateTime?)null;
     DateTime? memTo = ViewBag.MembershipTo is DateTime mt ? mt : (DateTime?)null;
 
-    // seznam ID lekcí, které má člen už rezervované
     var reservedIds =
         ViewBag.ReservedLessonIds as System.Collections.Generic.ISet<int>
         ?? new System.Collections.Generic.HashSet<int>();
 
-    // hodnoty pro filtr
     string currentSearch = ViewBag.Search as string ?? "";
     string currentFrom = ViewBag.From is DateTime dt ? dt.ToString("yyyy-MM-dd") : "";
 }
@@ -35,7 +32,22 @@
     <div class="alert alert-success small py-2">@msg</div>
 }
 
-<!-- Filtrovací formulář -->
+@if (!hasActiveMembership)
+{
+    <div class="alert alert-danger small py-2 mb-3">
+        Nemáš aktivní členství – na lekce se nelze přihlásit.
+    </div>
+}
+else if (memFrom.HasValue && memTo.HasValue)
+{
+    <div class="alert alert-secondary small py-2 mb-3">
+        Tvé členství je platné od
+        <strong>@memFrom.Value.ToString("dd.MM.yyyy")</strong>
+        do
+        <strong>@memTo.Value.ToString("dd.MM.yyyy")</strong>.
+    </div>
+}
+
 <div class="mb-3">
     <form method="get" class="row g-2">
         <div class="col-sm-4 col-12">
@@ -80,7 +92,6 @@ else
             <tbody>
                 @foreach (var l in Model)
                 {
-                    // --- parser: "Nazev @Misto" nebo "Nazev (Praha)"
                     var raw = l.Nazev ?? "";
                     string nazev = raw, misto = "";
 
@@ -104,13 +115,11 @@ else
 
                     var volno = volnoMap.TryGetValue(l.Id, out var v) ? v : 0;
 
-                    // Lekce v platnosti členství?
                     bool inMembershipWindow = hasActiveMembership
                     && memFrom.HasValue && memTo.HasValue
                     && l.Zacatek.Date >= memFrom.Value.Date
                     && l.Zacatek.Date <= memTo.Value.Date;
 
-                    // Je už tahle lekce rezervovaná tímto členem?
                     bool alreadyReserved = reservedIds.Contains(l.Id);
 
                     <tr>

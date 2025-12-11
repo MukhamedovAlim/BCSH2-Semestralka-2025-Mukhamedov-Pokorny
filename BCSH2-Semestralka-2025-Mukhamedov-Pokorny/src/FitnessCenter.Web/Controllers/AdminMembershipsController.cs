@@ -161,7 +161,7 @@ namespace FitnessCenter.Web.Controllers
             try
             {
                 using var con = (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
-                using var cmd = new OracleCommand("prodej_clenstvi_existujicemu", con)
+                using var cmd = new OracleCommand("PRODEJ_CLENSTVI_EXISTUJICIMU", con)
                 {
                     CommandType = CommandType.StoredProcedure,
                     BindByName = true
