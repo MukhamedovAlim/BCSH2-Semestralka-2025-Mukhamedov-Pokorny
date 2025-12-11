@@ -102,31 +102,32 @@
 
 <!-- Rychlé akce -->
 <div class="glass p-3">
-    <h4 class="text-white mb-2">Rychlé akce</h4>
-    <div class="row g-3 mt-0">
+    <div class="d-flex align-items-center justify-content-between flex-wrap">
+        <h4 class="text-white mb-0">Rychlé akce</h4>
+    </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+    <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-3 mt-1">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Moje lekce</h5>
                 <div class="text-white-50 small">Vytváření, editace, kalendář.</div>
-                <a href="@Url.Action("Index","Lessons")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "Lessons")" class="stretched-link"></a>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Smazat lekci</h5>
-                <div class="text-white-50 small">Možnost zrušení lekce</div>
+                <div class="text-white-50 small">Možnost zrušení lekce.</div>
                 <a href="@Url.Action("Delete", "Lessons")" class="stretched-link"></a>
             </div>
         </div>
 
-
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Vytvořit lekci</h5>
                 <div class="text-white-50 small">Přidej novou lekci.</div>
-                <a href="@Url.Action("Create","Lessons")" class="stretched-link"></a>
+                <a href="@Url.Action("Create", "Lessons")" class="stretched-link"></a>
             </div>
         </div>
 
@@ -138,14 +139,13 @@
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Vybavení</h5>
                 <div class="text-white-50 small">Kardio, stroje, volná závaží.</div>
-                <a href="@Url.Action("Index","Equipment")" class="stretched-link"></a>
+                <a href="@Url.Action("Index", "Equipment")" class="stretched-link"></a>
             </div>
         </div>
-
     </div>
 </div>
 

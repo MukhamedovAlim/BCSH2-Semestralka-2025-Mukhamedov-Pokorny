@@ -198,6 +198,8 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.Active = "Admin";
             ViewBag.Today = DateTime.Today;
             ViewBag.HideMainNav = true;
+
+            // fitness centra do comboboxu
             ViewBag.FitnessCenters = await LoadFitnessCentersAsync();
             ViewBag.Fitka = ViewBag.FitnessCenters;
 
@@ -299,16 +301,19 @@ ORDER  BY fc.nazev";
             ViewBag.EquipRepairCounts = equipRepairCounts;
             ViewBag.EquipOutCounts = equipOutCounts;
 
-            // ===== 3 FUNKCE (aktivní členové, příjem, hodnocení) =====
+            // ===== 3 FUNKCE + textové vytížení fitka =====
             try
             {
-                // 1) aktivní členové ve fitku
+                // 1) aktivní členové ve fitku (jen číslo)
                 ViewBag.ActiveMembersFunc = await _stats.GetActiveMembersAsync(fitkoId);
 
                 // 2) příjem za zvolené období (from/to z filtru)
                 ViewBag.IncomeFunc = await _stats.GetIncomeAsync(from, to);
 
-                // 3) hodnocení člena
+                // 3) slovní vytížení fitka (výstup f_pocet_aktivnich_clenu jako celý text)
+                ViewBag.FitnessLoadText = await _stats.GetFitnessLoadTextAsync(fitkoId);
+
+                // 4) hodnocení člena (f_hodnoceni_clena)
                 int? effectiveMemberId = memberId;
 
                 if (effectiveMemberId.HasValue)

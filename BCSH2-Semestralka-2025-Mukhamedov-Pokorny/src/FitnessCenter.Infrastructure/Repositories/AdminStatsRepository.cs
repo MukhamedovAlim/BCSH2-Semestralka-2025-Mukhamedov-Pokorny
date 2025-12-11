@@ -1,28 +1,59 @@
 ﻿using FitnessCenter.Infrastructure.Persistence;
 using Oracle.ManagedDataAccess.Client;
+using System;
 using System.Data;
+using System.Threading.Tasks;
 
 public sealed class AdminStatsRepository
 {
     private static async Task<OracleConnection> OpenAsync()
         => (OracleConnection)await DatabaseManager.GetOpenConnectionAsync();
 
-    // f_pocet_aktivnich_clenu(p_idfitness) -> INT (parsujeme z textu)
+    // f_pocet_aktivnich_clenu(p_idfitness) -> VARCHAR2
+    // Tahle metoda z toho textu vytáhne jen číselnou část (počet aktivních členů).
     public async Task<int> GetActiveMembersAsync(int fitkoId)
     {
         using var con = await OpenAsync();
-        using var cmd = new OracleCommand("SELECT f_pocet_aktivnich_clenu(:p) FROM dual", con)
-        { BindByName = true, CommandType = CommandType.Text };
+        using var cmd = new OracleCommand(
+            "SELECT f_pocet_aktivnich_clenu(:p) FROM dual", con)
+        {
+            BindByName = true,
+            CommandType = CommandType.Text
+        };
+
         cmd.Parameters.Add("p", OracleDbType.Int32).Value = fitkoId;
 
         var val = await cmd.ExecuteScalarAsync();
+
         if (val is string s)
         {
             foreach (var tok in s.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                if (int.TryParse(tok, out var n)) return n;
+            {
+                if (int.TryParse(tok, out var n))
+                    return n;
+            }
             return 0;
         }
-        return Convert.ToInt32(val);
+
+        // fallback (kdyby se někdy funkce změnila a vracela přímo číslo)
+        return Convert.ToInt32(val ?? 0);
+    }
+
+    // f_pocet_aktivnich_clenu(p_idfitness) -> VARCHAR2 (celý text s hodnocením)
+    public async Task<string> GetFitnessLoadTextAsync(int fitkoId)
+    {
+        using var con = await OpenAsync();
+        using var cmd = new OracleCommand(
+            "SELECT f_pocet_aktivnich_clenu(:p) FROM dual", con)
+        {
+            BindByName = true,
+            CommandType = CommandType.Text
+        };
+
+        cmd.Parameters.Add("p", OracleDbType.Int32).Value = fitkoId;
+
+        var val = await cmd.ExecuteScalarAsync();
+        return Convert.ToString(val) ?? "—";
     }
 
     // f_prijem_obdobi(p_od, p_do) -> NUMBER
@@ -68,3 +99,4 @@ public sealed class AdminStatsRepository
         return Convert.ToString(val) ?? "—";
     }
 }
+

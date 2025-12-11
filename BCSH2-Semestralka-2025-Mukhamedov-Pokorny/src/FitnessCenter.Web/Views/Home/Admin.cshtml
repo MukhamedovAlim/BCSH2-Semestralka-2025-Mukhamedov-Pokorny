@@ -19,6 +19,7 @@
     int activeMembersFunc = ViewBag.ActiveMembersFunc is int amf ? amf : 0;
     decimal incomeFunc = ViewBag.IncomeFunc is decimal inc ? inc : 0m;
     string memberFuncText = ViewBag.MemberFuncText as string ?? "—";
+    string fitnessLoadText = ViewBag.FitnessLoadText as string ?? "—";
 
     var fitness = ViewBag.FitnessCenters as IEnumerable<SelectListItem>
                   ?? ViewBag.Fitka as IEnumerable<SelectListItem>
@@ -28,6 +29,7 @@
                   ?? Enumerable.Empty<SelectListItem>();
 
     int selectedMemberId = ViewBag.MemberId is int mid ? mid : 0;
+
 
     // ---- pro graf tržeb ----
     var revenueLabels = ViewBag.RevenueLabels as IEnumerable<string>
@@ -136,8 +138,9 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap">
         <h4 class="text-white mb-0">Rychlé akce</h4>
     </div>
-    <div class="row g-3 mt-1">
-        <div class="col-12 col-md-6 col-xl-3">
+
+    <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-3 mt-1">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Log operací</h5>
                 <div class="text-white-50 small">Poslední záznamy: <strong>@((int)(ViewBag.LogCount ?? 0))</strong></div>
@@ -145,7 +148,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Prodej členství</h5>
                 <div class="text-white-50 small">Založit členství a platbu.</div>
@@ -153,7 +156,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Platby</h5>
                 <div class="text-white-50 small">
@@ -163,7 +166,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Trenéři & vytížení</h5>
                 <div class="text-white-50 small">
@@ -173,7 +176,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Certifikáty členů</h5>
                 <div class="text-white-50 small">
@@ -183,7 +186,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Systémový katalog</h5>
                 <div class="text-white-50 small">
@@ -193,7 +196,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-md-6 col-xl-3">
+        <div class="col">
             <div class="tile glass quick-tile position-relative h-100">
                 <h5 class="text-white mb-1">Kalendář</h5>
                 <div class="text-white-50 small">
@@ -202,7 +205,6 @@
                 <a href="@Url.Action("Calendar", "AdminLessons")" class="stretched-link"></a>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -260,6 +262,9 @@
             <div class="glass p-3 h-100">
                 <div class="text-white-50 small">Aktivní členové (fitko)</div>
                 <div class="display-6 text-white">@activeMembersFunc</div>
+                <div class="text-white-50 small mt-1">
+                    @fitnessLoadText
+                </div>
             </div>
         </div>
 
