@@ -37,19 +37,28 @@
 
             <!-- avatar trenéra -->
             <div class="d-flex align-items-center gap-3 mb-3">
-                <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center"
-                     style="width:64px;height:64px;font-size:1.5rem;overflow:hidden;">
-                    @if (!string.IsNullOrWhiteSpace(Model.ProfilePhotoUrl))
-                    {
+                @if (!string.IsNullOrWhiteSpace(Model.ProfilePhotoUrl))
+                {
+                    <!-- Klikací avatar – otevře modal s velkou fotkou -->
+                    <a href="#"
+                       data-bs-toggle="modal"
+                       data-bs-target="#trainerPhotoModal"
+                       class="rounded-circle bg-dark d-flex align-items-center justify-content-center"
+                       style="width:64px;height:64px;font-size:1.5rem;overflow:hidden; cursor:pointer;">
                         <img src="@Model.ProfilePhotoUrl"
                              alt="Profilová fotka"
                              style="width:100%;height:100%;object-fit:cover;" />
-                    }
-                    else
-                    {
+                    </a>
+                }
+                else
+                {
+                    <!-- Bez fotky – jen iniciály, neklikací -->
+                    <div class="rounded-circle bg-dark d-flex align-items-center justify-content-center"
+                         style="width:64px;height:64px;font-size:1.5rem;overflow:hidden;">
                         <span class="text-white fw-bold">@Model.Initials</span>
-                    }
-                </div>
+                    </div>
+                }
+
                 <div>
                     <div class="text-white fw-semibold">@Model.Jmeno @Model.Prijmeni</div>
                     <div class="text-white-50 small">@Model.Email</div>
@@ -162,5 +171,26 @@ else
 {
     <div class="glass p-3 mt-3 text-white-50">
         Tento trenér aktuálně nemá naplánované žádné nadcházející lekce.
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ProfilePhotoUrl))
+{
+    <div class="modal fade" id="trainerPhotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-dark border-0">
+                <div class="modal-body p-0 position-relative">
+                    <button type="button"
+                            class="btn-close btn-close-white position-absolute end-0 m-2"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+
+                    <img src="@Model.ProfilePhotoUrl"
+                         alt="@($"{Model.Jmeno} {Model.Prijmeni}")"
+                         class="img-fluid w-100"
+                         style="max-height:80vh; object-fit:contain;" />
+                </div>
+            </div>
+        </div>
     </div>
 }
