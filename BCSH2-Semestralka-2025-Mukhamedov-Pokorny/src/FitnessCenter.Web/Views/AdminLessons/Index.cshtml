@@ -29,6 +29,21 @@
     </div>
 </div>
 
+@if (TempData["Ok"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @ok
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Err"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @err
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
 <!-- FILTRACE -->
 <div class="bg-dark bg-opacity-50 rounded-3 p-2 p-md-3 mb-3">
     <form method="get">

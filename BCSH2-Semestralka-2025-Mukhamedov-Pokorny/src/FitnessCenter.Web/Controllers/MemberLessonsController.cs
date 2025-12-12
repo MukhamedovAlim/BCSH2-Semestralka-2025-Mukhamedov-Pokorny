@@ -1,5 +1,6 @@
 ﻿using FitnessCenter.Application.Services;
 using FitnessCenter.Infrastructure.Persistence;
+using FitnessCenter.Web.Models;
 using FitnessCenter.Web.Models.Lessons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -85,5 +86,45 @@ namespace FitnessCenter.Web.Controllers
             ViewBag.Active = "MemberCalendar";
             return View(vm);
         }
+
+        public async Task<IActionResult> DetailDialog(int id)
+        {
+            var lesson = await lessons.GetAsync(id);
+            if (lesson == null)
+                return Content("Lekce nenalezena.");
+
+            string trainerName = "";
+
+            using (var con = await DatabaseManager.GetOpenConnectionAsync())
+            using (var cmd = new OracleCommand(@"
+        SELECT t.jmeno || ' ' || t.prijmeni
+        FROM treneri t
+        JOIN lekce l ON l.trener_idtrener = t.idtrener
+        WHERE l.idlekce = :id", con))
+            {
+                cmd.Parameters.Add("id", id);
+
+                var r = await cmd.ExecuteScalarAsync();
+                if (r != null)
+                    trainerName = r.ToString();
+            }
+
+            // počet rezervací
+            int reserved = await lessons.GetAttendeesAsync(id)
+                                        .ContinueWith(t => t.Result.Count);
+
+            var vm = new LessonDetailDialogViewModel
+            {
+                Id = lesson.Id,
+                Nazev = lesson.Nazev,
+                Zacatek = lesson.Zacatek,
+                Kapacita = lesson.Kapacita,
+                Reserved = reserved,
+                TrainerName = trainerName
+            };
+
+            return PartialView("_LessonDetailDialog", vm);
+        }
+
     }
 }

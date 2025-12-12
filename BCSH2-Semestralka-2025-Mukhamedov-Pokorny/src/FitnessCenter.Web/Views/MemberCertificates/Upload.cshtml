@@ -30,7 +30,8 @@
         </div>
 
         <button type="submit" class="btn btn-warning">Nahrát</button>
-        <a asp-controller="MemberCertificates" asp-action="Index" class="btn btn-secondary">
+        <a class="btn btn-sm btn-outline-light"
+           href="@Url.Action("Index", "MemberCertificates")">
             Zpět na moje certifikáty
         </a>
     </form>
